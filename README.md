@@ -1,27 +1,22 @@
 # npcforge
 
-**Branching NPC dialogue generator with Yarn Spinner export.**
-Drop in a world bible and a set of character sheets, get game-engine-ready
-dialogue where every player archetype produces a different branch inside
-every NPC's node. Powered by [afterimage](https://github.com/altaidevorg/afterimage).
+**Production-oriented NPC dialogue generator — walk-up conversations *and* bark libraries — with Yarn Spinner export.**
+
+Drop in a world bible, character sheets, and player intents. Get game-engine-ready dialogue where every intent is a different branch inside every NPC's node, plus dozens of reactive 1-line barks for combat / ambient / witness triggers. Powered by [afterimage](https://github.com/altaidevorg/afterimage).
 
 ```
-world bible + NPC sheets + player archetypes
+world bible + NPC sheets + player intents + bark triggers
            │
            ▼
-   afterimage (two-agent loop + judge)
+   afterimage (two-agent loop + structured output + judge)
            │
            ▼
-   Yarn Spinner .yarn files (+ JSONL traces)
+   Yarn Spinner .yarn (walk-up + barks) + JSONL traces + manifest + lint report
 ```
 
 ## Why
 
-Convai / Inworld are hosted and charge per call. Writing branching NPC
-dialogue by hand takes months. npcforge trades both costs for one afterimage
-run: **lore-grounded, persona-stable, offline-capable.** The same pipeline
-can later feed fine-tuning data for a 3B local NPC model that ships inside
-your game.
+Convai / Inworld are hosted and charge per call. Writing branching dialogue and barks by hand takes months. npcforge trades both costs for one local run: **lore-grounded, voice-consistent, offline-capable, and covering both major NPC dialogue modes** (walk-up and barks — barks are ~80% of what a shipping RPG actually needs).
 
 ## Install
 
@@ -29,133 +24,179 @@ your game.
 pip install -e .
 ```
 
-Requires Python 3.10+. afterimage, PyYAML, and pydantic are pulled in as
-dependencies.
+Python 3.10+. afterimage, PyYAML, and pydantic are pulled in as dependencies. For post-run validation install the [Yarn Spinner compiler](https://docs.yarnspinner.dev/getting-started/editing-with-visual-studio-code) so `ysc` is on `PATH`.
 
 ## Quick start
 
 ```bash
 export GEMINI_API_KEY=...
-npcforge --demo-dir examples/rusted_lantern
+
+# walk-up dialogue for every NPC × each NPC's allowed intents
+npcforge --demo-dir examples/rusted_lantern --mode walk_up
+
+# bark libraries for the triggers declared in barks.yaml
+npcforge --demo-dir examples/rusted_lantern --mode barks
+
+# everything
+npcforge --demo-dir examples/rusted_lantern --mode all
+
+# iterate on a subset — regen only Mira and Kess
+npcforge --demo-dir examples/rusted_lantern --mode all --only-npcs mira_vesser,kess_the_knife
 ```
 
 Outputs land in `examples/rusted_lantern/out/`:
 
 ```
-<npc_id>.yarn      Yarn Spinner node, one branch per player archetype
-<npc_id>.jsonl     raw afterimage conversation rows (with scores when
-                   the judge is enabled)
-world.yarn         master Start node routing to each NPC
+<npc_id>.yarn                 walk-up node with one -> [intent] per allowed intent
+<npc_id>.jsonl                raw afterimage conversation rows for that NPC
+<npc_id>_bark_<trigger>.yarn  bark library node (visited-counter variant selector)
+<npc_id>_bark_<trigger>.json  machine-readable barks (text + emotion + intensity)
+world.yarn                    master Start node routing to each NPC
+lint.md                       voice-ceiling violations, grouped by NPC
+manifest.json                 content hashes, elapsed, lint totals, model used
 ```
 
-Swap providers with `--provider openai|openrouter|deepseek|local` and
-`--model <name>`. Pass `--api-key-env MY_KEY_VAR` to override the default
-environment variable.
+Swap providers with `--provider openai|openrouter|deepseek|local` and `--model <name>`. Pass `--api-key-env MY_KEY_VAR` to override the default env var. `--no-validate` skips the `ysc compile` check.
 
-## What the output looks like
+## Two dialogue modes, one tool
+
+### Walk-up dialogue
+
+A player approaches an NPC. Player chooses an intent (ask, barter, threaten, flirt, ...). NPC responds in voice, in world, in context. Each NPC declares which intents they accept via `allowed_intents`.
+
+```yaml
+# characters.yaml (excerpt)
+- id: mira_vesser
+  name: "Mira Vesser"
+  role: "Tavernkeeper of the Rusted Lantern"
+  voice: "Gruff, dry, pragmatic. Short sentences."
+  vocabulary_ceiling: grade_8
+  forbidden_words: [intriguing, peculiar, quintessential, solemnity]
+  accent_markers:
+    - "Never says 'mine'; always 'the deep'."
+  allowed_intents:
+    - ask_about_local_events
+    - ask_about_locket
+    - threaten_for_info
+    - bribe_for_info
+    - barter_wares
+    - accept_refuge
+    - farewell
+```
 
 ```yarn
-title: kess_the_knife
+title: mira_vesser
+tags: walk_up
 ---
-Kess (the Knife) waits. How do you approach them?
--> [Curious Scholar]
-    Player: Greetings, good sir. My apologies for the intrusion...
-    Kess (the Knife): Good sir? Oh, bless your heart, love, I haven't been
-        a 'sir' in a good many years, if ever!
-    Player: Faint scraping, mostly. And a low groan.
-    Kess (the Knife): Mines always have their own creaks and groans.
-    <<jump kess_the_knife_End>>
--> [Hostile Mercenary]
-    Player: Kess. I'm not here for your wares. There's a tarnished iron
-        locket in this town.
-    Kess (the Knife): Oh, a locket, you say? You're a man who knows what
-        he wants, I like that!
-    <<jump kess_the_knife_End>>
--> [Deceptive Trader]
+Mira Vesser waits. How do you approach them?
+-> [Threaten for Info]
+    Player: Where is the locket.
+    Mira Vesser: Door's behind you, friend. Use it.
+    <<jump mira_vesser_End>>
+-> [Bribe for Info]
+    Player: Three coppers for a name.
+    Mira Vesser: Four. — and I won't ask twice.
+    <<jump mira_vesser_End>>
+-> [Barter Wares]
     ...
 ===
-title: kess_the_knife_End
+```
+
+### Bark libraries
+
+Reactive 1-liners for combat, ambient, witness, greeting, refusal — the 80% of NPC speech players actually hear in open-world games.
+
+```yaml
+# barks.yaml
+barks:
+  - npc: mira_vesser
+    triggers:
+      - id: greet_patron
+        description: "A new traveler crosses the threshold at dusk."
+        n: 10
+      - id: reacts_to_hum
+        description: "The four-note hum rises loud enough to shift cups on the bar."
+        n: 6
+```
+
+Emits a Yarn node that cycles through variants via the `visited_count()` counter, plus a JSON file for game-runtime consumers:
+
+```yarn
+title: mira_vesser_Bark_greet_patron
+tags: bark,trigger:greet_patron,npc:mira_vesser
 ---
-Kess (the Knife): (returns to their work)
+<<if visited_count("mira_vesser_Bark_greet_patron") % 10 == 0>>
+    Mira Vesser: Drink's two coppers. Kitchen closes at dark.
+<<elseif visited_count("mira_vesser_Bark_greet_patron") % 10 == 1>>
+    Mira Vesser: Sit where you like. Don't bleed on the floor.
+...
+<<endif>>
 ===
 ```
 
-## How it works
+## Voice ceiling — no more "solemnity" in a miner's mouth
 
-Afterimage runs a two-agent loop per `(NPC, archetype)` pair:
+Per-NPC constraints injected into every prompt **and** lint-checked after generation:
 
-1. **Correspondent** plays the player, seeded with the archetype persona.
-2. **Respondent** plays the NPC, grounded in the world bible + character sheet.
-3. The hybrid judge (optional, opt-in) scores coherence, grounding, and
-   voice-consistency; dialogs below threshold auto-retry.
-4. npcforge groups the resulting conversations by archetype and emits one
-   Yarn node per NPC.
+- **`vocabulary_ceiling`** — `grade_3` / `grade_5` / `grade_8` / `high_school` / `college` / `academic`. Keeps a traumatized dwarven miner away from "intriguing."
+- **`forbidden_words`** — hard no-gos. Lint catches inflections (`fascinate` also flags `fascinated`, `fascinating`, `fascinates`).
+- **`accent_markers`** — positive instructions ("never says 'mine'; always 'the deep'").
 
-**Determinism:** each branch is generated in its own afterimage run with a
-single-archetype persona pool, so coverage is 100% by construction — no
-reliance on persona cycling across concurrent calls.
+After every run, `lint.md` lists every violation with snippet + location:
 
-## Authoring your own world
+```markdown
+## Voice-Ceiling Lint
 
-Drop three things into a demo directory:
+**Total hits:** 2
 
-```
-my_game/
-├── lore/
-│   ├── world.md
-│   └── region_north.md
-├── characters.yaml
-└── player_archetypes.yaml
+### gereth_blackstone  (2 hits)
+
+- `intriguing` in **walk_up:ask_about_locket:turn_3** — `...that is an intriguing idea, but...`
+- `solemnity` in **bark:sees_new_face:4** — `...with such solemnity...`
 ```
 
-### `characters.yaml`
+## Player intents — finer-grained than archetypes
+
+v0.2.0 replaces `player_archetypes.yaml` with `player_intents.yaml`. Intents describe **what the player is trying to do this turn**, not who the player is. A shipped project typically defines 15–30 intents; each NPC whitelists a subset. This is how dialogue trees actually key in the major RPGs.
 
 ```yaml
-npcs:
-  - id: elena_stonekeeper
-    name: "Elena Stonekeeper"
-    role: "Archivist of the Ninth Circle"
-    voice: >
-      Measured, precise, answers in the fewest words necessary.
-    background: >
-      Guarded the archives for forty-three winters.
-    motivations:
-      - "Never let the wrong hand touch the wrong book."
-    secret: "She burned chapter seven herself, long ago."
-    speech_quirks:
-      - "Cites shelf codes the way most people cite names."
-    sample_lines:
-      - "You wanted G-44. G-44 does not answer."
-```
-
-### `player_archetypes.yaml`
-
-```yaml
-archetypes:
-  - id: scholar
-    name: "Earnest Scholar"
+# player_intents.yaml (excerpt)
+intents:
+  - id: threaten_for_info
+    name: "Threaten for Information"
     description: >
-      Polite, note-taking, asks for permission before asking for facts.
-    opening_intent: "introduce themselves and ask for permission to research"
+      Use implied violence, leverage, or menace to extract information. No
+      actual violence.
+    opening_intent: >
+      Cut to the point and make clear the conversation will go badly.
 ```
 
-Each archetype becomes one `-> [archetype]` option on every NPC's node.
+## Iteration speed
+
+- `--only-npcs id1,id2` — regen just those NPCs (full walk-up + barks for them).
+- `manifest.json` — content hashes for every file so you can diff runs.
+- `lint.md` — scan voice violations without opening Yarn files.
+- `ysc compile` — automatic post-run syntactic validation when the compiler is available.
 
 ## Using it as a library
 
 ```python
 import asyncio
 from pathlib import Path
-from npcforge import load_npcs, load_archetypes, load_world_bible, run_all
+from npcforge import (
+    load_npcs, load_intents, load_barks_config, load_world_bible, run_all,
+)
 
 async def main():
     demo = Path("examples/rusted_lantern")
     await run_all(
         npcs=load_npcs(demo / "characters.yaml"),
-        archetypes=load_archetypes(demo / "player_archetypes.yaml"),
+        intents=load_intents(demo / "player_intents.yaml"),
         world_bible=load_world_bible(demo / "lore"),
+        barks_config=load_barks_config(demo / "barks.yaml"),
         api_key="...",
         out_dir=demo / "out",
+        mode="all",
     )
 
 asyncio.run(main())
@@ -163,22 +204,20 @@ asyncio.run(main())
 
 ## Roadmap
 
-- **Ink and Ren'Py exporters** — same branch data, additional formats.
-- **Mid-dialog branching** — detect turns where the NPC has multiple
-  equally-valid replies (T=0.9 resampling + embedding divergence) and emit
-  nested `->` options inside a branch, not just at the top.
-- **Judge-enabled mode by default** — generate 2-3 candidates per archetype,
-  keep the highest-scored, surface scores in the JSONL metadata.
-- **Local-model path** — validated Ollama + vLLM recipes for an
-  offline-capable pipeline.
-- **Godot / Unity / Unreal plugin recipes** — drop the generated Yarn files
-  in, wire them to your dialog runtime.
+- **Mid-dialog branching** — resample high-valence NPC turns at T=0.9, emit nested `->` options when continuations diverge.
+- **Ink and Ren'Py exporters** — same `Branch` data shape, additional writers.
+- **World-state variables** — `<<set $quest_stage = 3>>` threaded through prompts and emitted into Yarn conditionals.
+- **Knowledge gates** — structured `{fact, gate, reveal_lines, deflect_lines}` per NPC so reveals respect quest state.
+- **Relationship graph** — NPC opinions of each other, injected into prompts.
+- **Localization scaffold** — deterministic `line_id`, `lines_<locale>.csv` stubs, length-budget hints for lip sync.
+- **More modes** — `shop`, `quest_success`, `quest_fail`, `repeat_greeting`, `group_chatter_pair`.
+- **NPC-level concurrency** for 1000-NPC scale.
+- **Judge-enabled mode** — generate N candidates per branch, keep highest-scored.
+- **Local-model recipes** — validated Ollama + vLLM offline pipelines.
 
 ## Acknowledgements
 
-Built on [afterimage](https://github.com/altaidevorg/afterimage) — the
-two-agent loop, persona tree, hybrid judge, and provider infrastructure all
-come from there.
+Built on [afterimage](https://github.com/altaidevorg/afterimage) — two-agent loop, persona infrastructure, provider abstraction, structured output.
 
 ## License
 

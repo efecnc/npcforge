@@ -1,0 +1,49 @@
+# Bark library config for the Rusted Lantern demo.
+# Each trigger produces N unique 1-line utterances, emitted as a Yarn node
+# that game runtimes can jump to (e.g. on combat_start, on witness_event).
+
+barks:
+  - npc: mira_vesser
+    triggers:
+      - id: greet_patron
+        description: >
+          Mira looks up as a new traveler crosses the threshold of the Rusted Lantern at dusk.
+          She has not decided yet whether this one is trouble.
+        n: 10
+      - id: reacts_to_hum
+        description: >
+          The four-note hum audibly rises from beneath the floorboards of the tavern,
+          loud enough this time that the cups on the bar shift.
+        n: 6
+
+  - npc: gereth_blackstone
+    triggers:
+      - id: sees_new_face
+        description: >
+          Gereth, sitting in his corner, notices a stranger he has not seen before
+          enter the Lantern. He clutches the locket under his coat reflexively.
+        n: 10
+
+  - npc: sister_adelie
+    triggers:
+      - id: offers_blessing
+        description: >
+          A patron of the Lantern kneels before Sister Adelie and asks, haltingly,
+          for a blessing. The Sister must decide how much light to give them.
+        n: 8
+
+  - npc: kess_the_knife
+    triggers:
+      - id: greets_customer
+        description: >
+          A traveler approaches Kess's small merchant stall at the back of the Lantern,
+          eyeing her wares. She has already decided which face to show them.
+        n: 10
+
+  - npc: ulrik_the_old_man
+    triggers:
+      - id: idle_by_fire
+        description: >
+          Ulrik sits by the fire with his star-maps spread on his lap. He speaks — to
+          himself, to anyone listening, or to someone who is not there.
+        n: 8

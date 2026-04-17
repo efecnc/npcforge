@@ -1,0 +1,103 @@
+# Player intents for the Rusted Lantern demo.
+# Each NPC declares which of these they respond to via `allowed_intents`
+# in characters.yaml. Intents describe WHAT the player is trying to do this
+# turn — independent of WHO the player is (class, race, build).
+
+intents:
+  - id: ask_about_local_events
+    name: "Ask About Local Events"
+    description: >
+      Probe gently for what has been happening in Emberfall — the mine,
+      the humming, anything unusual. Not directly about the locket.
+    opening_intent: >
+      Politely open a conversation and ask what the NPC has been hearing
+      about the town lately.
+
+  - id: ask_about_locket
+    name: "Ask About the Locket"
+    description: >
+      Directly ask about the tarnished iron locket that has been passing
+      hands in Emberfall. The player already knows it exists.
+    opening_intent: >
+      Raise the locket by name within the first two turns.
+
+  - id: ask_about_rumors
+    name: "Ask About Rumors"
+    description: >
+      Fish for rumors, talk about who came through town, who whispered what.
+      Indirect and plural — not about one specific thing.
+    opening_intent: >
+      Open by asking what the NPC has been overhearing from other travelers.
+
+  - id: ask_about_npc_other
+    name: "Ask About Another Person"
+    description: >
+      Ask the NPC about another specific person in Emberfall — what they
+      are like, whether they can be trusted, what they know.
+    opening_intent: >
+      Name one of the other NPCs in the town and ask the NPC their opinion
+      of them.
+
+  - id: threaten_for_info
+    name: "Threaten for Information"
+    description: >
+      Use implied violence, leverage, or menace to extract information.
+      No actual violence.
+    opening_intent: >
+      Cut to the point and make clear the conversation will go badly if the
+      NPC is not forthcoming.
+
+  - id: bribe_for_info
+    name: "Bribe for Information"
+    description: >
+      Offer coin or favors in exchange for a specific piece of information.
+    opening_intent: >
+      Lay a coin on the table and ask what it buys.
+
+  - id: barter_wares
+    name: "Barter Wares"
+    description: >
+      Ask to see what the NPC has for sale. Negotiate price on at least
+      one item. Not about information.
+    opening_intent: >
+      Ask to inspect the NPC's wares or services and price one of them.
+
+  - id: flirt
+    name: "Flirt"
+    description: >
+      Light, non-sexual flirtation. Compliments, teasing, a smile. Never
+      crass. Respond in kind to the NPC's reception.
+    opening_intent: >
+      Open with a warm personal comment or compliment and keep the tone
+      playful.
+
+  - id: ask_to_bless
+    name: "Ask for a Blessing"
+    description: >
+      Ask the NPC for a religious blessing or a spiritual reading. Reverent.
+    opening_intent: >
+      Approach with humility and formally ask for a blessing.
+
+  - id: accept_refuge
+    name: "Accept Refuge"
+    description: >
+      Ask for shelter, a room for the night, or simply a warm place at
+      the fire.
+    opening_intent: >
+      Ask whether the NPC can put the player up for the night and at what price.
+
+  - id: confess_vulnerability
+    name: "Confess Vulnerability"
+    description: >
+      Share something personal or wounded — a loss, a fear, a grief. Used
+      to connect with damaged NPCs. The player is not lying.
+    opening_intent: >
+      Share one real piece of the player's own history or fear before
+      asking anything in return.
+
+  - id: farewell
+    name: "Farewell"
+    description: >
+      End the conversation civilly. No new questions.
+    opening_intent: >
+      Thank the NPC and indicate the player is leaving.

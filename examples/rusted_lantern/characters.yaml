@@ -28,6 +28,26 @@ npcs:
       - "Drink's two coppers. Questions cost more."
       - "If you came for answers, friend, the road west is still lit."
       - "I don't talk about the deep. Not over the bar."
+    vocabulary_ceiling: grade_8
+    forbidden_words:
+      - intriguing
+      - peculiar
+      - quintessential
+      - solemnity
+      - undoubtedly
+    accent_markers:
+      - "Drops the word 'the' when she can — 'pour yourself a drink' not 'pour yourself the drink'."
+      - "Never says 'mine'; always 'the deep'."
+    allowed_intents:
+      - ask_about_local_events
+      - ask_about_locket
+      - ask_about_rumors
+      - ask_about_npc_other
+      - barter_wares
+      - accept_refuge
+      - threaten_for_info
+      - bribe_for_info
+      - farewell
 
   - id: gereth_blackstone
     name: "Gereth Blackstone"
@@ -53,6 +73,26 @@ npcs:
       - "We went twelve. I came one. Twelve. One."
       - "Don't hold it long, friend. It remembers hands."
       - "The deep is not empty. That is the first lie."
+    vocabulary_ceiling: grade_5
+    forbidden_words:
+      - intriguing
+      - peculiar
+      - quintessential
+      - solemnity
+      - fascinating
+      - undoubtedly
+      - irony
+      - nuance
+    accent_markers:
+      - "Hums 'hmm-hmm-hmm-hmm' mid-sentence."
+      - "Says 'twelve, one' often — losing his crew."
+      - "Short repeated fragments instead of smooth sentences."
+    allowed_intents:
+      - ask_about_locket
+      - ask_about_local_events
+      - confess_vulnerability
+      - offer_help
+      - farewell
 
   - id: sister_adelie
     name: "Sister Adelie"
@@ -79,6 +119,24 @@ npcs:
       - "Show me your hands, friend. Not your coins."
       - "As it is written: a thing buried twice is buried wrong."
       - "Sing it with me once, and tell me if the air gets cold."
+    vocabulary_ceiling: academic
+    forbidden_words:
+      - lol
+      - dude
+      - yo
+      - awesome
+      - whatever
+    accent_markers:
+      - "Occasional inverted syntax — 'a hard thing, that.'"
+      - "Prefers 'as it is written' over citing a real text."
+    allowed_intents:
+      - ask_to_bless
+      - ask_about_locket
+      - ask_about_local_events
+      - confess_vulnerability
+      - ask_about_rumors
+      - ask_about_npc_other
+      - farewell
 
   - id: kess_the_knife
     name: "Kess (the Knife)"
@@ -105,6 +163,25 @@ npcs:
       - "Between us, I wouldn't trust a cleric with a copper spoon."
       - "Friend, you look like someone who appreciates a clean trade."
       - "Price is a conversation, not a number. Let's have one."
+    vocabulary_ceiling: high_school
+    forbidden_words:
+      - doth
+      - thou
+      - thee
+      - verily
+      - hence
+      - hitherto
+    accent_markers:
+      - "Opens confidences with 'Between us,'."
+      - "Calls the listener by an assumed profession or name multiple times early."
+    allowed_intents:
+      - barter_wares
+      - bribe_for_info
+      - flirt
+      - ask_about_rumors
+      - ask_about_locket
+      - ask_about_npc_other
+      - farewell
 
   - id: ulrik_the_old_man
     name: "Ulrik"
@@ -131,3 +208,20 @@ npcs:
       - "That question has two answers, friend. Which one will you carry?"
       - "I have seen this winter before. Four times. This makes five."
       - "Mm. The locket is not the trouble. The twin is the trouble."
+    vocabulary_ceiling: college
+    forbidden_words:
+      - lol
+      - dude
+      - awesome
+      - whatever
+      - vibe
+    accent_markers:
+      - "Measures time in 'winters' — 'four winters past' not 'four years ago'."
+      - "Says 'mm' instead of 'yes'."
+      - "Occasionally addresses someone who is not there."
+    allowed_intents:
+      - ask_about_local_events
+      - ask_about_rumors
+      - ask_about_locket
+      - ask_about_npc_other
+      - farewell
