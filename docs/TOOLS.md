@@ -138,6 +138,133 @@ out = await gen_npcs(GenNpcsInput(
 
 ---
 
+## `gen_intents`
+
+Generates new `PlayerIntent` entries consistent with the world and the
+existing intent catalogue. Appended to `player_intents.yaml`; existing
+entries are never modified. One LLM call per intent; duplicate ids are
+dropped.
+
+**Input — `GenIntentsInput`:**
+
+| Field | Type | Default | Purpose |
+|---|---|---|---|
+| `demo_dir` | `Path` | required | Project directory. |
+| `n` | `int` | `8` | How many intents to propose (1–30). |
+| `brief` | `str \| None` | `None` | Free-text hint about which intents to focus on. |
+| `append` | `bool` | `True` | When false, return without writing. |
+| `concurrency` | `int` | `3` | Max parallel LLM calls. |
+| `api_key` / `provider` / `model` | — | — | See `_LLMOptions`. |
+
+**Output — `GenIntentsOutput`:**
+
+| Field | Type | Purpose |
+|---|---|---|
+| `added` | `list[PlayerIntent]` | Newly generated intents. |
+| `existing_count` | `int` | Intents already in the file at call time. |
+| `intents_yaml` | `Path` | Target file. |
+| `wrote` | `bool` | True when the file was modified. |
+
+```python
+out = await gen_intents(GenIntentsInput(
+    demo_dir=Path("my_game"),
+    n=5,
+    brief="more physically-grounded intents: challenge, comfort, defend",
+    api_key="...",
+))
+```
+
+---
+
+## `gen_barks`
+
+Generates new bark *triggers* for one or more NPCs — `(id, description, n)`
+triples that feed `build_pipeline --mode barks`. Actual bark utterances are
+still produced during the build. Appended to `barks.yaml` (additive, nested
+by NPC).
+
+**Input — `GenBarksInput`:**
+
+| Field | Type | Default | Purpose |
+|---|---|---|---|
+| `demo_dir` | `Path` | required | Project directory. |
+| `for_npcs` | `list[str]` | `[]` | NPC ids to cover. Empty = every NPC in `characters.yaml`. |
+| `n_per_npc` | `int` | `3` | Triggers to propose per NPC (1–15). |
+| `brief` | `str \| None` | `None` | Free-text hint about which triggers to focus on. |
+| `append` | `bool` | `True` | When false, return without writing. |
+| `concurrency` | `int` | `3` | Max parallel LLM calls. |
+| `api_key` / `provider` / `model` | — | — | See `_LLMOptions`. |
+
+**Output — `GenBarksOutput`:**
+
+| Field | Type | Purpose |
+|---|---|---|
+| `added` | `list[{npc: str, triggers: list[BarkTrigger]}]` | New triggers grouped by NPC. |
+| `barks_yaml` | `Path` | Target file. |
+| `wrote` | `bool` | True when the file was modified. |
+
+```python
+out = await gen_barks(GenBarksInput(
+    demo_dir=Path("my_game"),
+    for_npcs=["mira_vesser"],
+    n_per_npc=2,
+    api_key="...",
+))
+```
+
+---
+
+## `resolve_stubs`
+
+Expands every `_generate: true` placeholder entry in `characters.yaml`
+into a full `NpcSheet`, honouring `role_hint`, `voice_hint`, and
+optional `name` seeds. Rewrites the YAML in place preserving top-level
+keys (`world`, `tone`, etc.) and the order of non-stub entries.
+
+A stub entry looks like:
+
+```yaml
+npcs:
+  - id: the_rival_tavernkeeper
+    _generate: true
+    role_hint: "a competing tavernkeeper who moved into Emberfall last spring"
+    voice_hint: "slick, smiling, smooth-talking — Mira's exact opposite"
+```
+
+After `resolve_stubs` the entry is replaced with a fully-populated
+sheet (name, role, voice, motivations, secret, speech_quirks,
+forbidden_words, vocabulary_ceiling, allowed_intents, ...) whose `id`
+matches the stub exactly.
+
+**Input — `ResolveStubsInput`:**
+
+| Field | Type | Default | Purpose |
+|---|---|---|---|
+| `demo_dir` | `Path` | required | Project directory. |
+| `only_ids` | `list[str]` | `[]` | Restrict to a subset of stub ids. Empty = all stubs. |
+| `write` | `bool` | `True` | When false, return resolved sheets without touching the file. |
+| `concurrency` | `int` | `3` | Max parallel LLM calls. |
+| `api_key` / `provider` / `model` | — | — | See `_LLMOptions`. |
+
+**Output — `ResolveStubsOutput`:**
+
+| Field | Type | Purpose |
+|---|---|---|
+| `resolved` | `list[NpcSheet]` | Successfully expanded sheets. |
+| `unresolved_ids` | `list[str]` | Stubs the LLM failed to expand (retry candidates). |
+| `characters_yaml` | `Path` | Target file. |
+| `wrote` | `bool` | True when the file was modified. |
+
+```python
+out = await resolve_stubs(ResolveStubsInput(
+    demo_dir=Path("my_game"),
+    api_key="...",
+))
+print(f"resolved={len(out.resolved)} retry={out.unresolved_ids}")
+```
+
+---
+
 ## `build_pipeline`
 
 Runs the walk-up / bark / all pipeline, wrapping the existing

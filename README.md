@@ -41,6 +41,14 @@ npcforge world infer --demo-dir examples/rusted_lantern
 npcforge gen npcs --demo-dir examples/rusted_lantern \
     --roles "traveling bard spooked by the humming, young barmaid who is Mira's niece"
 
+# 2b. Or hand-author stubs and let npcforge fill them in
+#     (drop {id: x, _generate: true, role_hint: "..."} into characters.yaml)
+npcforge resolve stubs --demo-dir examples/rusted_lantern
+
+# 2c. Generate more player intents and bark triggers (both additive)
+npcforge gen intents --demo-dir examples/rusted_lantern --n 5 --brief "physical / social conflict"
+npcforge gen barks   --demo-dir examples/rusted_lantern --for-npcs mira_vesser --n 2
+
 # 3. Run the full dialogue + bark pipeline
 npcforge build --demo-dir examples/rusted_lantern --mode all
 
@@ -88,6 +96,9 @@ Every capability is a single async function with Pydantic input/output. Defined 
 | `show_world_profile` | Return the cached profile so the writer (or agent) can inspect / correct it | no |
 | `list_npcs` | Read-only list of NPCs currently in `characters.yaml` | no |
 | `gen_npcs` | Generate new NPCs from lore + brief / roles, **append** to `characters.yaml` (never overwrite) | one per NPC |
+| `gen_intents` | Generate new `PlayerIntent` entries consistent with the world, **append** to `player_intents.yaml` | one per intent |
+| `gen_barks` | Propose new bark *triggers* for one or more NPCs, **append** to `barks.yaml` (trigger contexts that feed the build pipeline) | one per trigger |
+| `resolve_stubs` | Expand `_generate: true` placeholder entries in `characters.yaml` into full `NpcSheet`s, honouring `role_hint` / `voice_hint` | one per stub |
 | `build_pipeline` | Run the walk-up + bark pipeline; writes Yarn, manifest, lint report | many |
 
 ### MCP server
@@ -317,12 +328,15 @@ See [`docs/TOOLS.md`](docs/TOOLS.md) for every input / output schema and [`docs/
 
 ## Roadmap
 
+### Shipped in v0.4.0
+
+- **`gen intents` + `gen barks` + `resolve stubs`** — the generator trio, all additive. [`docs/TOOLS.md`](docs/TOOLS.md) has details.
+
 ### Next up
 
-- **`gen intents` + `gen barks`** tools — same additive pattern as `gen_npcs`, driven by briefs / triggers / per-NPC.
-- **Stub resolution** — any NPC with `_generate: true` in `characters.yaml` gets its blanks filled on the next `gen npcs` pass.
 - **Recipe files** (`requests/*.yaml`) — reusable cast recipes for diff-friendly version control.
 - **Mid-dialog branching** — resample high-valence NPC turns at T=0.9, emit nested `->` options when continuations diverge.
+- **Judge-enabled mode** — generate N candidates per branch, keep highest-scored, surface scores in manifest metadata.
 
 ### Further out
 

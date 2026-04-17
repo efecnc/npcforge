@@ -4,6 +4,66 @@ All notable changes to npcforge land here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [SemVer](https://semver.org/).
 
+## [0.4.0] — 2026-04-17
+
+The generator trio completion. Lore in, everything out.
+
+### Added
+
+- **`gen_intents`** tool — generate new `PlayerIntent` entries from the
+  world profile + existing intent catalog. One LLM structured call per
+  intent; duplicate ids silently dropped. Appended to
+  `player_intents.yaml` (additive; never overwrites).
+- **`gen_barks`** tool — propose new bark triggers for one or more NPCs.
+  Emits `(id, description, n)` triples for each NPC, appended into
+  `barks.yaml` under the right NPC entry. Actual bark *lines* are still
+  produced by `build_pipeline --mode barks` — this tool only feeds the
+  triggers.
+- **`resolve_stubs`** tool — expand every `_generate: true` placeholder
+  in `characters.yaml` into a full `NpcSheet`, honouring `role_hint`,
+  `voice_hint`, and `name` seeds. Rewrites the YAML in place preserving
+  top-level keys and the order of non-stub entries.
+- **`NpcStub`** schema — the placeholder shape. Writers drop a minimal
+  entry (id + hints + `_generate: true`); the loader separates stubs
+  from full sheets. `load_npcs_with_stubs` returns both lists; strict
+  `load_npcs` skips stubs so the pipeline is never confused.
+- New CLI subcommands: `gen intents`, `gen barks`, `resolve stubs`.
+  Each accepts `--dry-run` to preview without writing.
+- New append helpers (`append_intents_to_yaml`,
+  `append_bark_triggers_to_yaml`) with the same additive guarantees as
+  `append_npcs_to_yaml`.
+
+### Tools registry
+
+Eight tools now (up from five): `infer_world_profile`,
+`show_world_profile`, `list_npcs`, `gen_npcs`, `gen_intents`,
+`gen_barks`, `resolve_stubs`, `build_pipeline`.
+
+### Tests
+
+- 45 passing (up from 37). New coverage for stub loading, intent /
+  bark-trigger append round-trips, stub-only rewrite semantics, and
+  the assertion that `load_npcs` silently skips stubs.
+
+### Verified end-to-end
+
+On a /tmp copy of the Rusted Lantern demo:
+
+- `gen intents --n 3 --brief "more physically-grounded intents"` →
+  added three `challenge_*` intents consistent with the setting.
+- `gen barks --for-npcs mira_vesser --n 2` → added
+  `warns_troublemaker` and `questions_deep`, both fitting Mira's
+  gruff voice.
+- Injected `{id: the_rival_tavernkeeper, _generate: true,
+  role_hint: "..."}` stub → `resolve stubs` produced **Corvin Stone,
+  proprietor of The Whispering Stag**, whose generated secret ties him
+  to the Hawksreach Buyers faction from the world bible and whose
+  `allowed_intents` include the freshly-added `challenge_statement`.
+  Inter-content continuity from world profile + existing cast +
+  just-generated intents cascaded correctly.
+
+---
+
 ## [0.3.0] — 2026-04-17
 
 Agent-ready architecture. The big shape change.

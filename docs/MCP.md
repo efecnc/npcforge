@@ -2,9 +2,10 @@
 
 The [Model Context Protocol](https://modelcontextprotocol.io) lets an
 AI agent call external tools. npcforge ships an MCP server that
-exposes [all five tools](TOOLS.md) over stdio. Once registered, your
-agent can infer a world, propose a cast, review it with you, and run
-the dialogue pipeline — all without leaving the chat.
+exposes [every registered tool](TOOLS.md) over stdio (eight as of
+v0.4.0). Once registered, your agent can infer a world, propose a
+cast, add intents and bark triggers, resolve stubs you hand-wrote,
+and run the dialogue pipeline — all without leaving the chat.
 
 ## Install
 
@@ -114,6 +115,22 @@ collaborator:
 >
 > Agent calls `build_pipeline` with
 > `mode="all", only_npcs=["mira_vesser", "kess_the_knife"]`.
+
+> **"Add three more player intents about combat and social conflict."**
+>
+> Agent calls `gen_intents` with
+> `n=3, brief="combat and social conflict intents"`.
+
+> **"Propose two bark triggers for Mira that fit her gruff voice."**
+>
+> Agent calls `gen_barks` with
+> `for_npcs=["mira_vesser"], n_per_npc=2`.
+
+> **"I stubbed a rival tavernkeeper — expand it and keep the hint."**
+>
+> Agent calls `resolve_stubs` (no arguments needed beyond `demo_dir`
+> and `api_key`); the stub's `role_hint` / `voice_hint` are honoured
+> automatically.
 
 ## Troubleshooting
 

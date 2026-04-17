@@ -29,14 +29,20 @@ from pathlib import Path
 
 from .tools import (
     BuildPipelineInput,
+    GenBarksInput,
+    GenIntentsInput,
     GenNpcsInput,
     InferWorldProfileInput,
     ListNpcsInput,
+    ResolveStubsInput,
     ShowWorldProfileInput,
     build_pipeline,
+    gen_barks,
+    gen_intents,
     gen_npcs,
     infer_world_profile,
     list_npcs,
+    resolve_stubs,
     show_world_profile,
 )
 from .validate import compile_yarn_files, ysc_available
@@ -216,6 +222,77 @@ async def _cmd_gen_npcs(args: argparse.Namespace) -> int:
     return 0
 
 
+async def _cmd_gen_intents(args: argparse.Namespace) -> int:
+    key = _resolve_api_key(args.provider, args.api_key_env)
+    result = await gen_intents(
+        GenIntentsInput(
+            demo_dir=args.demo_dir,
+            n=args.n,
+            brief=args.brief,
+            append=not args.dry_run,
+            concurrency=args.concurrency,
+            provider=args.provider,
+            model=args.model,
+            api_key=key,
+        )
+    )
+    print(
+        f"generated: {len(result.added)} new intent(s) "
+        f"(existing={result.existing_count}, wrote={result.wrote})"
+    )
+    for intent in result.added:
+        print(f"  + {intent.id:30s} {intent.name}")
+    return 0
+
+
+async def _cmd_gen_barks(args: argparse.Namespace) -> int:
+    key = _resolve_api_key(args.provider, args.api_key_env)
+    result = await gen_barks(
+        GenBarksInput(
+            demo_dir=args.demo_dir,
+            for_npcs=_split_csv(args.for_npcs),
+            n_per_npc=args.n,
+            brief=args.brief,
+            append=not args.dry_run,
+            concurrency=args.concurrency,
+            provider=args.provider,
+            model=args.model,
+            api_key=key,
+        )
+    )
+    total = sum(len(e.triggers) for e in result.added)
+    print(f"generated: {total} trigger(s) across {len(result.added)} NPC(s) "
+          f"(wrote={result.wrote})")
+    for entry in result.added:
+        for trig in entry.triggers:
+            print(f"  + {entry.npc:25s} {trig.id:20s} n={trig.n}")
+    return 0
+
+
+async def _cmd_resolve_stubs(args: argparse.Namespace) -> int:
+    key = _resolve_api_key(args.provider, args.api_key_env)
+    result = await resolve_stubs(
+        ResolveStubsInput(
+            demo_dir=args.demo_dir,
+            only_ids=_split_csv(args.only_ids),
+            write=not args.dry_run,
+            concurrency=args.concurrency,
+            provider=args.provider,
+            model=args.model,
+            api_key=key,
+        )
+    )
+    print(
+        f"resolved: {len(result.resolved)} stub(s) "
+        f"(unresolved={len(result.unresolved_ids)}, wrote={result.wrote})"
+    )
+    for npc in result.resolved:
+        print(f"  = {npc.id:25s} {npc.name}  [{npc.role}]")
+    if result.unresolved_ids:
+        print(f"retry: {','.join(result.unresolved_ids)}")
+    return 0
+
+
 async def _cmd_mcp(args: argparse.Namespace) -> int:
     # Deferred import keeps the mcp package optional for users who only need
     # the CLI. Any ImportError is surfaced with a clear install hint.
@@ -319,6 +396,61 @@ def build_arg_parser() -> argparse.ArgumentParser:
     )
     _add_llm_flags(p_gn)
     p_gn.set_defaults(func=_cmd_gen_npcs)
+
+    p_gi = p_gen_sub.add_parser("intents", help="Generate new player intents (append).")
+    p_gi.add_argument("--demo-dir", type=Path, required=True)
+    p_gi.add_argument("--n", type=int, default=8)
+    p_gi.add_argument("--brief", default=None)
+    p_gi.add_argument("--concurrency", type=int, default=3)
+    p_gi.add_argument("--dry-run", action="store_true")
+    _add_llm_flags(p_gi)
+    p_gi.set_defaults(func=_cmd_gen_intents)
+
+    p_gb = p_gen_sub.add_parser(
+        "barks",
+        help="Generate new bark trigger proposals for one or more NPCs (append).",
+    )
+    p_gb.add_argument("--demo-dir", type=Path, required=True)
+    p_gb.add_argument(
+        "--for-npcs",
+        default=None,
+        help=(
+            "Comma-separated NPC ids. Default: every NPC in characters.yaml."
+        ),
+    )
+    p_gb.add_argument(
+        "--n", type=int, default=3, help="Triggers to propose per NPC."
+    )
+    p_gb.add_argument("--brief", default=None)
+    p_gb.add_argument("--concurrency", type=int, default=3)
+    p_gb.add_argument("--dry-run", action="store_true")
+    _add_llm_flags(p_gb)
+    p_gb.set_defaults(func=_cmd_gen_barks)
+
+    # ---- resolve (nested) ----
+    p_res = subs.add_parser(
+        "resolve", help="Fill in placeholder / stub entries."
+    )
+    p_res_sub = p_res.add_subparsers(dest="resolve_command", required=True)
+
+    p_rs = p_res_sub.add_parser(
+        "stubs",
+        help="Expand every '_generate: true' NPC stub into a full sheet.",
+    )
+    p_rs.add_argument("--demo-dir", type=Path, required=True)
+    p_rs.add_argument(
+        "--only-ids",
+        default=None,
+        help="Comma-separated stub ids to resolve. Default: all stubs.",
+    )
+    p_rs.add_argument("--concurrency", type=int, default=3)
+    p_rs.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Resolve but do not rewrite characters.yaml.",
+    )
+    _add_llm_flags(p_rs)
+    p_rs.set_defaults(func=_cmd_resolve_stubs)
 
     # ---- mcp ----
     p_mcp = subs.add_parser(

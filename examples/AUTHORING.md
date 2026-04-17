@@ -1,7 +1,8 @@
 # Authoring a new world
 
 One-page guide for pointing npcforge at a new setting. Updated for
-v0.3.0 — the generators-first workflow.
+v0.4.0 — the full generator trio (NPCs / intents / barks) plus stub
+resolution.
 
 ## The four files
 
@@ -87,7 +88,24 @@ Each call reads the cached world profile, the lore, the existing
 cast, and the project-wide intent ids — so new NPCs are stylistically
 consistent and do not duplicate roles already in the file.
 
-### 4. Write the intent catalog (for now, manual)
+### 4. Write (or generate) the intent catalog
+
+Three authoring modes here too, mix and match in the same
+`player_intents.yaml`:
+
+```bash
+# Option A: hand-author intents. Best when you already know the verbs
+# players need in this setting.
+
+# Option B: let npcforge propose additions. ADDITIVE — never overwrites.
+npcforge gen intents --demo-dir my_game --n 8 \
+    --brief "physical / social conflict intents this setting is missing"
+
+# Option C: preview before writing.
+npcforge gen intents --demo-dir my_game --n 5 --dry-run
+```
+
+A minimal hand-authored entry looks like:
 
 ```yaml
 # player_intents.yaml
@@ -100,15 +118,22 @@ intents:
       Produce a poster or name a wanted person.
 ```
 
-`gen intents` is on the roadmap but not yet shipped — for now,
-hand-author 10–20 intents. See the intents files in the three starter
-worlds under [`examples/`](.) for tone-appropriate examples.
+See the intents files in the three starter worlds under
+[`examples/`](.) for tone-appropriate catalogs.
 
 Assign each NPC a subset via `allowed_intents` in `characters.yaml`.
 Keep lists to 4–8 items per NPC. A ripperdoc does not accept `flirt`
 mid-operation. A Pinkerton agent does not accept `barter_wares`.
 
-### 5. (Optional) Write bark triggers
+### 5. (Optional) Bark triggers — hand-author or generate
+
+```bash
+# Hand-author triggers in barks.yaml, OR:
+npcforge gen barks --demo-dir my_game --for-npcs mira_vesser --n 3
+npcforge gen barks --demo-dir my_game --n 2   # 2 triggers per NPC across the cast
+```
+
+A hand-authored entry:
 
 ```yaml
 # barks.yaml
@@ -122,6 +147,44 @@ barks:
 
 Triggers are situational cues — not directives. Good: *"A corp suit
 walks into the Mox."* Bad: *"React to seeing a corp."*
+
+`gen barks` produces `(id, description, n)` proposals; the actual
+1-line bark utterances are still produced by `build --mode barks`.
+
+### 5b. Stubs — hand-author the hint, let npcforge fill the rest
+
+Drop a minimal entry into `characters.yaml` and mark it with
+`_generate: true`. The next `resolve stubs` call expands it.
+
+```yaml
+# characters.yaml — mixed authoring modes
+npcs:
+  # fully hand-authored — untouched forever
+  - id: mira_vesser
+    name: "Mira Vesser"
+    role: "Tavernkeeper of the Rusted Lantern"
+    voice: "Gruff, dry, pragmatic."
+    # ...
+
+  # stub — role + voice hints only. resolve stubs fills the rest.
+  - id: the_rival_tavernkeeper
+    _generate: true
+    role_hint: "a competing tavernkeeper who moved into Emberfall last spring"
+    voice_hint: "slick, smiling — Mira's exact opposite"
+```
+
+Then:
+
+```bash
+npcforge resolve stubs --demo-dir my_game
+# Only fills entries with `_generate: true`. Preserves everything else.
+# Rewrites characters.yaml in place; non-stub ordering and top-level
+# keys (`world:`, `tone:`) survive.
+```
+
+The expanded sheet inherits the world profile's anachronism blocklist,
+the project-wide intent ids, and respects the hints you provided —
+ids stay exactly as you wrote them.
 
 ### 6. Build the Yarn files
 
@@ -150,9 +213,9 @@ override by hand in the YAML.
 ## Common mistakes
 
 1. **Writing the lore and then hand-authoring characters.yaml from
-   scratch.** With v0.3.0 you can let `gen npcs` do 80% of it. Even if
-   you want full control, generate a draft, then overwrite the fields
-   you disagree with.
+   scratch.** With v0.4.0 you can let `gen npcs` do 80% of it and fill
+   specific characters with stubs. Even if you want full control,
+   generate a draft, then overwrite the fields you disagree with.
 2. **Typos in `allowed_intents`.** Silently dropped. Run
    `npcforge list-npcs --demo-dir my_game` and check the intents
    column.

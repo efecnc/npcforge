@@ -7,7 +7,15 @@ and the MCP server both call. Agent frameworks can import and register
 these directly.
 """
 
-from .generation import append_npcs_to_yaml, gen_npcs as gen_npcs_impl
+from .generation import (
+    append_bark_triggers_to_yaml,
+    append_intents_to_yaml,
+    append_npcs_to_yaml,
+    gen_barks as gen_barks_impl,
+    gen_intents as gen_intents_impl,
+    gen_npcs as gen_npcs_impl,
+    resolve_stubs as resolve_stubs_impl,
+)
 from .lint import ForbiddenHit, LintReport, lint_barks, lint_text, lint_walk_up_branches
 from .pipeline import (
     Mode,
@@ -28,11 +36,13 @@ from .schemas import (
     BarkTrigger,
     NpcBarkConfig,
     NpcSheet,
+    NpcStub,
     PlayerIntent,
     VocabularyCeiling,
     load_barks_config,
     load_intents,
     load_npcs,
+    load_npcs_with_stubs,
     load_world_bible,
     resolve_intents_for_npc,
 )
@@ -40,20 +50,29 @@ from .tools import (
     TOOL_REGISTRY,
     BuildPipelineInput,
     BuildPipelineOutput,
+    GenBarksInput,
+    GenBarksOutput,
+    GenIntentsInput,
+    GenIntentsOutput,
     GenNpcsInput,
     GenNpcsOutput,
     InferWorldProfileInput,
     InferWorldProfileOutput,
     ListNpcsInput,
     ListNpcsOutput,
+    ResolveStubsInput,
+    ResolveStubsOutput,
     ShowWorldProfileInput,
     ShowWorldProfileOutput,
     ToolSpec,
     build_pipeline,
+    gen_barks,
+    gen_intents,
     gen_npcs,
     infer_world_profile,
     list_npcs,
     list_tool_specs,
+    resolve_stubs,
     show_world_profile,
 )
 from .validate import CompileResult, compile_yarn_files, ysc_available
@@ -76,13 +95,14 @@ from .yarn import (
     yarn_safe_title,
 )
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 __all__ = [
     # Version
     "__version__",
     # Schemas
     "NpcSheet",
+    "NpcStub",
     "PlayerIntent",
     "VocabularyCeiling",
     "BarkLine",
@@ -98,6 +118,7 @@ __all__ = [
     "WorldProfile",
     # Loaders
     "load_npcs",
+    "load_npcs_with_stubs",
     "load_intents",
     "load_barks_config",
     "load_world_bible",
@@ -118,16 +139,30 @@ __all__ = [
     "ListNpcsOutput",
     "GenNpcsInput",
     "GenNpcsOutput",
+    "GenIntentsInput",
+    "GenIntentsOutput",
+    "GenBarksInput",
+    "GenBarksOutput",
+    "ResolveStubsInput",
+    "ResolveStubsOutput",
     "BuildPipelineInput",
     "BuildPipelineOutput",
     "infer_world_profile",
     "show_world_profile",
     "list_npcs",
     "gen_npcs",
+    "gen_intents",
+    "gen_barks",
+    "resolve_stubs",
     "build_pipeline",
     # Generation (library)
     "gen_npcs_impl",
+    "gen_intents_impl",
+    "gen_barks_impl",
+    "resolve_stubs_impl",
     "append_npcs_to_yaml",
+    "append_intents_to_yaml",
+    "append_bark_triggers_to_yaml",
     # Pipeline
     "generate_branch",
     "generate_for_npc",

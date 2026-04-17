@@ -56,6 +56,28 @@ class NpcSheet(BaseModel):
     allowed_intents: list[str] = Field(default_factory=list)
 
 
+class NpcStub(BaseModel):
+    """A placeholder entry in ``characters.yaml`` that ``resolve_stubs`` fills in.
+
+    Authors write a stub when they want ``gen_npcs``'s style expansion but with
+    a stronger seed than a free-text brief — e.g. "here's the id and a
+    one-line voice hint; you pick everything else." Loaders keep stubs
+    separate from :class:`NpcSheet`; the pipeline ignores stubs entirely.
+
+    Set ``_generate: true`` to opt in. Any of ``name``, ``role``,
+    ``voice_hint``, ``role_hint`` are treated as generator seeds.
+    """
+
+    id: str
+    generate: bool = Field(default=True, alias="_generate")
+    name: str = ""
+    role: str = ""
+    role_hint: str = ""
+    voice_hint: str = ""
+
+    model_config = {"populate_by_name": True, "extra": "ignore"}
+
+
 class PlayerIntent(BaseModel):
     """A single entry from ``player_intents.yaml``.
 
@@ -133,15 +155,47 @@ def _load_yaml(path: Path) -> dict:
     return data
 
 
+def _is_stub_entry(item: dict) -> bool:
+    return bool(item.get("_generate")) or bool(item.get("generate"))
+
+
 def load_npcs(path: Path) -> list[NpcSheet]:
-    """Load NPCs from ``characters.yaml`` (top-level ``npcs:`` key)."""
+    """Load fully-authored NPCs from ``characters.yaml``.
+
+    Stub entries (``_generate: true``) are skipped silently — they are not
+    ready for the pipeline yet. Use :func:`load_npcs_with_stubs` to see both.
+    """
     data = _load_yaml(path)
     if "npcs" not in data:
         raise ValueError(f"{path} must define a top-level 'npcs:' key")
     items = data["npcs"]
     if not isinstance(items, list) or not items:
         raise ValueError(f"{path} -> 'npcs' must be a non-empty list")
-    return [NpcSheet(**item) for item in items]
+    return [NpcSheet(**item) for item in items if not _is_stub_entry(item)]
+
+
+def load_npcs_with_stubs(path: Path) -> tuple[list[NpcSheet], list[NpcStub]]:
+    """Load both full NPC sheets and stub placeholders from ``characters.yaml``.
+
+    Useful for :func:`npcforge.generation.resolve_stubs` and for read-only
+    tools that need to surface stubs to writers / agents.
+    """
+    data = _load_yaml(path)
+    if "npcs" not in data:
+        raise ValueError(f"{path} must define a top-level 'npcs:' key")
+    items = data["npcs"]
+    if not isinstance(items, list):
+        raise ValueError(f"{path} -> 'npcs' must be a list")
+    full: list[NpcSheet] = []
+    stubs: list[NpcStub] = []
+    for item in items:
+        if not isinstance(item, dict):
+            raise ValueError(f"{path} npc entry must be a mapping, got: {item!r}")
+        if _is_stub_entry(item):
+            stubs.append(NpcStub(**item))
+        else:
+            full.append(NpcSheet(**item))
+    return full, stubs
 
 
 def load_intents(path: Path) -> list[PlayerIntent]:
