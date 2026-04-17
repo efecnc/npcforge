@@ -1,0 +1,403 @@
+"""Agent-tool contracts.
+
+Every feature npcforge exposes to the outside world is modelled here as a
+typed async function: Pydantic input model in, Pydantic output model out.
+This is the **single contract** the CLI and MCP server both call — no
+feature lives only in the CLI.
+
+Why this exists:
+    - Agent frameworks (Claude, OpenAI tools, Cursor, Cline) can import and
+      register these directly. Each tool has a JSON Schema courtesy of
+      Pydantic.
+    - The CLI is a thin dispatcher; its parsers convert argv to the input
+      models and print the outputs.
+    - The MCP server is a one-file wrapper that registers every tool by
+      name.
+
+Pattern for adding a new tool:
+    1. Define ``<Name>Input`` and ``<Name>Output`` Pydantic models here.
+    2. Implement ``async def <name>(input: <Name>Input) -> <Name>Output``
+       here; delegate actual work to a feature module.
+    3. Register the name in :data:`TOOL_REGISTRY` at the bottom of this file.
+    4. Add a CLI subcommand in :mod:`npcforge.cli` and an MCP binding in
+       :mod:`npcforge.mcp_server`.
+"""
+
+from __future__ import annotations
+
+import logging
+from pathlib import Path
+from typing import Any, Awaitable, Callable, Literal
+
+from pydantic import BaseModel, Field
+
+from .generation import gen_npcs as _gen_npcs_impl
+from .pipeline import run_all as _run_all_impl
+from .schemas import (
+    BarksConfig,
+    NpcSheet,
+    load_barks_config,
+    load_intents,
+    load_npcs,
+    load_world_bible,
+    resolve_intents_for_npc,
+)
+from .world_profile import (
+    WorldProfile,
+    cache_path_for,
+    infer_world_profile as _infer_world_profile_impl,
+    load_cached_profile,
+)
+
+logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Shared model-provider options
+# ---------------------------------------------------------------------------
+
+
+class _LLMOptions(BaseModel):
+    """Fields shared by every tool that calls an LLM."""
+
+    api_key: str = Field(..., description="LLM provider API key.")
+    provider: Literal["gemini", "openai", "deepseek", "openrouter", "local"] = Field(
+        default="gemini",
+        description="LLM provider for this invocation.",
+    )
+    model: str | None = Field(
+        default=None,
+        description="Model name override; falls back to afterimage's default.",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Tool 1: infer_world_profile
+# ---------------------------------------------------------------------------
+
+
+class InferWorldProfileInput(_LLMOptions):
+    """Infer (or refresh) the world profile cache from ``lore/*.md``."""
+
+    demo_dir: Path = Field(..., description="Project directory (contains lore/).")
+    overwrite_cache: bool = Field(
+        default=False,
+        description=(
+            "When true, ignore an existing .npcforge/world_profile.json and "
+            "re-run the inference. Otherwise returns the cached value."
+        ),
+    )
+
+
+class InferWorldProfileOutput(BaseModel):
+    profile: WorldProfile
+    cache_path: Path = Field(
+        ..., description="Where the inferred profile was written."
+    )
+    cache_hit: bool = Field(
+        ...,
+        description="True when the cached profile was returned without an LLM call.",
+    )
+
+
+async def infer_world_profile(input: InferWorldProfileInput) -> InferWorldProfileOutput:
+    """Run inference if needed, return the profile plus cache status."""
+    pre_cached = load_cached_profile(input.demo_dir)
+    cache_hit = pre_cached is not None and not input.overwrite_cache
+    profile = await _infer_world_profile_impl(
+        demo_dir=input.demo_dir,
+        api_key=input.api_key,
+        provider=input.provider,
+        model=input.model,
+        overwrite_cache=input.overwrite_cache,
+    )
+    return InferWorldProfileOutput(
+        profile=profile,
+        cache_path=cache_path_for(input.demo_dir),
+        cache_hit=cache_hit,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Tool 2: show_world_profile (no LLM)
+# ---------------------------------------------------------------------------
+
+
+class ShowWorldProfileInput(BaseModel):
+    """Read-only view of the cached world profile."""
+
+    demo_dir: Path = Field(..., description="Project directory.")
+
+
+class ShowWorldProfileOutput(BaseModel):
+    profile: WorldProfile | None = Field(
+        default=None,
+        description="Null when no cached profile exists yet.",
+    )
+    cache_path: Path
+    exists: bool
+
+
+async def show_world_profile(input: ShowWorldProfileInput) -> ShowWorldProfileOutput:
+    """Return the cached profile without calling the LLM."""
+    profile = load_cached_profile(input.demo_dir)
+    return ShowWorldProfileOutput(
+        profile=profile,
+        cache_path=cache_path_for(input.demo_dir),
+        exists=profile is not None,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Tool 3: list_npcs (no LLM)
+# ---------------------------------------------------------------------------
+
+
+class ListNpcsInput(BaseModel):
+    demo_dir: Path = Field(..., description="Project directory.")
+
+
+class ListNpcsOutput(BaseModel):
+    npcs: list[NpcSheet]
+    count: int
+
+
+async def list_npcs(input: ListNpcsInput) -> ListNpcsOutput:
+    path = input.demo_dir / "characters.yaml"
+    npcs = load_npcs(path) if path.exists() else []
+    return ListNpcsOutput(npcs=npcs, count=len(npcs))
+
+
+# ---------------------------------------------------------------------------
+# Tool 4: gen_npcs
+# ---------------------------------------------------------------------------
+
+
+class GenNpcsInput(_LLMOptions):
+    """Generate new NPCs and append them to ``characters.yaml``."""
+
+    demo_dir: Path = Field(..., description="Project directory.")
+    n: int = Field(
+        default=5,
+        ge=1,
+        le=25,
+        description="How many NPCs to generate when ``roles`` is empty.",
+    )
+    brief: str | None = Field(
+        default=None,
+        description=(
+            "Free-text description of the cast or specific NPC. Applied to "
+            "every generated NPC when ``roles`` is empty, or combined with "
+            "each role when ``roles`` is given."
+        ),
+    )
+    roles: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Optional list of role descriptions — one NPC per role. When "
+            "provided, len(roles) wins over ``n``."
+        ),
+    )
+    append: bool = Field(
+        default=True,
+        description=(
+            "When true (default), append generated NPCs to characters.yaml "
+            "and return them. When false, return without writing so the "
+            "caller can review first."
+        ),
+    )
+    concurrency: int = Field(
+        default=3,
+        ge=1,
+        le=8,
+        description="Max parallel LLM calls while generating the cast.",
+    )
+
+
+class GenNpcsOutput(BaseModel):
+    added: list[NpcSheet] = Field(
+        ..., description="Newly generated NPCs (also written to characters.yaml)."
+    )
+    existing_count: int = Field(
+        ...,
+        description="How many NPCs were already in characters.yaml at call time.",
+    )
+    characters_yaml: Path
+    wrote: bool
+
+
+async def gen_npcs(input: GenNpcsInput) -> GenNpcsOutput:
+    """Infer / load the world profile, generate NPCs, append to disk."""
+    # Reuse the profile cache when present; refresh on demand only.
+    profile = load_cached_profile(input.demo_dir)
+    if profile is None:
+        profile = await _infer_world_profile_impl(
+            demo_dir=input.demo_dir,
+            api_key=input.api_key,
+            provider=input.provider,
+            model=input.model,
+            overwrite_cache=False,
+        )
+
+    world_bible = load_world_bible(input.demo_dir / "lore")
+    intents_path = input.demo_dir / "player_intents.yaml"
+    intent_ids = (
+        [i.id for i in load_intents(intents_path)] if intents_path.exists() else []
+    )
+    characters_yaml = input.demo_dir / "characters.yaml"
+    existing_count = len(load_npcs(characters_yaml)) if characters_yaml.exists() else 0
+
+    added = await _gen_npcs_impl(
+        demo_dir=input.demo_dir,
+        profile=profile,
+        world_bible=world_bible,
+        api_key=input.api_key,
+        n=input.n,
+        brief=input.brief,
+        roles=input.roles,
+        intent_ids=intent_ids,
+        provider=input.provider,
+        model=input.model,
+        concurrency=input.concurrency,
+        append=input.append,
+    )
+    return GenNpcsOutput(
+        added=added,
+        existing_count=existing_count,
+        characters_yaml=characters_yaml,
+        wrote=input.append and bool(added),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Tool 5: build_pipeline (walk_up + barks)
+# ---------------------------------------------------------------------------
+
+
+class BuildPipelineInput(_LLMOptions):
+    """Run the full walk-up / barks pipeline for a project."""
+
+    demo_dir: Path = Field(..., description="Project directory.")
+    mode: Literal["walk_up", "barks", "all"] = Field(
+        default="walk_up", description="Which stage(s) to run."
+    )
+    only_npcs: list[str] = Field(
+        default_factory=list,
+        description="Restrict to a subset of NPC ids (default: all).",
+    )
+    max_turns: int = Field(default=3, ge=1, le=12)
+    intent_concurrency: int = Field(default=3, ge=1, le=8)
+    bark_concurrency: int = Field(default=4, ge=1, le=8)
+    out_dir: Path | None = Field(
+        default=None,
+        description="Output directory. Defaults to <demo_dir>/out.",
+    )
+
+
+class BuildPipelineOutput(BaseModel):
+    manifest: dict[str, Any]
+    out_dir: Path
+
+
+async def build_pipeline(input: BuildPipelineInput) -> BuildPipelineOutput:
+    npcs = load_npcs(input.demo_dir / "characters.yaml")
+    intents = load_intents(input.demo_dir / "player_intents.yaml")
+    barks_cfg = load_barks_config(input.demo_dir / "barks.yaml")
+    world_bible = load_world_bible(input.demo_dir / "lore")
+    out_dir = input.out_dir or (input.demo_dir / "out")
+    manifest = await _run_all_impl(
+        npcs=npcs,
+        intents=intents,
+        world_bible=world_bible,
+        api_key=input.api_key,
+        out_dir=out_dir,
+        barks_config=barks_cfg,
+        mode=input.mode,
+        only_npcs=input.only_npcs or None,
+        model_provider_name=input.provider,
+        model_name=input.model,
+        max_turns=input.max_turns,
+        intent_concurrency=input.intent_concurrency,
+        bark_concurrency=input.bark_concurrency,
+        progress=False,
+    )
+    return BuildPipelineOutput(manifest=manifest, out_dir=out_dir)
+
+
+# ---------------------------------------------------------------------------
+# Registry — the agent surface
+# ---------------------------------------------------------------------------
+
+
+class ToolSpec(BaseModel):
+    """Metadata for one tool in the registry."""
+
+    name: str
+    description: str
+    input_schema: dict[str, Any]
+    output_schema: dict[str, Any]
+
+
+def _spec(
+    name: str,
+    description: str,
+    input_model: type[BaseModel],
+    output_model: type[BaseModel],
+) -> ToolSpec:
+    return ToolSpec(
+        name=name,
+        description=description.strip(),
+        input_schema=input_model.model_json_schema(),
+        output_schema=output_model.model_json_schema(),
+    )
+
+
+ToolFn = Callable[[BaseModel], Awaitable[BaseModel]]
+
+# name -> (async fn, Input class, Output class, description)
+TOOL_REGISTRY: dict[str, tuple[ToolFn, type[BaseModel], type[BaseModel], str]] = {
+    "infer_world_profile": (
+        infer_world_profile,
+        InferWorldProfileInput,
+        InferWorldProfileOutput,
+        """Infer or refresh the world profile from lore/*.md. Runs one LLM
+        structured call and caches to <demo_dir>/.npcforge/world_profile.json
+        unless a cache is already present (and overwrite_cache is false).""",
+    ),
+    "show_world_profile": (
+        show_world_profile,
+        ShowWorldProfileInput,
+        ShowWorldProfileOutput,
+        """Return the cached world profile without calling the LLM. Use this
+        to check what npcforge currently understands about the setting.""",
+    ),
+    "list_npcs": (
+        list_npcs,
+        ListNpcsInput,
+        ListNpcsOutput,
+        """Read-only view of the NPCs currently declared in characters.yaml.""",
+    ),
+    "gen_npcs": (
+        gen_npcs,
+        GenNpcsInput,
+        GenNpcsOutput,
+        """Generate new NPC sheets from lore + brief (+ optional roles) and
+        append them to characters.yaml. Additive: existing entries are never
+        modified. Caller can set append=false to review before persisting.""",
+    ),
+    "build_pipeline": (
+        build_pipeline,
+        BuildPipelineInput,
+        BuildPipelineOutput,
+        """Run the walk-up / bark / all pipeline for a project. Writes Yarn
+        files, a lint report, and a manifest.json into out/.""",
+    ),
+}
+
+
+def list_tool_specs() -> list[ToolSpec]:
+    """Return a JSON-Schema-ready description of every registered tool."""
+    return [
+        _spec(name, desc, in_model, out_model)
+        for name, (_, in_model, out_model, desc) in TOOL_REGISTRY.items()
+    ]

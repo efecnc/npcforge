@@ -1,41 +1,61 @@
 # npcforge
 
-**Production-oriented NPC dialogue generator — walk-up conversations *and* bark libraries — with Yarn Spinner export.**
+**Agent-ready NPC content generator — casts, dialogue, and bark libraries — with Yarn Spinner export.**
 
-Drop in a world bible, character sheets, and player intents. Get game-engine-ready dialogue where every intent is a different branch inside every NPC's node, plus dozens of reactive 1-line barks for combat / ambient / witness triggers. Powered by [afterimage](https://github.com/altaidevorg/afterimage).
+Drop in a world bible. npcforge infers the setting, generates the cast, writes the dialogue, ships Yarn Spinner files. Every capability is a typed tool callable from the CLI, from an MCP-enabled agent (Claude Desktop, Cursor, Cline), or from Python. Powered by [afterimage](https://github.com/altaidevorg/afterimage).
 
 ```
-world bible + NPC sheets + player intents + bark triggers
-           │
-           ▼
-   afterimage (two-agent loop + structured output + judge)
-           │
-           ▼
-   Yarn Spinner .yarn (walk-up + barks) + JSONL traces + manifest + lint report
+lore/*.md  ──►  WorldProfile (auto-inferred, cached)
+                     │
+                     ▼
+        gen_npcs → characters.yaml (additive)
+        gen_intents / gen_barks (additive, coming)
+                     │
+                     ▼
+        build_pipeline → Yarn .yarn (walk-up + barks)
+                       + JSONL traces + manifest + lint report
 ```
 
 ## Why
 
-Convai / Inworld are hosted and charge per call. Writing branching dialogue and barks by hand takes months. npcforge trades both costs for one local run: **lore-grounded, voice-consistent, offline-capable, and covering both major NPC dialogue modes** (walk-up and barks — barks are ~80% of what a shipping RPG actually needs).
+Convai / Inworld are hosted and charge per call. Writing a full cast plus branching dialogue plus barks by hand takes months. npcforge turns the whole pipeline into typed tools: point it at your lore, get a cast, get dialogue, get barks — locally, offline-capable, and scriptable by any agent that speaks MCP.
 
 ## Install
 
 ```bash
-pip install -e .
+pip install -e .               # core CLI
+pip install -e '.[mcp]'        # also install the MCP server deps
 ```
 
-Python 3.10+. afterimage, PyYAML, and pydantic are pulled in as dependencies. For post-run validation install the [Yarn Spinner compiler](https://docs.yarnspinner.dev/getting-started/editing-with-visual-studio-code) so `ysc` is on `PATH`.
+Python 3.10+. afterimage, PyYAML, and pydantic are pulled in as dependencies. For post-run Yarn validation install the [Yarn Spinner compiler](https://docs.yarnspinner.dev/getting-started/editing-with-visual-studio-code) so `ysc` is on `PATH`.
 
 ## Quick start
 
 ```bash
 export GEMINI_API_KEY=...
 
+# 1. Infer the world from your lore (once per project)
+npcforge world infer --demo-dir examples/rusted_lantern
+
+# 2. Generate more NPCs on top of whatever is already there (additive)
+npcforge gen npcs --demo-dir examples/rusted_lantern \
+    --roles "traveling bard spooked by the humming, young barmaid who is Mira's niece"
+
+# 3. Run the full dialogue + bark pipeline
+npcforge build --demo-dir examples/rusted_lantern --mode all
+
+# Start the MCP server so an agent can drive everything:
+npcforge mcp            # stdio transport, used by Claude Desktop / Cursor / Cline
+```
+
+**Legacy form (pre-0.3.0):**
+
+```bash
 # walk-up dialogue for every NPC × each NPC's allowed intents
-npcforge --demo-dir examples/rusted_lantern --mode walk_up
+npcforge build --demo-dir examples/rusted_lantern --mode walk_up
 
 # bark libraries for the triggers declared in barks.yaml
-npcforge --demo-dir examples/rusted_lantern --mode barks
+npcforge build --demo-dir examples/rusted_lantern --mode barks
 
 # everything
 npcforge --demo-dir examples/rusted_lantern --mode all
@@ -57,6 +77,60 @@ manifest.json                 content hashes, elapsed, lint totals, model used
 ```
 
 Swap providers with `--provider openai|openrouter|deepseek|local` and `--model <name>`. Pass `--api-key-env MY_KEY_VAR` to override the default env var. `--no-validate` skips the `ysc compile` check.
+
+## Tools layer (what the CLI, MCP server, and your agent all call)
+
+Every capability is a single async function with Pydantic input/output. Defined once in [`npcforge.tools`](src/npcforge/tools.py), registered once in `TOOL_REGISTRY`. The CLI, the MCP server, and anything importing `npcforge` all call the same five functions.
+
+| Tool | Purpose | LLM? |
+|---|---|---|
+| `infer_world_profile` | Read `lore/*.md`, produce a structured `WorldProfile`, cache to `.npcforge/world_profile.json` | one call |
+| `show_world_profile` | Return the cached profile so the writer (or agent) can inspect / correct it | no |
+| `list_npcs` | Read-only list of NPCs currently in `characters.yaml` | no |
+| `gen_npcs` | Generate new NPCs from lore + brief / roles, **append** to `characters.yaml` (never overwrite) | one per NPC |
+| `build_pipeline` | Run the walk-up + bark pipeline; writes Yarn, manifest, lint report | many |
+
+### MCP server
+
+```bash
+pip install 'npcforge[mcp]'
+npcforge-mcp      # or: npcforge mcp
+```
+
+Register with any MCP-capable agent:
+
+```jsonc
+// Claude Desktop / Cursor / Cline
+{
+  "mcpServers": {
+    "npcforge": {
+      "command": "npcforge-mcp",
+      "env": { "GEMINI_API_KEY": "..." }
+    }
+  }
+}
+```
+
+Your agent now has tools like `infer_world_profile`, `gen_npcs`, `build_pipeline` — it can read your lore, propose a cast, ask you to review, tweak the profile, and produce Yarn files without ever leaving the chat.
+
+### From Python
+
+```python
+import asyncio
+from pathlib import Path
+from npcforge import GenNpcsInput, gen_npcs
+
+async def main():
+    result = await gen_npcs(GenNpcsInput(
+        demo_dir=Path("examples/rusted_lantern"),
+        roles=["traveling bard spooked by the humming", "young barmaid who is Mira's niece"],
+        api_key="...",
+    ))
+    for npc in result.added:
+        print(npc.id, npc.name, npc.role)
+
+asyncio.run(main())
+```
 
 ## Two dialogue modes, one tool
 
