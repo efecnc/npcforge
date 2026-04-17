@@ -1,6 +1,6 @@
 [project]
 name = "npcforge"
-version = "0.4.0"
+version = "0.5.0"
 description = "Branching NPC dialogue generator with Yarn Spinner export, powered by afterimage."
 readme = "README.md"
 requires-python = ">=3.10"

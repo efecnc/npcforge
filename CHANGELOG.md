@@ -4,6 +4,72 @@ All notable changes to npcforge land here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [SemVer](https://semver.org/).
 
+## [0.5.0] — 2026-04-17
+
+Writer-workflow polish — the three items the veteran-designer review
+flagged as the highest-leverage gaps to close before the next schema
+expansion.
+
+### Added
+
+- **`npcforge play`** — terminal playback of generated Yarn files. Reads
+  the subset of Yarn Spinner 2 syntax npcforge emits; walks one branch
+  (`--intent "threaten for info"`), every branch (no flag), or a bark
+  library (`--bark reacts_to_hum`). Colourised per speaker (NPC vs
+  Player), respects `NO_COLOR` and non-TTY output, optional `--tempo`
+  pacing and `--wait` between lines.
+- **Voice-consistency scoring** (opt-in via `build --score-voice`).
+  One batched embedding call per NPC computes cosine similarity
+  between every generated assistant turn and the NPC's
+  ``sample_lines``; per-branch mean lands in
+  `manifest.json -> npcs.<id>.walk_up.voice_scores[intent_id]`. The
+  CLI prints the per-NPC average when scoring is enabled. Failures
+  log and emit an empty score map; `voice_scoring_enabled` reflects
+  whether scoring was requested.
+- **Typed `Manifest` model** (`npcforge.manifest`) replacing the
+  v0.4.x `dict[str, Any]` manifest. Downstream consumers (CI diffs,
+  engine importers, writer dashboards) now get a stable Pydantic
+  schema. Backward-compatible on the wire: the previous `"json": ...`
+  field survives via a Pydantic alias (`json_path` on the model).
+
+### Changed
+
+- **CLI rename (non-breaking in practice):** `npcforge gen barks
+  --for-npcs` → `--only-npcs`, matching `build --only-npcs`. The
+  underlying `GenBarksInput.for_npcs` field is likewise `only_npcs` now.
+- `BuildPipelineOutput.manifest` is now `Manifest`, not
+  `dict[str, Any]`. Agents that parsed the dict need to switch to the
+  typed attributes (or call `manifest.model_dump(by_alias=True)` for
+  the old shape).
+
+### Tests — 61 passing (up from 45)
+
+- `Manifest` round-trip with the `json` alias (wire format preserved).
+- Yarn parser against the committed Rusted Lantern `sample_output/`:
+  walk-up option extraction, bark-variant extraction, comment stripping.
+- Renderer output to `StringIO` (pure, colourless in non-TTY).
+- `play_walk_up` / `play_barks` end-to-end against sample_output
+  (no LLM).
+- Voice-score math: `_cosine` identity / orthogonal / opposite / zero
+  handling, `_normalise` clamping.
+
+### Verified end-to-end against Gemini
+
+Full `build --mode walk_up --only-npcs mira_vesser,gereth_blackstone
+--score-voice` on a /tmp copy of the Rusted Lantern demo produced
+sensible scores:
+
+- Mira's canonical-voice intents (`threaten_for_info` 0.71,
+  `bribe_for_info` 0.73) scored higher than her softer registers
+  (`ask_about_local_events` 0.62).
+- Gereth's entire branch set scored 0.67–0.78 — his distinctive
+  four-note hum + "twelve, one" motif gives embeddings a stable
+  anchor, so every branch stays close to his sample lines.
+
+Elapsed 99s for 13 branches + embedding scoring on gemini-2.5-flash.
+
+---
+
 ## [0.4.0] — 2026-04-17
 
 The generator trio completion. Lore in, everything out.

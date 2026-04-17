@@ -75,7 +75,27 @@ from .tools import (
     resolve_stubs,
     show_world_profile,
 )
+from .manifest import (
+    BarkTriggerEntry,
+    LintSummary,
+    Manifest,
+    NpcEntry,
+    NpcWalkUpEntry,
+    WorldEntry,
+)
+from .play import (
+    YarnLine,
+    YarnNode,
+    YarnOption,
+    parse_yarn,
+    play_barks,
+    play_walk_up,
+    render_all_branches,
+    render_barks,
+    render_branch,
+)
 from .validate import CompileResult, compile_yarn_files, ysc_available
+from .voice_score import score_voice_consistency
 from .world_profile import (
     WorldProfile,
     cache_path_for,
@@ -95,7 +115,7 @@ from .yarn import (
     yarn_safe_title,
 )
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 __all__ = [
     # Version

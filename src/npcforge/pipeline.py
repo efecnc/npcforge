@@ -38,6 +38,14 @@ from afterimage.types import PersonaEntry
 logger = logging.getLogger(__name__)
 
 from .lint import LintReport, lint_barks, lint_walk_up_branches
+from .manifest import (
+    BarkTriggerEntry,
+    LintSummary,
+    Manifest,
+    NpcEntry,
+    NpcWalkUpEntry,
+    WorldEntry,
+)
 from .prompts import (
     build_bark_respondent_prompt,
     build_npc_respondent_prompt,
@@ -53,6 +61,7 @@ from .schemas import (
     PlayerIntent,
     resolve_intents_for_npc,
 )
+from .voice_score import score_voice_consistency
 from .yarn import (
     Branch,
     DialogTurn,
@@ -314,11 +323,16 @@ async def run_all(
     max_turns: int = 3,
     intent_concurrency: int = 3,
     bark_concurrency: int = 4,
+    score_voice: bool = False,
     progress: bool = True,
-) -> dict:
+) -> Manifest:
     """End-to-end driver for walk-up dialogue and/or bark libraries.
 
-    Returns a manifest dict (also written to ``out_dir / "manifest.json"``).
+    Returns a typed :class:`Manifest` (also written to
+    ``out_dir / "manifest.json"``). When ``score_voice`` is true, every
+    walk-up NPC gets per-intent voice-consistency scores computed via
+    :func:`npcforge.voice_score.score_voice_consistency` and surfaced in
+    the manifest.
     """
     out_dir.mkdir(parents=True, exist_ok=True)
     selected = _filter_npcs(npcs, only_npcs)
@@ -334,21 +348,11 @@ async def run_all(
     started_at = datetime.now(timezone.utc).isoformat()
     start_perf = time.perf_counter()
     lint_report = LintReport()
-    manifest: dict = {
-        "version": "0.2.0",
-        "generated_at": started_at,
-        "provider": model_provider_name,
-        "model": model_name,
-        "mode": mode,
-        "npcs": {},
-    }
+    npc_entries: dict[str, NpcEntry] = {}
+    world_entry: WorldEntry | None = None
 
     for npc in selected:
-        npc_entry: dict = {
-            "sheet_hash": _sheet_hash(npc),
-            "walk_up": None,
-            "barks": [],
-        }
+        entry = NpcEntry(sheet_hash=_sheet_hash(npc))
 
         if do_walk:
             jsonl_path = out_dir / f"{npc.id}.jsonl"
@@ -372,16 +376,29 @@ async def run_all(
                     render_yarn_node_for_npc(npc, branches), encoding="utf-8"
                 )
                 lint_report.hits.extend(lint_walk_up_branches(npc, branches))
-                npc_entry["walk_up"] = {
-                    "yarn": yarn_path.name,
-                    "yarn_hash": _file_hash(yarn_path),
-                    "intents": [intent.id for intent, _ in branches],
-                    "branch_count": len(branches),
-                }
+                voice_scores: dict[str, float] = {}
+                if score_voice:
+                    voice_scores = await score_voice_consistency(
+                        npc=npc,
+                        branches=branches,
+                        api_key=api_key,
+                        provider=model_provider_name,
+                    )
+                entry.walk_up = NpcWalkUpEntry(
+                    yarn=yarn_path.name,
+                    yarn_hash=_file_hash(yarn_path),
+                    intents=[intent.id for intent, _ in branches],
+                    branch_count=len(branches),
+                    voice_scores=voice_scores,
+                )
                 if progress:
+                    score_note = ""
+                    if voice_scores:
+                        avg = sum(voice_scores.values()) / len(voice_scores)
+                        score_note = f"  voice~{avg:.2f}"
                     print(
                         f"[{npc.id}] walk_up wrote {yarn_path.name} "
-                        f"({len(branches)} branches)"
+                        f"({len(branches)} branches){score_note}"
                     )
             elif progress:
                 print(f"[{npc.id}] walk_up: no branches produced; skipping .yarn")
@@ -406,9 +423,7 @@ async def run_all(
                         print(f"[{npc.id}] barks '{trigger.id}': none produced")
                     continue
 
-                bark_yarn_path = out_dir / (
-                    f"{npc.id}_bark_{trigger.id}.yarn"
-                )
+                bark_yarn_path = out_dir / f"{npc.id}_bark_{trigger.id}.yarn"
                 bark_yarn_path.write_text(
                     render_bark_node(npc, trigger, barks), encoding="utf-8"
                 )
@@ -426,15 +441,15 @@ async def run_all(
                     encoding="utf-8",
                 )
                 lint_report.hits.extend(lint_barks(npc, trigger.id, barks))
-                npc_entry["barks"].append(
-                    {
-                        "trigger": trigger.id,
-                        "requested": trigger.n,
-                        "produced": len(barks),
-                        "yarn": bark_yarn_path.name,
-                        "yarn_hash": _file_hash(bark_yarn_path),
-                        "json": bark_json_path.name,
-                    }
+                entry.barks.append(
+                    BarkTriggerEntry(
+                        trigger=trigger.id,
+                        requested=trigger.n,
+                        produced=len(barks),
+                        yarn=bark_yarn_path.name,
+                        yarn_hash=_file_hash(bark_yarn_path),
+                        json_path=bark_json_path.name,
+                    )
                 )
                 if progress:
                     print(
@@ -442,34 +457,39 @@ async def run_all(
                         f"{trigger.n} unique"
                     )
 
-        manifest["npcs"][npc.id] = npc_entry
+        npc_entries[npc.id] = entry
 
-    # World entry node only when we generated walk-up for every NPC in a full run.
     if do_walk and not only_npcs:
         world_path = out_dir / "world.yarn"
         world_path.write_text(render_world_start_node(selected), encoding="utf-8")
-        manifest["world"] = {
-            "yarn": world_path.name,
-            "yarn_hash": _file_hash(world_path),
-        }
+        world_entry = WorldEntry(
+            yarn=world_path.name, yarn_hash=_file_hash(world_path)
+        )
         if progress:
             print(f"Wrote {world_path.name}")
 
-    # Lint report + manifest write
     lint_md = out_dir / "lint.md"
     lint_md.write_text(lint_report.format_markdown(), encoding="utf-8")
-    manifest["lint"] = {
-        "markdown": lint_md.name,
-        "total_hits": lint_report.total,
-    }
-    manifest["elapsed_seconds"] = round(time.perf_counter() - start_perf, 2)
+
+    manifest = Manifest(
+        version="0.5.0",
+        generated_at=started_at,
+        provider=model_provider_name,
+        model=model_name,
+        mode=mode,
+        npcs=npc_entries,
+        world=world_entry,
+        lint=LintSummary(markdown=lint_md.name, total_hits=lint_report.total),
+        elapsed_seconds=round(time.perf_counter() - start_perf, 2),
+        voice_scoring_enabled=score_voice,
+    )
 
     manifest_path = out_dir / "manifest.json"
-    manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    manifest_path.write_text(manifest.model_dump_json(indent=2), encoding="utf-8")
     if progress:
         print(
             f"Manifest: {manifest_path.name}  "
             f"(lint hits: {lint_report.total}, "
-            f"elapsed: {manifest['elapsed_seconds']}s)"
+            f"elapsed: {manifest.elapsed_seconds}s)"
         )
     return manifest

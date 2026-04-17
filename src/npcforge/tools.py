@@ -37,6 +37,7 @@ from .generation import (
     gen_npcs as _gen_npcs_impl,
     resolve_stubs as _resolve_stubs_impl,
 )
+from .manifest import Manifest
 from .pipeline import run_all as _run_all_impl
 from .schemas import (
     BarksConfig,
@@ -352,11 +353,11 @@ class GenBarksInput(_LLMOptions):
     """
 
     demo_dir: Path = Field(..., description="Project directory.")
-    for_npcs: list[str] = Field(
+    only_npcs: list[str] = Field(
         default_factory=list,
         description=(
             "NPC ids to generate triggers for. Empty = every NPC in "
-            "characters.yaml."
+            "characters.yaml. Naming matches build_pipeline.only_npcs."
         ),
     )
     n_per_npc: int = Field(default=3, ge=1, le=15)
@@ -396,7 +397,7 @@ async def gen_barks(input: GenBarksInput) -> GenBarksOutput:
         demo_dir=input.demo_dir,
         profile=profile,
         api_key=input.api_key,
-        for_npcs=input.for_npcs or None,
+        for_npcs=input.only_npcs or None,
         n_per_npc=input.n_per_npc,
         brief=input.brief,
         provider=input.provider,
@@ -498,6 +499,14 @@ class BuildPipelineInput(_LLMOptions):
     max_turns: int = Field(default=3, ge=1, le=12)
     intent_concurrency: int = Field(default=3, ge=1, le=8)
     bark_concurrency: int = Field(default=4, ge=1, le=8)
+    score_voice: bool = Field(
+        default=False,
+        description=(
+            "Opt-in per-branch voice-consistency score (embedding distance "
+            "between assistant turns and sample_lines). Adds one batched "
+            "embedding call per NPC; surfaced in manifest.json."
+        ),
+    )
     out_dir: Path | None = Field(
         default=None,
         description="Output directory. Defaults to <demo_dir>/out.",
@@ -505,7 +514,7 @@ class BuildPipelineInput(_LLMOptions):
 
 
 class BuildPipelineOutput(BaseModel):
-    manifest: dict[str, Any]
+    manifest: Manifest
     out_dir: Path
 
 
@@ -529,6 +538,7 @@ async def build_pipeline(input: BuildPipelineInput) -> BuildPipelineOutput:
         max_turns=input.max_turns,
         intent_concurrency=input.intent_concurrency,
         bark_concurrency=input.bark_concurrency,
+        score_voice=input.score_voice,
         progress=False,
     )
     return BuildPipelineOutput(manifest=manifest, out_dir=out_dir)

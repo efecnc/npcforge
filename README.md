@@ -52,6 +52,15 @@ npcforge gen barks   --demo-dir examples/rusted_lantern --for-npcs mira_vesser -
 # 3. Run the full dialogue + bark pipeline
 npcforge build --demo-dir examples/rusted_lantern --mode all
 
+# 3b. Opt-in voice-consistency scoring — per-branch embedding distance
+#     from the NPC's sample_lines. Surfaced in manifest.json.
+npcforge build --demo-dir examples/rusted_lantern --mode walk_up --score-voice
+
+# 4. Read it like a writer — playback in the terminal at speaking pace.
+npcforge play --demo-dir examples/rusted_lantern --npc mira_vesser
+npcforge play --demo-dir examples/rusted_lantern --npc mira_vesser --intent "threaten for info"
+npcforge play --demo-dir examples/rusted_lantern --npc mira_vesser --bark reacts_to_hum --tempo 1.0
+
 # Start the MCP server so an agent can drive everything:
 npcforge mcp            # stdio transport, used by Claude Desktop / Cursor / Cline
 ```
@@ -327,6 +336,13 @@ asyncio.run(main())
 See [`docs/TOOLS.md`](docs/TOOLS.md) for every input / output schema and [`docs/MCP.md`](docs/MCP.md) for MCP client setup.
 
 ## Roadmap
+
+### Shipped in v0.5.0
+
+- **`npcforge play`** — terminal playback for walk-up branches and bark libraries; colourised per speaker, optional `--tempo` pacing and `--wait` between lines.
+- **Voice-consistency scoring** (`build --score-voice`) — per-branch embedding similarity to each NPC's `sample_lines`; scores land in `manifest.json -> npcs.<id>.walk_up.voice_scores`.
+- **Typed `Manifest` Pydantic model** replaces the v0.4.x dict; schema in [`docs/TOOLS.md`](docs/TOOLS.md#manifest-schema-v050).
+- `gen barks` flag rename `--for-npcs` → `--only-npcs` for consistency with `build`.
 
 ### Shipped in v0.4.0
 

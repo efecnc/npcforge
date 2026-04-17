@@ -27,6 +27,7 @@ import os
 import sys
 from pathlib import Path
 
+from .play import play_barks, play_walk_up
 from .tools import (
     BuildPipelineInput,
     GenBarksInput,
@@ -103,6 +104,7 @@ async def _cmd_build(args: argparse.Namespace) -> int:
         max_turns=args.turns,
         intent_concurrency=args.intent_concurrency,
         bark_concurrency=args.bark_concurrency,
+        score_voice=args.score_voice,
         out_dir=args.out,
         provider=args.provider,
         model=args.model,
@@ -118,11 +120,19 @@ async def _cmd_build(args: argparse.Namespace) -> int:
     result = await build_pipeline(input_)
     manifest = result.manifest
     if not args.quiet:
-        lint_total = manifest.get("lint", {}).get("total_hits", 0)
         print(
-            f"done: elapsed={manifest.get('elapsed_seconds')}s "
-            f"lint_hits={lint_total} out={result.out_dir}"
+            f"done: elapsed={manifest.elapsed_seconds}s "
+            f"lint_hits={manifest.lint.total_hits} out={result.out_dir}"
         )
+        if manifest.voice_scoring_enabled:
+            scored = [
+                (nid, e.walk_up.voice_scores)
+                for nid, e in manifest.npcs.items()
+                if e.walk_up and e.walk_up.voice_scores
+            ]
+            for nid, scores in scored:
+                avg = sum(scores.values()) / len(scores)
+                print(f"voice[{nid}] avg={avg:.3f}  branches={len(scores)}")
 
     if not args.no_validate:
         v = compile_yarn_files(result.out_dir)
@@ -250,7 +260,7 @@ async def _cmd_gen_barks(args: argparse.Namespace) -> int:
     result = await gen_barks(
         GenBarksInput(
             demo_dir=args.demo_dir,
-            for_npcs=_split_csv(args.for_npcs),
+            only_npcs=_split_csv(args.only_npcs),
             n_per_npc=args.n,
             brief=args.brief,
             append=not args.dry_run,
@@ -291,6 +301,26 @@ async def _cmd_resolve_stubs(args: argparse.Namespace) -> int:
     if result.unresolved_ids:
         print(f"retry: {','.join(result.unresolved_ids)}")
     return 0
+
+
+async def _cmd_play(args: argparse.Namespace) -> int:
+    if args.bark:
+        return play_barks(
+            demo_dir=args.demo_dir,
+            npc_id=args.npc,
+            trigger=args.bark,
+            out=args.out,
+            tempo=args.tempo,
+            wait=args.wait,
+        )
+    return play_walk_up(
+        demo_dir=args.demo_dir,
+        npc_id=args.npc,
+        intent=args.intent,
+        out=args.out,
+        tempo=args.tempo,
+        wait=args.wait,
+    )
 
 
 async def _cmd_mcp(args: argparse.Namespace) -> int:
@@ -334,6 +364,15 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument("--turns", type=int, default=3)
     p.add_argument("--intent-concurrency", type=int, default=3)
     p.add_argument("--bark-concurrency", type=int, default=4)
+    p.add_argument(
+        "--score-voice",
+        action="store_true",
+        help=(
+            "Compute per-branch voice-consistency scores via embedding "
+            "distance from sample_lines. Adds one batched embedding call "
+            "per NPC; scores appear in manifest.json."
+        ),
+    )
     p.add_argument("--no-validate", action="store_true")
     p.add_argument("--quiet", action="store_true")
     _add_llm_flags(p)
@@ -412,10 +451,12 @@ def build_arg_parser() -> argparse.ArgumentParser:
     )
     p_gb.add_argument("--demo-dir", type=Path, required=True)
     p_gb.add_argument(
-        "--for-npcs",
+        "--only-npcs",
         default=None,
         help=(
-            "Comma-separated NPC ids. Default: every NPC in characters.yaml."
+            "Comma-separated NPC ids. Default: every NPC in characters.yaml. "
+            "(Previously --for-npcs; same meaning, renamed for consistency "
+            "with build.)"
         ),
     )
     p_gb.add_argument(
@@ -451,6 +492,54 @@ def build_arg_parser() -> argparse.ArgumentParser:
     )
     _add_llm_flags(p_rs)
     p_rs.set_defaults(func=_cmd_resolve_stubs)
+
+    # ---- play ----
+    p_play = subs.add_parser(
+        "play",
+        help=(
+            "Terminal playback of generated Yarn files (walk-up branches or "
+            "bark libraries)."
+        ),
+    )
+    p_play.add_argument("--demo-dir", type=Path, required=True)
+    p_play.add_argument("--npc", required=True, help="NPC id to play.")
+    p_play.add_argument(
+        "--intent",
+        default=None,
+        help=(
+            "Play only one intent branch (matches the Yarn option label "
+            "case-insensitively; partial match allowed)."
+        ),
+    )
+    p_play.add_argument(
+        "--bark",
+        default=None,
+        help=(
+            "Play the bark library for this trigger id (e.g. greet_patron). "
+            "Mutually exclusive with --intent."
+        ),
+    )
+    p_play.add_argument(
+        "--out",
+        type=Path,
+        default=None,
+        help="Directory containing .yarn files (default: <demo-dir>/out).",
+    )
+    p_play.add_argument(
+        "--tempo",
+        type=float,
+        default=0.0,
+        help=(
+            "Pacing multiplier — 0 = print instantly, 1.0 = ~speaking pace "
+            "(80 ms/word)."
+        ),
+    )
+    p_play.add_argument(
+        "--wait",
+        action="store_true",
+        help="Pause for Enter between each line.",
+    )
+    p_play.set_defaults(func=_cmd_play)
 
     # ---- mcp ----
     p_mcp = subs.add_parser(

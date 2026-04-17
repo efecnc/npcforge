@@ -280,6 +280,7 @@ Runs the walk-up / bark / all pipeline, wrapping the existing
 | `max_turns` | `int` | `3` | Turns per intent branch. |
 | `intent_concurrency` | `int` | `3` | Parallel intent generations per NPC. |
 | `bark_concurrency` | `int` | `4` | Parallel bark generations per (NPC, trigger). |
+| `score_voice` | `bool` | `False` | Compute per-branch voice-consistency scores via embeddings. Adds one batched embedding call per NPC. |
 | `out_dir` | `Path \| None` | `None` | Output directory (defaults to `<demo_dir>/out`). |
 | `api_key` / `provider` / `model` | — | — | See `_LLMOptions`. |
 
@@ -287,8 +288,58 @@ Runs the walk-up / bark / all pipeline, wrapping the existing
 
 | Field | Type | Purpose |
 |---|---|---|
-| `manifest` | `dict` | The manifest dict (also written to `out_dir/manifest.json`). |
+| `manifest` | `Manifest` | Typed manifest (see below), also written to `out_dir/manifest.json`. |
 | `out_dir` | `Path` | Where artefacts were written. |
+
+### `Manifest` schema (v0.5.0)
+
+```python
+class Manifest(BaseModel):
+    version: str                    # e.g. "0.5.0"
+    generated_at: str               # ISO-8601 UTC
+    provider: str                   # "gemini" | "openai" | ...
+    model: str | None
+    mode: str                       # "walk_up" | "barks" | "all"
+    npcs: dict[str, NpcEntry]
+    world: WorldEntry | None
+    lint: LintSummary
+    elapsed_seconds: float
+    voice_scoring_enabled: bool     # true when build was run with score_voice
+
+class NpcEntry(BaseModel):
+    sheet_hash: str                 # 16-hex-char sha256 of the source sheet
+    walk_up: NpcWalkUpEntry | None
+    barks: list[BarkTriggerEntry]
+
+class NpcWalkUpEntry(BaseModel):
+    yarn: str                       # filename inside out/
+    yarn_hash: str
+    intents: list[str]              # ordered intent ids
+    branch_count: int
+    voice_scores: dict[str, float]  # intent_id -> [0, 1]; empty when disabled
+
+class BarkTriggerEntry(BaseModel):
+    trigger: str
+    requested: int
+    produced: int
+    yarn: str
+    yarn_hash: str
+    json_path: str                  # serialised on wire as "json"
+
+class WorldEntry(BaseModel):
+    yarn: str
+    yarn_hash: str
+
+class LintSummary(BaseModel):
+    markdown: str                   # filename of the lint report
+    total_hits: int
+```
+
+**Voice scores** are means across assistant turns in a branch of the
+best-match cosine similarity to any of the NPC's `sample_lines`. Values
+cluster in `[0.5, 0.9]` in practice — `< 0.5` signals register drift,
+`> 0.8` signals the branch is very close in voice to the reference
+exemplars.
 
 ---
 
