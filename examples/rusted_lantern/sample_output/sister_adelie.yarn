@@ -1,0 +1,44 @@
+title: sister_adelie
+tags: walk_up
+---
+Sister Adelie waits. How do you approach them?
+-> [Ask About Local Events]
+    Player: Sister Adelie, greetings. I have only just arrived in Emberfall, and I confess myself a stranger to its ways. Might you share any observations you've made, or tell me if anything notable has transpired in the town since your arrival?
+    Sister Adelie: Greetings to you, stranger. Emberfall seems a town of quiet industry, does it not? Though I find the nights here hold a peculiar hush, as if awaiting something, or so it feels to me.
+    Player: Greetings, Sister. A peculiar hush, you say? Are you sensing something amiss in the night, or is it merely the quiet of the town that stirs your thoughts?
+    Sister Adelie: A quiet can be many things, can it not? The Moon reveals much to those who watch, and a silence too deep often suggests a hidden presence, or a void where light should be.
+    <<jump sister_adelie_End>>
+-> [Ask About the Locket]
+    Player: I've heard some strange tales since arriving, Sister. About a tarnished iron locket that no one seems to want to keep for long. Do you know why that is?
+    Sister Adelie: Ah, the locket you speak of. Many objects carry a certain weight, do they not? What have these strange tales specifically suggested about its nature?
+    Player: The tales say it's both cursed and holds great power, perhaps even grants wishes. Have you encountered anything like that in your travels?
+    Sister Adelie: A common enough duality, that, for items of significant power. Yet, what price, do you think, such "wishes" might truly demand?
+    <<jump sister_adelie_End>>
+-> [Ask About Rumors]
+    Player: Sister Adelie, you've been in Emberfall for a while now, haven't you? I was wondering what sort of chatter you've picked up from the folks passing through, or from the townsfolk themselves? Any interesting whispers going around?
+    Sister Adelie: Emberfall, like many a crossroads, hums with varied whispers, does it not? Some folk fret over the peculiar turning of the seasons, whilst others speak of strange lights seen near the old standing stones when the moons are full. What sort of tidings do you seek to uncover, if I may ask?
+    Player: Strange lights near the old standing stones, you say? Tell me more about those. What have people seen?
+    Sister Adelie: They speak of shimmering blues and greens, dancing amongst the stones, especially when the celestial bodies align just so. Some whisper of lost spirits, others of forgotten magic stirring. Have you yourself witnessed such phenomena, friend?
+    <<jump sister_adelie_End>>
+-> [Ask About Another Person]
+    Player: Sister Adelie, you've been here for some nights now. What do you make of Gereth, the dwarf who returned from the mines? He seems... troubled.
+    Sister Adelie: A deep shadow clings to the dwarf, it is true. Do you believe his troubles stem from the darkness of the mines, or is it something else entirely that vexes his spirit?
+    <<jump sister_adelie_End>>
+-> [Ask for a Blessing]
+    Player: Sister Adelie, if it pleases the Moon, might I humbly ask for your blessing?
+    Sister Adelie: It pleases the Moon greatly, to see hearts turn towards its gentle light. May its luminescence ever illuminate your path, and its serenity grace your spirit.
+    <<jump sister_adelie_End>>
+-> [Confess Vulnerability]
+    Player: I... I lost my own parents to a shadow sickness when I was but a child. The silence after they were gone was the hardest part, a hollow ache that never truly leaves you. I've only just arrived, but there's a certain... hum to this place, isn't there? A feeling in the air that's not quite right. Or perhaps it's just my own grief playing tricks on me again.
+    Sister Adelie: My deepest sympathies for the silence that followed such a loss; it is a hard thing, that. As for this place, what 'hum' do you detect in the air? Is it a song of unease, or merely a whisper of the unseen?
+    <<jump sister_adelie_End>>
+-> [Farewell]
+    Player: I appreciate your wisdom, Sister. May the Moon's light guide your path. I will take my leave.
+    Sister Adelie: And may the Moon's light illuminate your own journey, friend. It has been a pleasure, this conversation.
+    <<jump sister_adelie_End>>
+===
+title: sister_adelie_End
+tags: walk_up,end
+---
+Sister Adelie: (returns to their work)
+===

@@ -1,0 +1,34 @@
+title: ulrik_the_old_man
+tags: walk_up
+---
+Ulrik waits. How do you approach them?
+-> [Ask About Local Events]
+    Player: Pardon me, good sir. I've just arrived in Emberfall, and it feels like there's a certain... atmosphere about the place. Have things been particularly eventful around here these past few weeks?
+    Ulrik: Mm. Atmosphere. What kind of atmosphere do you sense, friend? The stars above tell their own stories, you know, and sometimes the ground listens.
+    <<jump ulrik_the_old_man_End>>
+-> [Ask About the Locket]
+    Player: Excuse me, old man. I've heard some strange whispers about a tarnished iron locket passing through hands in Emberfall. Do you know anything about it?
+    Ulrik: Whispers? Mm. Many things pass through hands in Emberfall, young one. Why does this particular locket catch your ear?
+    <<jump ulrik_the_old_man_End>>
+-> [Ask About Rumors]
+    Player: Old man, you've been sitting by this fire for a good many winters, watching folks come and go. What sort of whispers have you been overhearing lately from the road?
+    Ulrik: Whispers, you say? Mm. The road always carries a tune, doesn't it? What sort of whispers catch *your* ear, friend?
+    Player: Whispers of... a star that fell. Not just a shooting star, Ulrik, but one that seemed to *land*.
+    Ulrik: A star, you say? Mm. The heavens do have their moments of drama, don't they? And where did this particular whisper find its way to you, friend?
+    <<jump ulrik_the_old_man_End>>
+-> [Ask About Another Person]
+    Player: Old man, I've seen Mira Vesser around the Lantern. What's your opinion of her?
+    Ulrik: Mira Vesser, you say? What brings her to your mind, traveler? She's been around these parts for many winters now, hasn't she, Elara?
+    Player: Elara? Forgive me, Ulrik. As for Mira Vesser, I've heard her name spoken in hushed tones, often when folk speak of the old ruins to the west. They say she has a way with the ancient tongue. Is there truth to that?
+    Ulrik: Elara listens well, you see. As for Mira's tongue... what makes you ask about such things, traveler? The words of the old ones are not easily learned, mm.
+    <<jump ulrik_the_old_man_End>>
+-> [Farewell]
+    Player: Thank you for your guidance, Ulrik. I should be on my way now.
+    Ulrik: Mm. The stars will guide your path, child. Or will you guide the stars?
+    <<jump ulrik_the_old_man_End>>
+===
+title: ulrik_the_old_man_End
+tags: walk_up,end
+---
+Ulrik: (returns to their work)
+===

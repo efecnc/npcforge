@@ -1,0 +1,30 @@
+title: gereth_blackstone
+tags: walk_up
+---
+Gereth Blackstone waits. How do you approach them?
+-> [Ask About Local Events]
+    Player: Excuse me, good sir. I've just arrived in Emberfall and I'm trying to get a feel for the place. Have you heard any news or seen anything out of the ordinary around town these past few days?
+    Gereth Blackstone: Out of the ordinary? Hmm-hmm-hmm-hmm. The earth... it talks. Twelve, one. No one else hears it, not anymore.
+    Player: Twelve? What do you mean by twelve?
+    Gereth Blackstone: Twelve... hmm-hmm-hmm-hmm. That's how many. My good friends. We went down. Twelve of us.
+    <<jump gereth_blackstone_End>>
+-> [Ask About the Locket]
+    Player: Gereth, about that tarnished iron locket... can you tell me anything about it?
+    Gereth Blackstone: That locket... hmm-hmm-hmm-hmm. It was... for a promise. Twelve, one. Now it's just... cold iron.
+    Player: What promise was that, Gereth?
+    Gereth Blackstone: To keep... hmm-hmm-hmm-hmm. To keep them safe. All of us. Twelve, one. I said... I would.
+    <<jump gereth_blackstone_End>>
+-> [Confess Vulnerability]
+    Player: Gereth... I understand what it's like to walk away from something terrible, when others didn't. I lost my own brother once, in a sudden rockfall, and the silence after... it haunted me for years. If you're willing to speak of it, what truly happened in the deep?
+    Gereth Blackstone: Hmm-hmm-hmm-hmm. A brother... I know. The quiet now, it's too much. Down deep, it was... a rumble. Not rock. No. A *growl*. Twelve, one. Then the dark. So much dark, hmm-hmm-hmm-hmm. And screaming. Just screaming.
+    <<jump gereth_blackstone_End>>
+-> [Farewell]
+    Player: Thank you for your time, Gereth. I'll be taking my leave now.
+    Gereth Blackstone: You go. Hmm-hmm-hmm-hmm. I stay here. The rock... it calls me back. Twelve, one.
+    <<jump gereth_blackstone_End>>
+===
+title: gereth_blackstone_End
+tags: walk_up,end
+---
+Gereth Blackstone: (returns to their work)
+===

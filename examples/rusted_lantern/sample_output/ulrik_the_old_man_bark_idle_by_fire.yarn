@@ -1,0 +1,23 @@
+title: ulrik_the_old_man_Bark_idle_by_fire
+tags: bark,trigger:idle_by_fire,npc:ulrik_the_old_man
+---
+// Bark library: 8 variants for trigger 'idle_by_fire'
+// Trigger context: Ulrik sits by the fire with his star-maps spread on his lap. He speaks — to himself, to anyone listening, or to someone who is not there.
+<<if visited_count("ulrik_the_old_man_Bark_idle_by_fire") % 8 == 0>>
+    Ulrik: Hmm... the Weaver's thread has pulled tight, hasn't it, after all these winters?  // emotion=neutral intensity=low
+<<elseif visited_count("ulrik_the_old_man_Bark_idle_by_fire") % 8 == 1>>
+    Ulrik: Tell me, Saria, do you see the comet's tail stretching as far as the Dragon's eye this eve?  // emotion=neutral intensity=low
+<<elseif visited_count("ulrik_the_old_man_Bark_idle_by_fire") % 8 == 2>>
+    Ulrik: Mm, does a falling star truly fall, or merely choose a new path through the dark?  // emotion=neutral intensity=low
+<<elseif visited_count("ulrik_the_old_man_Bark_idle_by_fire") % 8 == 3>>
+    Ulrik: These old charts... do they truly show the Wanderer's true path, dear Elara, or only echoes?  // emotion=confused intensity=low
+<<elseif visited_count("ulrik_the_old_man_Bark_idle_by_fire") % 8 == 4>>
+    Ulrik: The Twin Serpents... will they align as they did ten winters past, eh, Lyra?  // emotion=neutral intensity=low
+<<elseif visited_count("ulrik_the_old_man_Bark_idle_by_fire") % 8 == 5>>
+    Ulrik: Mm, the Eye of the Serpent... it shows a curious flicker tonight, my old friend.  // emotion=confused intensity=low
+<<elseif visited_count("ulrik_the_old_man_Bark_idle_by_fire") % 8 == 6>>
+    Ulrik: Mm, this ancient chart, showing a comet's return within two winters, suggests a precise convergence.  // emotion=neutral intensity=medium
+<<else>>
+    Ulrik: These ancient charts... do they truly show us what we seek, or merely what we expect?  // emotion=neutral intensity=low
+<<endif>>
+===

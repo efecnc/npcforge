@@ -1,0 +1,16 @@
+title: Start
+tags: start
+---
+You step inside. Firelight, low voices, a hush that settles when you arrive.
+Someone you came to speak with is here. Who do you approach?
+-> Mira Vesser — Tavernkeeper of the Rusted Lantern
+    <<jump mira_vesser>>
+-> Gereth Blackstone — Dwarven miner, sole survivor of the cave-in
+    <<jump gereth_blackstone>>
+-> Sister Adelie — Wandering cleric of the Moon Court
+    <<jump sister_adelie>>
+-> Kess (the Knife) — Thief posing as a traveling merchant
+    <<jump kess_the_knife>>
+-> Ulrik — Old man reading star-maps by the fire
+    <<jump ulrik_the_old_man>>
+===

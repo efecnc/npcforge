@@ -1,0 +1,47 @@
+{
+  "npc": "sister_adelie",
+  "trigger": "offers_blessing",
+  "node_title": "sister_adelie_Bark_offers_blessing",
+  "barks": [
+    {
+      "text": "A blessing you desire, but for what purpose does your heart yearn?",
+      "emotion": "neutral",
+      "intensity": "medium"
+    },
+    {
+      "text": "For what purpose do you kneel, and what light do you desire?",
+      "emotion": "neutral",
+      "intensity": "medium"
+    },
+    {
+      "text": "From what darkness do you seek the Moon's gentle solace, kneeling thus?",
+      "emotion": "neutral",
+      "intensity": "medium"
+    },
+    {
+      "text": "Does your heart truly seek solace, or merely respite from consequence?",
+      "emotion": "neutral",
+      "intensity": "medium"
+    },
+    {
+      "text": "Do you truly seek the Moon's light, or merely a fleeting shadow of comfort?",
+      "emotion": "neutral",
+      "intensity": "medium"
+    },
+    {
+      "text": "Why do you kneel, and what grace does your spirit require?",
+      "emotion": "neutral",
+      "intensity": "medium"
+    },
+    {
+      "text": "What burden do you carry, that the Moon's light might ease it?",
+      "emotion": "neutral",
+      "intensity": "medium"
+    },
+    {
+      "text": "Tell me, what shadow seeks the Moon's gentle illumination?",
+      "emotion": "neutral",
+      "intensity": "medium"
+    }
+  ]
+}

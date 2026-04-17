@@ -1,0 +1,42 @@
+title: kess_the_knife
+tags: walk_up
+---
+Kess (the Knife) waits. How do you approach them?
+-> [Ask About the Locket]
+    Player: Good evening, merchant. I couldn't help but notice your wares. Anything interesting for a weary traveler?
+    Kess (the Knife): Good evening to you too, good traveler! A keen eye you've got, spotting my little collection here. Between us, everything I carry is interesting, especially for someone who's been on the road a bit, like yourself. Come on, tell old Kess what you might be looking for, and we'll see if fate has brought us together, eh?
+    <<jump kess_the_knife_End>>
+-> [Ask About Rumors]
+    Player: Kess, my friend, you've got the look of someone who knows a good many roads. What whispers have you picked up from the travelers coming through, or even here in Emberfall? Anything interesting brewing?
+    Kess (the Knife): Ah, my friend, you've got a sharp eye for a weary traveler! Between us, these roads are like veins, carrying all sorts of tales. Seems everyone's buzzing about the unusually quiet roads up north, and some folks are saying the trade caravans have been... *lighter* than usual coming back from the border.
+    <<jump kess_the_knife_End>>
+-> [Ask About Another Person]
+    Player: Say, Kess, you seem like someone who knows the pulse of a place. What do you make of that Sister Adelie, the one from the Moon Court? She seems a bit... intense.
+    Kess (the Knife): Ah, Sister Adelie, you mean? She's certainly got a fire in her belly, doesn't she, friend? Between us, a woman with that much conviction can move mountains, or sometimes... just break a few things in her path.
+    <<jump kess_the_knife_End>>
+-> [Bribe for Information]
+    Player: I lay a coin on the table. "Tell me, friend, what might this buy from a seasoned traveler like yourself? Perhaps a whisper about the local hum... or anything else that might be worth knowing around here?"
+    Kess (the Knife): Well now, a coin already? You're a generous sort, aren't you, traveler? Between us, a good whisper can be worth more than gold, but what kind of hum are you listening for around here?
+    Player: Troubles are often opportunities, Kess. What's been stirring in this corner of the world lately? Any whispers of unrest, strange happenings, or... profitable misfortunes?
+    Kess (the Knife): Ah, a keen eye for opportunity, I see, entrepreneur! Between us, there's always *something* stirring in a town this size, isn't there? Folks whisper about a few little... inconveniences lately, but nothing you couldn't handle, I'm sure.
+    <<jump kess_the_knife_End>>
+-> [Barter Wares]
+    Player: Greetings, Kess! You're a traveling merchant, yes? What sort of interesting bits and bobs have you collected on your journey? Perhaps we could strike a deal on something.
+    Kess (the Knife): Well met, sharp-eyed friend! Always a pleasure to see a keen eye like yours, always. Between us, I've picked up a few truly *unique* pieces on my travels, the kind you won't find just anywhere.
+    <<jump kess_the_knife_End>>
+-> [Flirt]
+    Player: Well hello there, Kess. You certainly brighten up this dusty road. A traveling merchant, you say? I'm curious, what sort of... *unique* treasures have you picked up on your journey?
+    Kess (the Knife): Well hello there yourself, friend! Always a pleasure to meet a discerning eye on the road. Between us, a good merchant always keeps an eye out for what's truly *valuable* – sometimes it's gold, sometimes it's just a whisper of a secret, eh, traveler?
+    Player: Well met, yourself. A discerning eye, indeed. What sort of *treasures* do you carry that might catch such an eye?
+    Kess (the Knife): Ah, a person after my own heart! Well, between us, I've got a little bit of everything for the right customer, friend. Fine silks, a few interesting baubles, and some truly *handy* tools for those who appreciate quality craftsmanship, if you catch my drift.
+    <<jump kess_the_knife_End>>
+-> [Farewell]
+    Player: Thank you for your time, Kess. I'll be heading off now.
+    Kess (the Knife): Oh, already? Well, safe travels to you, friend! Don't be a stranger if your path brings you back this way.
+    <<jump kess_the_knife_End>>
+===
+title: kess_the_knife_End
+tags: walk_up,end
+---
+Kess (the Knife): (returns to their work)
+===

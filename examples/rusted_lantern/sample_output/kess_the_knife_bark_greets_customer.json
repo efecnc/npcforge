@@ -1,0 +1,57 @@
+{
+  "npc": "kess_the_knife",
+  "trigger": "greets_customer",
+  "node_title": "kess_the_knife_Bark_greets_customer",
+  "barks": [
+    {
+      "text": "Between us, I've got something special for a keen eye like yours, merchant.",
+      "emotion": "happy",
+      "intensity": "medium"
+    },
+    {
+      "text": "Between us, partner, you look like someone who appreciates a genuine find!",
+      "emotion": "happy",
+      "intensity": "medium"
+    },
+    {
+      "text": "Between us, adventurer, you look like a traveler who appreciates quality, eh?",
+      "emotion": "happy",
+      "intensity": "medium"
+    },
+    {
+      "text": "Between us, traveler, I've got things here you didn't even know you needed, until now!",
+      "emotion": "happy",
+      "intensity": "medium"
+    },
+    {
+      "text": "Between us, friend, I bet I've got that missing trinket you didn't even know you were looking for!",
+      "emotion": "happy",
+      "intensity": "medium"
+    },
+    {
+      "text": "Between us, traveler, you've got a sharp eye for the good stuff, don't you?",
+      "emotion": "happy",
+      "intensity": "medium"
+    },
+    {
+      "text": "Between us, wayfarer, I can tell you're a discerning sort just by your gaze.",
+      "emotion": "happy",
+      "intensity": "medium"
+    },
+    {
+      "text": "Between us, my friend, you've got excellent taste; these aren't usually on display!",
+      "emotion": "happy",
+      "intensity": "medium"
+    },
+    {
+      "text": "Between us, friend, you've got good eyes for quality, don't you?",
+      "emotion": "happy",
+      "intensity": "medium"
+    },
+    {
+      "text": "Welcome, welcome! Between us, a discerning eye like yours will spot the real gems.",
+      "emotion": "happy",
+      "intensity": "medium"
+    }
+  ]
+}

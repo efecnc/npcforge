@@ -1,0 +1,27 @@
+title: kess_the_knife_Bark_greets_customer
+tags: bark,trigger:greets_customer,npc:kess_the_knife
+---
+// Bark library: 10 variants for trigger 'greets_customer'
+// Trigger context: A traveler approaches Kess's small merchant stall at the back of the Lantern, eyeing her wares. She has already decided which face to show them.
+<<if visited_count("kess_the_knife_Bark_greets_customer") % 10 == 0>>
+    Kess (the Knife): Between us, I've got something special for a keen eye like yours, merchant.  // emotion=happy intensity=medium
+<<elseif visited_count("kess_the_knife_Bark_greets_customer") % 10 == 1>>
+    Kess (the Knife): Between us, partner, you look like someone who appreciates a genuine find!  // emotion=happy intensity=medium
+<<elseif visited_count("kess_the_knife_Bark_greets_customer") % 10 == 2>>
+    Kess (the Knife): Between us, adventurer, you look like a traveler who appreciates quality, eh?  // emotion=happy intensity=medium
+<<elseif visited_count("kess_the_knife_Bark_greets_customer") % 10 == 3>>
+    Kess (the Knife): Between us, traveler, I've got things here you didn't even know you needed, until now!  // emotion=happy intensity=medium
+<<elseif visited_count("kess_the_knife_Bark_greets_customer") % 10 == 4>>
+    Kess (the Knife): Between us, friend, I bet I've got that missing trinket you didn't even know you were looking for!  // emotion=happy intensity=medium
+<<elseif visited_count("kess_the_knife_Bark_greets_customer") % 10 == 5>>
+    Kess (the Knife): Between us, traveler, you've got a sharp eye for the good stuff, don't you?  // emotion=happy intensity=medium
+<<elseif visited_count("kess_the_knife_Bark_greets_customer") % 10 == 6>>
+    Kess (the Knife): Between us, wayfarer, I can tell you're a discerning sort just by your gaze.  // emotion=happy intensity=medium
+<<elseif visited_count("kess_the_knife_Bark_greets_customer") % 10 == 7>>
+    Kess (the Knife): Between us, my friend, you've got excellent taste; these aren't usually on display!  // emotion=happy intensity=medium
+<<elseif visited_count("kess_the_knife_Bark_greets_customer") % 10 == 8>>
+    Kess (the Knife): Between us, friend, you've got good eyes for quality, don't you?  // emotion=happy intensity=medium
+<<else>>
+    Kess (the Knife): Welcome, welcome! Between us, a discerning eye like yours will spot the real gems.  // emotion=happy intensity=medium
+<<endif>>
+===

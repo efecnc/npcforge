@@ -1,0 +1,19 @@
+title: mira_vesser_Bark_reacts_to_hum
+tags: bark,trigger:reacts_to_hum,npc:mira_vesser
+---
+// Bark library: 6 variants for trigger 'reacts_to_hum'
+// Trigger context: The four-note hum audibly rises from beneath the floorboards of the tavern, loud enough this time that the cups on the bar shift.
+<<if visited_count("mira_vesser_Bark_reacts_to_hum") % 6 == 0>>
+    Mira Vesser: Deep gets louder; mind your drinks.  // emotion=neutral intensity=medium
+<<elseif visited_count("mira_vesser_Bark_reacts_to_hum") % 6 == 1>>
+    Mira Vesser: Deep's humming again.  // emotion=neutral intensity=medium
+<<elseif visited_count("mira_vesser_Bark_reacts_to_hum") % 6 == 2>>
+    Mira Vesser: Mind your ale. The deep's got its own hunger.  // emotion=sarcastic intensity=medium
+<<elseif visited_count("mira_vesser_Bark_reacts_to_hum") % 6 == 3>>
+    Mira Vesser: The deep's humming. Don't spill your ale.  // emotion=neutral intensity=low
+<<elseif visited_count("mira_vesser_Bark_reacts_to_hum") % 6 == 4>>
+    Mira Vesser: Deep's stirring again.  // emotion=neutral intensity=low
+<<else>>
+    Mira Vesser: The deep makes its own noise, as it always does.  // emotion=neutral intensity=medium
+<<endif>>
+===

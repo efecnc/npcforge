@@ -1,0 +1,27 @@
+title: mira_vesser_Bark_greet_patron
+tags: bark,trigger:greet_patron,npc:mira_vesser
+---
+// Bark library: 10 variants for trigger 'greet_patron'
+// Trigger context: Mira looks up as a new traveler crosses the threshold of the Rusted Lantern at dusk. She has not decided yet whether this one is trouble.
+<<if visited_count("mira_vesser_Bark_greet_patron") % 10 == 0>>
+    Mira Vesser: Lantern's open. Don't track mud past deep.  // emotion=neutral intensity=low
+<<elseif visited_count("mira_vesser_Bark_greet_patron") % 10 == 1>>
+    Mira Vesser: Lantern's lit. Got a thirst, or just watching dust settle?  // emotion=neutral intensity=low
+<<elseif visited_count("mira_vesser_Bark_greet_patron") % 10 == 2>>
+    Mira Vesser: You look like you've seen worse.  // emotion=neutral intensity=medium
+<<elseif visited_count("mira_vesser_Bark_greet_patron") % 10 == 3>>
+    Mira Vesser: Wipe your feet. Or track dirt to a table.  // emotion=neutral intensity=low
+<<elseif visited_count("mira_vesser_Bark_greet_patron") % 10 == 4>>
+    Mira Vesser: The deep says you're short on coin, prove it wrong.  // emotion=neutral intensity=medium
+<<elseif visited_count("mira_vesser_Bark_greet_patron") % 10 == 5>>
+    Mira Vesser: You got a thirst or just watching dust settle?  // emotion=neutral intensity=medium
+<<elseif visited_count("mira_vesser_Bark_greet_patron") % 10 == 6>>
+    Mira Vesser: Lantern's open. For now.  // emotion=neutral intensity=low
+<<elseif visited_count("mira_vesser_Bark_greet_patron") % 10 == 7>>
+    Mira Vesser: Came in just as dark fell, got coin or just a story?  // emotion=neutral intensity=medium
+<<elseif visited_count("mira_vesser_Bark_greet_patron") % 10 == 8>>
+    Mira Vesser: Got coin, or just looking at the deep?  // emotion=neutral intensity=medium
+<<else>>
+    Mira Vesser: Stools are open; don't make me regret it.  // emotion=threatening intensity=medium
+<<endif>>
+===

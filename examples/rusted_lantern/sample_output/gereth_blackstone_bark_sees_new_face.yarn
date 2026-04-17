@@ -1,0 +1,27 @@
+title: gereth_blackstone_Bark_sees_new_face
+tags: bark,trigger:sees_new_face,npc:gereth_blackstone
+---
+// Bark library: 10 variants for trigger 'sees_new_face'
+// Trigger context: Gereth, sitting in his corner, notices a stranger he has not seen before enter the Lantern. He clutches the locket under his coat reflexively.
+<<if visited_count("gereth_blackstone_Bark_sees_new_face") % 10 == 0>>
+    Gereth Blackstone: Another one... hmm-hmm-hmm-hmm... not from the twelve, one, are you?  // emotion=scared intensity=medium
+<<elseif visited_count("gereth_blackstone_Bark_sees_new_face") % 10 == 1>>
+    Gereth Blackstone: You're new. hmm-hmm-hmm-hmm... Not like my twelve, one, lost in the rock.  // emotion=scared intensity=medium
+<<elseif visited_count("gereth_blackstone_Bark_sees_new_face") % 10 == 2>>
+    Gereth Blackstone: Hmm-hmm-hmm-hmm... I keep it safe, twelve, one, safe from new eyes.  // emotion=scared intensity=medium
+<<elseif visited_count("gereth_blackstone_Bark_sees_new_face") % 10 == 3>>
+    Gereth Blackstone: Another new face... hmm-hmm-hmm-hmm. You won't take what's left, twelve, one.  // emotion=scared intensity=medium
+<<elseif visited_count("gereth_blackstone_Bark_sees_new_face") % 10 == 4>>
+    Gereth Blackstone: You're new, hmm-hmm-hmm-hmm... I keep it safe, twelve, one.  // emotion=scared intensity=medium
+<<elseif visited_count("gereth_blackstone_Bark_sees_new_face") % 10 == 5>>
+    Gereth Blackstone: New face... hmm-hmm-hmm-hmm... you weren't with the twelve, one.  // emotion=scared intensity=low
+<<elseif visited_count("gereth_blackstone_Bark_sees_new_face") % 10 == 6>>
+    Gereth Blackstone: Hmm-hmm-hmm-hmm, a new face. Not one of my twelve, not one.  // emotion=scared intensity=medium
+<<elseif visited_count("gereth_blackstone_Bark_sees_new_face") % 10 == 7>>
+    Gereth Blackstone: They found me... hmm-hmm-hmm-hmm... lost from the twelve, one.  // emotion=scared intensity=medium
+<<elseif visited_count("gereth_blackstone_Bark_sees_new_face") % 10 == 8>>
+    Gereth Blackstone: A new face, hmm-hmm-hmm-hmm. Twelve, one. Always more coming now.  // emotion=scared intensity=medium
+<<else>>
+    Gereth Blackstone: Who's that? Hmm-hmm-hmm-hmm, I lost twelve, not one, not one.  // emotion=scared intensity=medium
+<<endif>>
+===

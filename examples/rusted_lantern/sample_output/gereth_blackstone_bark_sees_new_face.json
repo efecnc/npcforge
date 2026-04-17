@@ -1,0 +1,57 @@
+{
+  "npc": "gereth_blackstone",
+  "trigger": "sees_new_face",
+  "node_title": "gereth_blackstone_Bark_sees_new_face",
+  "barks": [
+    {
+      "text": "Another one... hmm-hmm-hmm-hmm... not from the twelve, one, are you?",
+      "emotion": "scared",
+      "intensity": "medium"
+    },
+    {
+      "text": "You're new. hmm-hmm-hmm-hmm... Not like my twelve, one, lost in the rock.",
+      "emotion": "scared",
+      "intensity": "medium"
+    },
+    {
+      "text": "Hmm-hmm-hmm-hmm... I keep it safe, twelve, one, safe from new eyes.",
+      "emotion": "scared",
+      "intensity": "medium"
+    },
+    {
+      "text": "Another new face... hmm-hmm-hmm-hmm. You won't take what's left, twelve, one.",
+      "emotion": "scared",
+      "intensity": "medium"
+    },
+    {
+      "text": "You're new, hmm-hmm-hmm-hmm... I keep it safe, twelve, one.",
+      "emotion": "scared",
+      "intensity": "medium"
+    },
+    {
+      "text": "New face... hmm-hmm-hmm-hmm... you weren't with the twelve, one.",
+      "emotion": "scared",
+      "intensity": "low"
+    },
+    {
+      "text": "Hmm-hmm-hmm-hmm, a new face. Not one of my twelve, not one.",
+      "emotion": "scared",
+      "intensity": "medium"
+    },
+    {
+      "text": "They found me... hmm-hmm-hmm-hmm... lost from the twelve, one.",
+      "emotion": "scared",
+      "intensity": "medium"
+    },
+    {
+      "text": "A new face, hmm-hmm-hmm-hmm. Twelve, one. Always more coming now.",
+      "emotion": "scared",
+      "intensity": "medium"
+    },
+    {
+      "text": "Who's that? Hmm-hmm-hmm-hmm, I lost twelve, not one, not one.",
+      "emotion": "scared",
+      "intensity": "medium"
+    }
+  ]
+}

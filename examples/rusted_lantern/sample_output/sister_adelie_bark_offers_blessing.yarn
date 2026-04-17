@@ -1,0 +1,23 @@
+title: sister_adelie_Bark_offers_blessing
+tags: bark,trigger:offers_blessing,npc:sister_adelie
+---
+// Bark library: 8 variants for trigger 'offers_blessing'
+// Trigger context: A patron of the Lantern kneels before Sister Adelie and asks, haltingly, for a blessing. The Sister must decide how much light to give them.
+<<if visited_count("sister_adelie_Bark_offers_blessing") % 8 == 0>>
+    Sister Adelie: A blessing you desire, but for what purpose does your heart yearn?  // emotion=neutral intensity=medium
+<<elseif visited_count("sister_adelie_Bark_offers_blessing") % 8 == 1>>
+    Sister Adelie: For what purpose do you kneel, and what light do you desire?  // emotion=neutral intensity=medium
+<<elseif visited_count("sister_adelie_Bark_offers_blessing") % 8 == 2>>
+    Sister Adelie: From what darkness do you seek the Moon's gentle solace, kneeling thus?  // emotion=neutral intensity=medium
+<<elseif visited_count("sister_adelie_Bark_offers_blessing") % 8 == 3>>
+    Sister Adelie: Does your heart truly seek solace, or merely respite from consequence?  // emotion=neutral intensity=medium
+<<elseif visited_count("sister_adelie_Bark_offers_blessing") % 8 == 4>>
+    Sister Adelie: Do you truly seek the Moon's light, or merely a fleeting shadow of comfort?  // emotion=neutral intensity=medium
+<<elseif visited_count("sister_adelie_Bark_offers_blessing") % 8 == 5>>
+    Sister Adelie: Why do you kneel, and what grace does your spirit require?  // emotion=neutral intensity=medium
+<<elseif visited_count("sister_adelie_Bark_offers_blessing") % 8 == 6>>
+    Sister Adelie: What burden do you carry, that the Moon's light might ease it?  // emotion=neutral intensity=medium
+<<else>>
+    Sister Adelie: Tell me, what shadow seeks the Moon's gentle illumination?  // emotion=neutral intensity=medium
+<<endif>>
+===
