@@ -1,0 +1,70 @@
+# Saint Denis 1899 barks — reactive 1-liners for in-game events.
+
+barks:
+  - npc: marceline_castille
+    triggers:
+      - id: greets_new_guest
+        description: >
+          A traveler has just stepped onto the Castille boarding-house porch
+          with luggage. Mrs. Castille is sweeping the step and does not
+          stop sweeping.
+        n: 8
+      - id: warns_of_curfew
+        description: >
+          A guest is about to leave the house after ten at night. The lamps
+          in Bastille Place are already out.
+        n: 6
+
+  - npc: old_henri_beauregard
+    triggers:
+      - id: spots_gator
+        description: >
+          Henri sees a gator in the water ten feet ahead of the pirogue.
+          The party has not seen it yet.
+        n: 8
+      - id: warns_of_fog
+        description: >
+          A white wall of swamp-fog is rolling in across the water. Henri
+          has been guiding this crossing since before the listener was born.
+        n: 6
+
+  - npc: reverend_ames
+    triggers:
+      - id: offers_blessing
+        description: >
+          A parishioner kneels at the altar rail and asks for a blessing.
+          The Reverend has been awake since three this morning.
+        n: 8
+      - id: reacts_to_blasphemy
+        description: >
+          Someone has just taken the Lord's name in vain inside the Reverend's
+          church. He has to respond. He does not want to.
+        n: 6
+
+  - npc: rufus_red_doyle
+    triggers:
+      - id: sees_lawman
+        description: >
+          A Pinkerton or Saint Denis police officer has just walked within
+          sight of Rufus's tinker-cart. Rufus pretends to be polishing a
+          kettle he already polished.
+        n: 8
+      - id: waves_over_customer
+        description: >
+          A traveler is passing the cart and hasn't stopped yet. Rufus
+          wants them to stop.
+        n: 6
+
+  - npc: agent_calvin_whiting
+    triggers:
+      - id: greets_suspect
+        description: >
+          Agent Whiting is sitting down across from a person of interest
+          in a hotel parlour. The dataslate is closed. He has already
+          decided whether this one breaks.
+        n: 8
+      - id: confirms_bounty
+        description: >
+          The suspect has just matched the description on Whiting's wanted
+          poster. Whiting has not drawn. He will give them one chance.
+        n: 6

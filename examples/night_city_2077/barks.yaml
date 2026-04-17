@@ -1,0 +1,65 @@
+# Night City bark triggers — reactive 1-liners for in-game events.
+# Triggers are written as situational cues, not directives.
+
+barks:
+  - npc: viktor_vector
+    triggers:
+      - id: finishes_install
+        description: >
+          Viktor has just finished installing cyberware on the player. The
+          new chrome is coming online and the client is sitting up on the
+          exam chair.
+        n: 8
+      - id: declines_unsafe_chrome
+        description: >
+          The client has asked Viktor to install chrome that would push
+          them past the integration threshold. Viktor is refusing but not
+          kicking them out.
+        n: 6
+
+  - npc: rue_mox_bartender
+    triggers:
+      - id: greets_patron
+        description: >
+          A new patron walks into the Mox. Rue is behind the bar, polishing
+          a glass. She already knows whether she likes this one.
+        n: 10
+      - id: sees_corp_suit_enter
+        description: >
+          A corp-suit in a clean Arasaka cut walks into the Mox. The
+          regulars look at Rue. Rue looks at the suit.
+        n: 6
+
+  - npc: santiago_reyes
+    triggers:
+      - id: offers_new_gig
+        description: >
+          Santiago has just gotten a fresh gig lead on his holo. He is
+          showing it to a mercenary he trusts enough to ask.
+        n: 8
+
+  - npc: splice_maelstrom
+    triggers:
+      - id: combat_start
+        description: >
+          Splice has just drawn on a target. The chrome is singing. The
+          first shot has not been fired yet.
+        n: 8
+      - id: sees_flatline
+        description: >
+          Splice stands over the body of someone who just flat-lined.
+          They are deciding whether to loot the chrome first or last.
+        n: 6
+
+  - npc: rebecca_vale
+    triggers:
+      - id: begins_interview
+        description: >
+          Rebecca has just sat down across from the player in a neutral
+          location. She has not opened her dataslate yet.
+        n: 6
+      - id: catches_lie
+        description: >
+          Rebecca has just detected a clear lie in the conversation. She
+          will not call it out directly — she will let it sit.
+        n: 6

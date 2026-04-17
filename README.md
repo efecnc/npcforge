@@ -171,6 +171,21 @@ intents:
       Cut to the point and make clear the conversation will go badly.
 ```
 
+## Ready-to-run starter worlds
+
+Three settings ship in the repo — each a full walk-up + barks pipeline:
+
+- **[`examples/rusted_lantern/`](examples/rusted_lantern/)** — low fantasy, 5 NPCs in a mining-town tavern
+- **[`examples/night_city_2077/`](examples/night_city_2077/)** — cyberpunk noir in Watson: ripperdoc, Mox bartender, Aldecaldos fixer, Maelstrom initiate, Netwatch agent
+- **[`examples/saint_denis_1899/`](examples/saint_denis_1899/)** — frontier western: Creole boarding-house keeper, Cajun swamp guide, clergyman, Lemoyne Raider, Pinkerton agent
+
+```bash
+npcforge --demo-dir examples/night_city_2077 --mode all
+npcforge --demo-dir examples/saint_denis_1899 --mode all
+```
+
+Each covers 12 intents × 28–32 walk-up branches + 52–70 barks on a full run. Copy any of them and edit in place to bootstrap a new setting. Full authoring walkthrough in [`examples/AUTHORING.md`](examples/AUTHORING.md).
+
 ## Iteration speed
 
 - `--only-npcs id1,id2` — regen just those NPCs (full walk-up + barks for them).

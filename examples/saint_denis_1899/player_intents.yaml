@@ -1,0 +1,98 @@
+# Saint Denis 1899 intents — what the player character tries to do this turn.
+# Each NPC in characters.yaml whitelists a subset via `allowed_intents`.
+
+intents:
+  - id: ask_about_boarding
+    name: "Ask About Boarding"
+    description: >
+      Ask for a room, a bed, or a bunk for the night. Price and terms are
+      fair game.
+    opening_intent: >
+      Introduce yourself as a traveler and ask what a room costs.
+
+  - id: ask_about_bayou_guide
+    name: "Ask About a Bayou Guide"
+    description: >
+      Inquire whether the NPC knows someone who can guide you through the
+      Bayou Nwa — trapping trails, poachers' routes, safe crossings.
+    opening_intent: >
+      Ask whether the NPC has been into the bayou lately or knows someone
+      who has.
+
+  - id: ask_about_raiders
+    name: "Ask About the Lemoyne Raiders"
+    description: >
+      Probe for information on the Lemoyne Raiders — camps, leaders,
+      recent trouble.
+    opening_intent: >
+      Bring up the Raiders by name and read the NPC's reaction.
+
+  - id: ask_about_bounty
+    name: "Ask About a Bounty"
+    description: >
+      Ask about a wanted poster, a named fugitive, or a standing reward.
+    opening_intent: >
+      Produce a poster or name a wanted person and ask what the NPC knows.
+
+  - id: ask_about_clergy
+    name: "Ask About the Church"
+    description: >
+      Ask about the Reverend, the congregation, or a specific sin the
+      player is weighing confessing.
+    opening_intent: >
+      Ask whether the Reverend has been hearing a particular kind of
+      trouble lately.
+
+  - id: confess_sin
+    name: "Confess a Sin"
+    description: >
+      Seriously disclose something the player has done wrong. Not a trick
+      to extract information — an actual confession.
+    opening_intent: >
+      Ask for a moment of the NPC's time to speak plainly about wrong-doing.
+
+  - id: challenge_to_duel
+    name: "Challenge to a Duel"
+    description: >
+      Issue a challenge — quickdraw, fists, or appointed hour. Must have a
+      credible reason.
+    opening_intent: >
+      Name the offence and the terms of the challenge.
+
+  - id: barter_wares
+    name: "Barter Wares"
+    description: >
+      Ask to see what the NPC has for sale, what they will buy, and haggle
+      a price on at least one item.
+    opening_intent: >
+      Ask to inspect the NPC's wares and price one of them.
+
+  - id: bribe_for_info
+    name: "Bribe for Information"
+    description: >
+      Offer coin, whiskey, or a favor in exchange for specific information.
+    opening_intent: >
+      Lay a coin on the counter and name what it buys.
+
+  - id: threaten_for_info
+    name: "Threaten for Information"
+    description: >
+      Use implied violence, leverage, or a drawn weapon. No actual
+      violence yet.
+    opening_intent: >
+      Make clear the conversation turns ugly if the NPC stays silent.
+
+  - id: flirt
+    name: "Flirt"
+    description: >
+      Period-appropriate flirtation. Chaste by modern standards. Never
+      crass in public.
+    opening_intent: >
+      Open with a warm personal comment and keep to the tone of the era.
+
+  - id: farewell
+    name: "Farewell"
+    description: >
+      End the conversation politely. No new requests.
+    opening_intent: >
+      Tip a hat or nod and make clear you're on your way.
