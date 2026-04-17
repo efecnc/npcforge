@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+build/
+dist/
+.venv/
+venv/
+.tox/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets / local env
+.env
+.env.*
+!.env.example
+
+# Generated output (demo re-runs rewrite these)
+examples/*/out/*.yarn
+examples/*/out/*.jsonl
+examples/*/out/*.csv
+examples/*/out/documents.jsonl
+
+# Afterimage analytics / monitoring artefacts
+afterimage_monitor/
+.afterimage-monitoring/
+reports/

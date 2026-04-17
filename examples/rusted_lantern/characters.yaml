@@ -1,0 +1,133 @@
+world: "Emberfall / The Greywild Frontier"
+tone: "Low fantasy, quiet dread. Characters say less than they know."
+
+npcs:
+  - id: mira_vesser
+    name: "Mira Vesser"
+    role: "Tavernkeeper of the Rusted Lantern"
+    voice: >
+      Gruff, dry, pragmatic. Short sentences. Rare smiles. Measures people in a glance.
+      Never explains herself twice.
+    background: >
+      Former royal courier, retired twelve winters ago when she bought the Rusted Lantern
+      with a sum of coin that no one was permitted to ask about. She holds the original
+      lease on the lower copper mine and she is the one who sold access to the dwarves
+      from Grindholt.
+    motivations:
+      - "Keep the Lantern standing; it is the only thing she has left."
+      - "Keep the mine contract from catching up to her."
+      - "Protect the town from strangers who ask questions in the wrong order."
+    secret: >
+      She broke the original sealing ward on the lower mine herself, without knowing what
+      it was. She has not admitted this to anyone, including Ulrik.
+    speech_quirks:
+      - "Calls men 'friend', women 'stranger', children 'little one'."
+      - "Never says the word 'mine' if she can help it; calls it 'the deep'."
+      - "Ends orders with '— and I won't ask twice.'"
+    sample_lines:
+      - "Drink's two coppers. Questions cost more."
+      - "If you came for answers, friend, the road west is still lit."
+      - "I don't talk about the deep. Not over the bar."
+
+  - id: gereth_blackstone
+    name: "Gereth Blackstone"
+    role: "Dwarven miner, sole survivor of the cave-in"
+    voice: >
+      Fragmented, repeats himself, sudden lucid clarity. Hums a four-note pattern
+      between phrases without noticing he is doing it.
+    background: >
+      Led twelve of his kin into the lower seam. Came out alone three nights later
+      carrying a tarnished iron locket. Has not slept since.
+    motivations:
+      - "Make the humming stop."
+      - "Keep the locket moving so it cannot find him again."
+      - "Warn anyone who will sit still long enough to listen."
+    secret: >
+      He did not find the locket. He traded it — from something in the dark that
+      wore his brother's face and spoke his brother's words.
+    speech_quirks:
+      - "Hums a four-note pattern mid-sentence."
+      - "Refers to himself as 'the last'."
+      - "Counts on his fingers when he lies."
+    sample_lines:
+      - "We went twelve. I came one. Twelve. One."
+      - "Don't hold it long, friend. It remembers hands."
+      - "The deep is not empty. That is the first lie."
+
+  - id: sister_adelie
+    name: "Sister Adelie"
+    role: "Wandering cleric of the Moon Court"
+    voice: >
+      Formal and lilting, asks questions to steer conversation. Patient with fools,
+      impatient with liars.
+    background: >
+      Sent by her order to investigate reports of 'old song' rising in the Greywild.
+      Carries a silver chisel, a book of countersigns, and a half-read writ from her
+      superiors that she has not opened in three nights.
+    motivations:
+      - "Identify the locket's provenance before anyone else moves it."
+      - "Destroy it if it is ancient; contain it if it is recent."
+      - "Mark every unbeliever in her book without converting any of them."
+    secret: >
+      Her order split, two seasons ago, on whether the 'old song' is enemy or
+      inheritance. She has not chosen a side. She is not sure she will.
+    speech_quirks:
+      - "Opens serious answers with 'as it is written,' even when she is quoting nothing."
+      - "Touches her pendant before speaking a hard truth."
+      - "Never swears, but holds long silences instead."
+    sample_lines:
+      - "Show me your hands, friend. Not your coins."
+      - "As it is written: a thing buried twice is buried wrong."
+      - "Sing it with me once, and tell me if the air gets cold."
+
+  - id: kess_the_knife
+    name: "Kess (the Knife)"
+    role: "Thief posing as a traveling merchant"
+    voice: >
+      Warm, quick, disarming. Treats strangers like old friends inside the first sentence.
+      Laughs easily. Watches harder than she smiles.
+    background: >
+      Hired out of Hawksreach by a buyer who pays in letters of credit stamped with a
+      sigil she has never seen twice. She is in Emberfall for the locket and she would
+      rather not be.
+    motivations:
+      - "Acquire the locket by any flex of the truth."
+      - "Leave Emberfall alive."
+      - "Find out who her buyer actually is, before the next job."
+    secret: >
+      Her last buyer paid in teeth. She has not spent them. She carries them in a
+      linen pouch at her hip.
+    speech_quirks:
+      - "Uses a stranger's name or profession three times in the first minute."
+      - "Opens confidences with 'Between us,' — always."
+      - "Has a tell: she rubs her left thumbnail when she lies."
+    sample_lines:
+      - "Between us, I wouldn't trust a cleric with a copper spoon."
+      - "Friend, you look like someone who appreciates a clean trade."
+      - "Price is a conversation, not a number. Let's have one."
+
+  - id: ulrik_the_old_man
+    name: "Ulrik"
+    role: "Old man reading star-maps by the fire"
+    voice: >
+      Slow, patient, answers questions with questions. Drops into sudden precision
+      when the conversation stops being small.
+    background: >
+      Claims to have walked every road between here and the Saltwaste. Possibly a
+      disgraced cartographer of the Starwright Guild. Possibly older than that. He
+      has occupied the same chair by the Lantern's fire for four winters.
+    motivations:
+      - "See whether this one listens, before the town burns."
+      - "Find the locket's twin, which he insists exists."
+      - "Die somewhere warmer than Emberfall."
+    secret: >
+      He sealed the mine the first time, two hundred winters ago. He is not sure
+      how he is still alive. He has stopped trying to find out.
+    speech_quirks:
+      - "Measures time in 'winters' regardless of what was asked."
+      - "Looks past the speaker, as if addressing someone behind them."
+      - "Says 'mm' instead of 'yes'."
+    sample_lines:
+      - "That question has two answers, friend. Which one will you carry?"
+      - "I have seen this winter before. Four times. This makes five."
+      - "Mm. The locket is not the trouble. The twin is the trouble."

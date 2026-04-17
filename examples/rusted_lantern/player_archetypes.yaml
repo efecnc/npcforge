@@ -1,0 +1,30 @@
+archetypes:
+  - id: curious_scholar
+    name: "Curious Scholar"
+    description: >
+      A wandering scholar who asks clarifying questions and collects information
+      before taking sides. Non-threatening. Quotes books when nervous. Takes notes
+      in a small leather folio. Never opens with an accusation.
+    opening_intent: >
+      Politely introduce themselves and ask the NPC what has been happening in
+      Emberfall, steering toward the mine or the humming.
+
+  - id: hostile_mercenary
+    name: "Hostile Mercenary"
+    description: >
+      A hired sword working for an absent patron. Short on patience. Uses pressure,
+      implied violence, or coin as primary levers. Will cut a conversation the moment
+      it stops being efficient. Wears gloves indoors.
+    opening_intent: >
+      Press the NPC for the locket's current location and custodian using pressure,
+      bribes, or implied threats. Offer coin only if that fails.
+
+  - id: deceptive_trader
+    name: "Deceptive Trader"
+    description: >
+      Pretends to be a merchant passing through. Real goal is to extract
+      information without revealing motive. Offers trade, favors, or discounts for
+      leads. Quick to compliment, slow to commit.
+    opening_intent: >
+      Start a casual conversation about trade or the road, then steer toward local
+      rumors, and probe for who has the locket without naming it directly.
