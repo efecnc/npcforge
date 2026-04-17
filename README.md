@@ -48,21 +48,21 @@ npcforge build --demo-dir examples/rusted_lantern --mode all
 npcforge mcp            # stdio transport, used by Claude Desktop / Cursor / Cline
 ```
 
-**Legacy form (pre-0.3.0):**
+**More `build` options:**
 
 ```bash
-# walk-up dialogue for every NPC × each NPC's allowed intents
+# walk-up dialogue only
 npcforge build --demo-dir examples/rusted_lantern --mode walk_up
 
-# bark libraries for the triggers declared in barks.yaml
+# bark libraries only
 npcforge build --demo-dir examples/rusted_lantern --mode barks
 
-# everything
-npcforge --demo-dir examples/rusted_lantern --mode all
-
-# iterate on a subset — regen only Mira and Kess
-npcforge --demo-dir examples/rusted_lantern --mode all --only-npcs mira_vesser,kess_the_knife
+# iterate on a subset — regen Mira and Kess only
+npcforge build --demo-dir examples/rusted_lantern --mode all \
+    --only-npcs mira_vesser,kess_the_knife
 ```
+
+**Migrating from v0.2.x:** the top-level `npcforge --demo-dir X --mode Y` form is gone. Prefix every invocation with `build`: `npcforge build --demo-dir X --mode Y`.
 
 Outputs land in `examples/rusted_lantern/out/`:
 
@@ -254,46 +254,78 @@ Three settings ship in the repo — each a full walk-up + barks pipeline:
 - **[`examples/saint_denis_1899/`](examples/saint_denis_1899/)** — frontier western: Creole boarding-house keeper, Cajun swamp guide, clergyman, Lemoyne Raider, Pinkerton agent
 
 ```bash
-npcforge --demo-dir examples/night_city_2077 --mode all
-npcforge --demo-dir examples/saint_denis_1899 --mode all
+npcforge world infer --demo-dir examples/night_city_2077
+npcforge build       --demo-dir examples/night_city_2077 --mode all
+
+npcforge world infer --demo-dir examples/saint_denis_1899
+npcforge build       --demo-dir examples/saint_denis_1899 --mode all
 ```
 
 Each covers 12 intents × 28–32 walk-up branches + 52–70 barks on a full run. Copy any of them and edit in place to bootstrap a new setting. Full authoring walkthrough in [`examples/AUTHORING.md`](examples/AUTHORING.md).
 
 ## Iteration speed
 
-- `--only-npcs id1,id2` — regen just those NPCs (full walk-up + barks for them).
+- `--only-npcs id1,id2` — rebuild just those NPCs.
+- `npcforge gen npcs --dry-run` — preview generated NPCs without writing.
+- `.npcforge/world_profile.json` — cached inference; edit the JSON directly to correct any misread.
 - `manifest.json` — content hashes for every file so you can diff runs.
-- `lint.md` — scan voice violations without opening Yarn files.
-- `ysc compile` — automatic post-run syntactic validation when the compiler is available.
+- `lint.md` — voice-ceiling violations grouped by NPC.
+- `ysc compile` — automatic post-run syntactic validation when the Yarn Spinner compiler is on `PATH`.
 
 ## Using it as a library
+
+Prefer the tools layer — one contract for every call:
 
 ```python
 import asyncio
 from pathlib import Path
 from npcforge import (
-    load_npcs, load_intents, load_barks_config, load_world_bible, run_all,
+    BuildPipelineInput,
+    GenNpcsInput,
+    InferWorldProfileInput,
+    build_pipeline,
+    gen_npcs,
+    infer_world_profile,
 )
 
 async def main():
     demo = Path("examples/rusted_lantern")
-    await run_all(
-        npcs=load_npcs(demo / "characters.yaml"),
-        intents=load_intents(demo / "player_intents.yaml"),
-        world_bible=load_world_bible(demo / "lore"),
-        barks_config=load_barks_config(demo / "barks.yaml"),
-        api_key="...",
-        out_dir=demo / "out",
-        mode="all",
-    )
+    key = "..."
+
+    # 1. Infer the world (cached on disk after the first call)
+    await infer_world_profile(InferWorldProfileInput(demo_dir=demo, api_key=key))
+
+    # 2. Generate new NPCs additively
+    gen = await gen_npcs(GenNpcsInput(
+        demo_dir=demo,
+        roles=["traveling bard", "young barmaid"],
+        api_key=key,
+    ))
+    for npc in gen.added:
+        print(npc.id, npc.name)
+
+    # 3. Run the dialogue + bark pipeline
+    build = await build_pipeline(BuildPipelineInput(
+        demo_dir=demo, mode="all", api_key=key,
+    ))
+    print("elapsed:", build.manifest["elapsed_seconds"], "seconds")
 
 asyncio.run(main())
 ```
 
+See [`docs/TOOLS.md`](docs/TOOLS.md) for every input / output schema and [`docs/MCP.md`](docs/MCP.md) for MCP client setup.
+
 ## Roadmap
 
+### Next up
+
+- **`gen intents` + `gen barks`** tools — same additive pattern as `gen_npcs`, driven by briefs / triggers / per-NPC.
+- **Stub resolution** — any NPC with `_generate: true` in `characters.yaml` gets its blanks filled on the next `gen npcs` pass.
+- **Recipe files** (`requests/*.yaml`) — reusable cast recipes for diff-friendly version control.
 - **Mid-dialog branching** — resample high-valence NPC turns at T=0.9, emit nested `->` options when continuations diverge.
+
+### Further out
+
 - **Ink and Ren'Py exporters** — same `Branch` data shape, additional writers.
 - **World-state variables** — `<<set $quest_stage = 3>>` threaded through prompts and emitted into Yarn conditionals.
 - **Knowledge gates** — structured `{fact, gate, reveal_lines, deflect_lines}` per NPC so reveals respect quest state.
@@ -303,6 +335,10 @@ asyncio.run(main())
 - **NPC-level concurrency** for 1000-NPC scale.
 - **Judge-enabled mode** — generate N candidates per branch, keep highest-scored.
 - **Local-model recipes** — validated Ollama + vLLM offline pipelines.
+
+### Version history
+
+See [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Acknowledgements
 
