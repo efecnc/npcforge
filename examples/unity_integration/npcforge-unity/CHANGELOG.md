@@ -2,6 +2,78 @@
 
 Versions follow the Unity package, not the npcforge Python package.
 
+## [0.2.0] — 2026-04-18
+
+First pass toward "npcforge as an advanced Unity engine" — two new
+Editor windows, two new runtime components, one-click scene setup,
+and a CLI progress bar.
+
+### Added — Editor
+
+- **`Tools → npcforge → NPC Browser…`** — lists every NPC declared in
+  the project's `characters.yaml` with full detail view: voice,
+  motivations, secret, speech quirks, sample lines, forbidden words,
+  accent markers, allowed intents, reacts-to, relationships,
+  knowledge gates, state evolution. Searchable, read-only, reloads on
+  focus. Ships with `NpcForgeYamlReader` — a minimal indent-aware YAML
+  reader tailored to the npcforge schema (no YamlDotNet dependency).
+- **`Tools → npcforge → State Inspector…`** — live Yarn-variable
+  viewer. Polls every `DialogueRunner` in the scene at 5 Hz during
+  Play mode plus folds in `NpcForgeStateStore` snapshots. Values
+  editable in Play mode — changes flow back through the StateStore.
+  Uses reflection for `GetAllVariables` so the package stays compatible
+  across Yarn Spinner versions.
+- **`Tools → npcforge → Create Dialogue Scene Setup`** — one-click
+  scaffolding. Drops a complete `NpcForge_Setup` hierarchy into the
+  active scene: DialogueRunner + NpcForge GameObject (controller +
+  StateStore + Startup + TimeOfDayController, auto-wired via
+  reflection) + Canvas with five time-of-day buttons + sample Approach
+  Mira button. Users only need to assign a YarnProject to finish.
+
+### Added — Runtime
+
+- **`NpcForgeStateStore`** — typed wrapper around Yarn's
+  VariableStorage. `GetString` / `SetString` / `GetNumber` / `SetNumber`
+  / `GetBool` / `SetBool` / `AddClamped` / `SetMany`. Fires
+  `OnVariableChanged(name, value)` on every write. Keeps a snapshot
+  of observed values for Editor inspection.
+- **`NpcForgeBarkTrigger`** — fire a bark library from any gameplay
+  event. Three entry points: public `TriggerBark()` for UnityEvents /
+  animation events / code, `FireFor(triggerId)` for code-driven picks,
+  optional `OnTriggerEnter` / `OnTriggerEnter2D` with tag whitelist.
+  Configurable cooldown. Never interrupts an in-flight scripted
+  conversation.
+
+### Changed
+
+- `NpcForgeCliRunner` displays an `EditorUtility.DisplayProgressBar`
+  while a subprocess is running and clears it on completion — Editor
+  UI no longer looks idle during 90-second generations.
+- `NpcForgeMenu` gets a logical separator before the new windows.
+- `package.json` version bumped 0.1.1 → 0.2.0.
+
+### Meta files
+
+Regenerated via `scripts/gen_unity_meta.py`; 21 `.meta` files now
+ship (was 15). New: browser + state-inspector + scene-setup + yaml-reader
++ state-store + bark-trigger.
+
+### Not in 0.2.0 (roadmap)
+
+- UI Toolkit rewrite of the main panel (still IMGUI).
+- Visual node editor for relationships / dialogue graphs.
+- In-Editor dialogue preview without entering Play mode.
+- Asset postprocessor that auto-wires new `.yarn` files into a default
+  Yarn Project.
+- Custom Inspectors for the runtime components beyond Unity defaults.
+
+### Upgrading from 0.1.x
+
+Remove from Package Manager, re-add from the same git URL. Unity
+reimports cleanly with the regenerated `.meta` files.
+
+---
+
 ## [0.1.1] — 2026-04-18
 
 Fix: ship `.meta` files for every package asset so Unity stops
