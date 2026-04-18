@@ -13,7 +13,7 @@
     "defineConstraints": [],
     "versionDefines": [
         {
-            "name": "YarnSpinner",
+            "name": "dev.yarnspinner.unity",
             "expression": "",
             "define": "NPCFORGE_HAS_YARN"
         }

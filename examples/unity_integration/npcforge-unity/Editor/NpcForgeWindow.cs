@@ -22,7 +22,10 @@ namespace Altai.NpcForge.Editor
         private bool _running;
         private string _runningLabel = string.Empty;
 
-        [MenuItem("Tools/npcforge/Open Panel...", priority = 100)]
+        // Intentionally no [MenuItem] here — the menu entry lives in
+        // NpcForgeMenu.cs (with a keyboard shortcut) and routes here.
+        // Two [MenuItem("Tools/npcforge/Open Panel...")] attributes would
+        // collide in the Editor menu registry.
         public static void Open()
         {
             var wnd = GetWindow<NpcForgeWindow>();

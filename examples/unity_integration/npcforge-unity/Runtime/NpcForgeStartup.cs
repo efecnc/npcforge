@@ -30,11 +30,13 @@ namespace Altai.NpcForge
                  "If false, run the Start node which fires its <<declare>> lines.")]
         [SerializeField] private bool seedDirectly = true;
 
+        // Fields are only read from inside NPCFORGE_HAS_YARN-guarded code, so
+        // guarding them too keeps the Unity console clean when Yarn Spinner
+        // isn't installed (otherwise the compiler logs CS0414).
+#if NPCFORGE_HAS_YARN
         [Tooltip("Default value for $time_of_day. Must match variables.yaml.")]
         [SerializeField] private string defaultTimeOfDay = "morning";
-
-        [Tooltip("Default value for $disposition_<npc>. Neutral = 50.")]
-        [SerializeField] private float defaultDisposition = 50f;
+#endif
 
         private void Start()
         {

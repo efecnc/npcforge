@@ -77,7 +77,6 @@ namespace Altai.NpcForge.Editor
             NpcSummary current = null;
             // Track nested "sections" so we know what a list of bullets belongs to.
             string section = null;
-            string nestedKey = null;       // e.g. "relationships[0].npc_id"
             string nestedHeader = null;    // "relationships" | "knowledge" | "state_evolution"
             Dictionary<string, string> pendingNested = null;
 
@@ -121,10 +120,7 @@ namespace Altai.NpcForge.Editor
                 current = null;
                 section = null;
                 nestedHeader = null;
-                nestedKey = null;
             }
-
-            string previousKeyBeforeContinuation = null; // for YAML > / | continuations
 
             for (int i = 0; i < lines.Length; i++)
             {

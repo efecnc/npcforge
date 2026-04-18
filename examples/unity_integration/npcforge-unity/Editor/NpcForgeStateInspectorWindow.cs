@@ -75,7 +75,10 @@ namespace Altai.NpcForge.Editor
 #endif
 
             // 2) Fold in whatever NpcForgeStateStore has observed so far.
-            foreach (var store in Object.FindObjectsOfType<NpcForgeStateStore>())
+            //    Zero-arg FindObjectsByType is the modern non-obsolete
+            //    scene search — replaces Unity 2022's FindObjectsOfType
+            //    and the short-lived sort-mode overload.
+            foreach (var store in Object.FindObjectsByType<NpcForgeStateStore>(FindObjectsInactive.Exclude))
             {
                 foreach (var kv in store.Snapshot)
                 {
@@ -174,7 +177,12 @@ namespace Altai.NpcForge.Editor
 
         private void EditRow(string name, object value)
         {
-            var store = Object.FindObjectOfType<NpcForgeStateStore>();
+            // FindAnyObjectByType is the modern scene-search API in
+            // Unity 6 — it's ordering-independent (FindFirstObjectByType
+            // was deprecated because it relied on instance-id ordering)
+            // and fine here because we just need any one store to route
+            // edits through.
+            var store = Object.FindAnyObjectByType<NpcForgeStateStore>();
 
             if (value is float f)
             {

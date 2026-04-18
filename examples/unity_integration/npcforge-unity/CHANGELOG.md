@@ -2,6 +2,47 @@
 
 Versions follow the Unity package, not the npcforge Python package.
 
+## [1.0.1] — 2026-04-18
+
+Validated against **Unity 6 (6000.4.3f1)** + **Yarn Spinner for Unity
+2.4.2** in a clean batchmode compile: **zero errors, zero warnings**,
+both the Runtime and Editor assemblies ship.
+
+### Fixed
+
+- **`NPCFORGE_HAS_YARN` was never defined.** The Runtime asmdef's
+  `versionDefines` used `"name": "YarnSpinner"` — but Unity matches
+  against the *package* name, not an assembly name, so the symbol
+  never activated. Every `#if NPCFORGE_HAS_YARN` block (and there
+  are many) compiled to stubs that silently did nothing. Changed to
+  `"name": "dev.yarnspinner.unity"` — Yarn-dependent runtime code now
+  actually executes. Affects every prior version (0.1.0 → 1.0.0).
+- **Duplicate "Tools → npcforge → Open Panel…" menu item.** Both
+  `NpcForgeMenu` and `NpcForgeWindow` declared the attribute, which
+  Unity logs as a collision. Removed the redundant declaration in
+  `NpcForgeWindow`; `NpcForgeMenu` keeps the entry (with the
+  `Ctrl/Cmd+Shift+Alt+N` shortcut) and routes to `NpcForgeWindow.Open()`.
+- **Unity 6 deprecations** — `FindObjectsOfType` /
+  `FindObjectOfType` in `NpcForgeStateInspectorWindow` → the modern
+  `FindObjectsByType<T>(FindObjectsInactive.Exclude)` /
+  `FindAnyObjectByType<T>()`.
+- **Unused serialized fields** — `NpcForgeStartup.defaultDisposition`
+  (never referenced) removed; `defaultTimeOfDay` moved inside
+  `#if NPCFORGE_HAS_YARN` so it no longer triggers CS0414 when
+  Yarn Spinner isn't installed.
+- **Unused locals** — `nestedKey` and `previousKeyBeforeContinuation`
+  in `NpcForgeYamlReader` (dead since v0.2.0) deleted.
+
+### Upgrading from 1.0.0
+
+Remove + re-add from the Package Manager git URL. Note that if you
+were using an earlier version under the (quiet) assumption that the
+Yarn wiring "just worked," you may now see actual dialogue behavior
+for the first time. Variable writes, time-of-day changes, bark
+triggers, and walk-up nodes all now round-trip through Yarn.
+
+---
+
 ## [1.0.0] — 2026-04-18
 
 First production-intended release. Completes the seven roadmap items
