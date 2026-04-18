@@ -2,6 +2,52 @@
 
 Versions follow the Unity package, not the npcforge Python package.
 
+## [1.0.2] — 2026-04-18
+
+Second validation pass — caught by running a 23-test NUnit EditMode
+suite plus a window-instantiation harness live inside the Editor.
+All 23 tests now pass; every EditorWindow + CustomEditor + Asset
+Postprocessor opens and teardown-s without throwing.
+
+### Fixed
+
+- **`NpcForgeStateStore` silently dropped writes when no DialogueRunner
+  was assigned.** `SetString` / `SetNumber` / `SetBool` all had
+  `if (dialogueRunner == null) return;` inside the `NPCFORGE_HAS_YARN`
+  guard — which meant the snapshot dictionary was never updated and
+  `OnVariableChanged` never fired. Symptoms: the State Inspector stayed
+  empty even after writes, save/load round-trips shipped empty JSON,
+  and `AddClamped` always read 0 as the base. Reshaped the guard to
+  only skip the Yarn-side SetValue — snapshot + event fire always
+  run. `Get*` now also falls back to the snapshot cache so headless
+  edit-mode use works.
+- **`NpcForgeSaveLoad.onSaved / onLoaded / onLoadMissing` could be
+  null** in edit-mode tests where Unity's serializer didn't auto-
+  instantiate the UnityEvent fields. Added explicit
+  `= new UnityEvent()` initializers so AddListener is always safe.
+
+### Verified (not changed)
+
+- 23 / 23 EditMode tests green: YarnParser (8) + SaveLoad (5) +
+  YamlReader (5) + StateStore/Bark (5).
+- All 6 EditorWindows open and close cleanly in batchmode:
+  NpcForgeWindow (IMGUI), NpcForgePanelUIT, NpcForgeBrowserWindow,
+  NpcForgeStateInspectorWindow, NpcForgeDialoguePreviewWindow,
+  NpcForgeRelationshipGraphWindow.
+- Both CustomEditor instantiate cleanly: NpcForgeStateStoreInspector,
+  NpcForgeBarkTriggerInspector.
+- NpcForgeYarnAssetPostprocessor.ResolveYarnProjectPath executes
+  without error.
+
+### Upgrading from 1.0.1
+
+Remove + re-add from the Package Manager git URL. If you built a
+scene against 1.0.1 where `NpcForgeStateStore` writes appeared to be
+no-ops, those writes now actually take effect — expect real state
+transitions where previously you had silent drops.
+
+---
+
 ## [1.0.1] — 2026-04-18
 
 Validated against **Unity 6 (6000.4.3f1)** + **Yarn Spinner for Unity

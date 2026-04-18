@@ -54,10 +54,13 @@ namespace Altai.NpcForge
         [Tooltip("Optional slot suffix — set to 'slot2' for a second save, etc.")]
         [SerializeField] private string slot = "default";
 
+        // Eagerly initialise UnityEvent fields so scripts that attach
+        // listeners in Awake/OnEnable (or in Edit-mode tests) never hit a
+        // null-ref if Unity's serializer skipped the per-field default.
         [Header("Events")]
-        public UnityEvent onSaved;
-        public UnityEvent onLoaded;
-        public UnityEvent onLoadMissing;
+        public UnityEvent onSaved = new UnityEvent();
+        public UnityEvent onLoaded = new UnityEvent();
+        public UnityEvent onLoadMissing = new UnityEvent();
 
         // ---------------------------------------------------------------
         // Public API

@@ -57,14 +57,24 @@ namespace Altai.NpcForge
                 return v;
             }
 #endif
+            // Fall back to the most recent value we wrote for this name.
+            // Useful for Edit-mode tests and for scenes that use the store
+            // without a DialogueRunner attached yet.
+            if (_lastSeen.TryGetValue(name, out object cached) && cached is string cs)
+                return cs;
             return fallback;
         }
 
         public void SetString(string name, string value)
         {
+            // Always update the snapshot + fire the event — even when no
+            // DialogueRunner is wired. The previous "early return" meant
+            // editors / tests / headless scenes silently dropped writes.
 #if NPCFORGE_HAS_YARN
-            if (dialogueRunner == null) return;
-            dialogueRunner.VariableStorage.SetValue(name, value);
+            if (dialogueRunner != null)
+            {
+                dialogueRunner.VariableStorage.SetValue(name, value);
+            }
 #endif
             _lastSeen[name] = value;
             OnVariableChanged?.Invoke(name, value);
@@ -84,14 +94,18 @@ namespace Altai.NpcForge
                 return v;
             }
 #endif
+            if (_lastSeen.TryGetValue(name, out object cached) && cached is float cf)
+                return cf;
             return fallback;
         }
 
         public void SetNumber(string name, float value)
         {
 #if NPCFORGE_HAS_YARN
-            if (dialogueRunner == null) return;
-            dialogueRunner.VariableStorage.SetValue(name, value);
+            if (dialogueRunner != null)
+            {
+                dialogueRunner.VariableStorage.SetValue(name, value);
+            }
 #endif
             _lastSeen[name] = value;
             OnVariableChanged?.Invoke(name, value);
@@ -120,14 +134,18 @@ namespace Altai.NpcForge
                 return v;
             }
 #endif
+            if (_lastSeen.TryGetValue(name, out object cached) && cached is bool cb)
+                return cb;
             return fallback;
         }
 
         public void SetBool(string name, bool value)
         {
 #if NPCFORGE_HAS_YARN
-            if (dialogueRunner == null) return;
-            dialogueRunner.VariableStorage.SetValue(name, value);
+            if (dialogueRunner != null)
+            {
+                dialogueRunner.VariableStorage.SetValue(name, value);
+            }
 #endif
             _lastSeen[name] = value;
             OnVariableChanged?.Invoke(name, value);
