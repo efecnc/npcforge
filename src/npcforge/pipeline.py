@@ -37,9 +37,17 @@ from afterimage.types import PersonaEntry
 
 logger = logging.getLogger(__name__)
 
+from .audio import (
+    LineRecord,
+    estimate_duration_seconds,
+    infer_emotion,
+    line_id,
+    write_lines_csv,
+)
 from .lint import LintReport, lint_barks, lint_walk_up_branches
 from .manifest import (
     BarkTriggerEntry,
+    LinesExport,
     LintSummary,
     Manifest,
     NpcEntry,
@@ -284,6 +292,70 @@ async def generate_barks_for_npc_trigger(
 # ---------------------------------------------------------------------------
 
 
+def _append_walk_up_lines(
+    sink: list[LineRecord],
+    *,
+    npc: NpcSheet,
+    intent_id: str,
+    turns: list,
+    source_file: str,
+) -> None:
+    """Emit one :class:`LineRecord` per dialogue turn in a walk-up branch."""
+    context = f"walk_up:{intent_id}"
+    for idx, turn in enumerate(turns):
+        text = (turn.get("content") or "").strip()
+        if not text:
+            continue
+        role = turn.get("role", "user")
+        speaker = npc.name if role == "assistant" else "Player"
+        emotion, intensity = (
+            infer_emotion(text) if role == "assistant" else ("neutral", "medium")
+        )
+        sink.append(
+            LineRecord(
+                line_id=line_id(npc.id, text, f"{context}:turn_{idx}"),
+                npc_id=npc.id,
+                speaker=speaker,
+                context=f"{context}:turn_{idx}",
+                source_file=source_file,
+                emotion=emotion,
+                intensity=intensity,
+                duration_sec=estimate_duration_seconds(text),
+                text=text,
+            )
+        )
+
+
+def _append_bark_lines(
+    sink: list[LineRecord],
+    *,
+    npc: NpcSheet,
+    trigger_id: str,
+    barks: list,
+    source_file: str,
+) -> None:
+    """Emit one :class:`LineRecord` per bark variant, reusing the generator's
+    structured ``emotion`` / ``intensity`` tags."""
+    context = f"bark:{trigger_id}"
+    for idx, bark in enumerate(barks):
+        text = (bark.text or "").strip()
+        if not text:
+            continue
+        sink.append(
+            LineRecord(
+                line_id=line_id(npc.id, text, f"{context}:{idx}"),
+                npc_id=npc.id,
+                speaker=npc.name,
+                context=f"{context}:{idx}",
+                source_file=source_file,
+                emotion=(bark.emotion or "neutral"),
+                intensity=(bark.intensity or "medium"),
+                duration_sec=estimate_duration_seconds(text),
+                text=text,
+            )
+        )
+
+
 def _sheet_hash(npc: NpcSheet) -> str:
     blob = npc.model_dump_json(exclude_none=False).encode("utf-8")
     return hashlib.sha256(blob).hexdigest()[:16]
@@ -352,6 +424,7 @@ async def run_all(
     lint_report = LintReport()
     npc_entries: dict[str, NpcEntry] = {}
     world_entry: WorldEntry | None = None
+    line_records: list[LineRecord] = []
 
     for npc in selected:
         entry = NpcEntry(sheet_hash=_sheet_hash(npc))
@@ -378,6 +451,14 @@ async def run_all(
                     render_yarn_node_for_npc(npc, branches), encoding="utf-8"
                 )
                 lint_report.hits.extend(lint_walk_up_branches(npc, branches))
+                for intent, turns in branches:
+                    _append_walk_up_lines(
+                        line_records,
+                        npc=npc,
+                        intent_id=intent.id,
+                        turns=turns,
+                        source_file=yarn_path.name,
+                    )
                 voice_scores: dict[str, float] = {}
                 if score_voice:
                     voice_scores = await score_voice_consistency(
@@ -443,6 +524,13 @@ async def run_all(
                     encoding="utf-8",
                 )
                 lint_report.hits.extend(lint_barks(npc, trigger.id, barks))
+                _append_bark_lines(
+                    line_records,
+                    npc=npc,
+                    trigger_id=trigger.id,
+                    barks=barks,
+                    source_file=bark_yarn_path.name,
+                )
                 entry.barks.append(
                     BarkTriggerEntry(
                         trigger=trigger.id,
@@ -477,8 +565,14 @@ async def run_all(
     lint_md = out_dir / "lint.md"
     lint_md.write_text(lint_report.format_markdown(), encoding="utf-8")
 
+    lines_export: LinesExport | None = None
+    if line_records:
+        lines_csv = out_dir / "lines.csv"
+        write_lines_csv(lines_csv, line_records)
+        lines_export = LinesExport(csv=lines_csv.name, total=len(line_records))
+
     manifest = Manifest(
-        version="0.5.0",
+        version="0.7.0",
         generated_at=started_at,
         provider=model_provider_name,
         model=model_name,
@@ -486,6 +580,7 @@ async def run_all(
         npcs=npc_entries,
         world=world_entry,
         lint=LintSummary(markdown=lint_md.name, total_hits=lint_report.total),
+        lines=lines_export,
         elapsed_seconds=round(time.perf_counter() - start_perf, 2),
         voice_scoring_enabled=score_voice,
     )

@@ -122,7 +122,7 @@ Every capability is a single async function with Pydantic input/output. Defined 
 | `resolve_stubs` | Expand `_generate: true` placeholder entries in `characters.yaml` into full `NpcSheet`s, honouring `role_hint` / `voice_hint` | one per stub |
 | `gen_greetings` | Generate one time-of-day greeting per enum-value, per NPC. Emits state-aware Yarn with `<<if $var == "value">>` chains | one per (NPC, value) |
 | `gen_repeat_greeting` | Generate visit-count-gated greetings per NPC; emits Yarn keyed on `visited_count()` | one per (NPC, visit) |
-| `build_pipeline` | Run the walk-up + bark pipeline; writes Yarn, manifest, lint report | many |
+| `build_pipeline` | Run the walk-up + bark pipeline; writes Yarn, `lines.csv` (v0.7+), manifest, lint report | many |
 
 ### MCP server
 
@@ -352,6 +352,12 @@ asyncio.run(main())
 See [`docs/TOOLS.md`](docs/TOOLS.md) for every input / output schema and [`docs/MCP.md`](docs/MCP.md) for MCP client setup.
 
 ## Roadmap
+
+### Shipped in v0.7.0
+
+- **`lines.csv` audio-pipeline export** — every walk-up turn and every bark variant lands with a deterministic `line_id`, speaker, context, emotion + intensity, syllable-based duration estimate, and source file. Wwise / FMOD / Unity Audio / loc teams read this column-stable CSV directly.
+- **New `npcforge.audio` module** — pure helpers: `line_id`, `count_syllables`, `estimate_duration_seconds`, `infer_emotion`, `write_lines_csv`, `read_lines_csv`.
+- **Typed `Manifest.lines`** — `LinesExport {csv, total}` surfaced in `manifest.json`.
 
 ### Shipped in v0.6.1
 

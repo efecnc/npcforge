@@ -376,11 +376,11 @@ Runs the walk-up / bark / all pipeline, wrapping the existing
 | `manifest` | `Manifest` | Typed manifest (see below), also written to `out_dir/manifest.json`. |
 | `out_dir` | `Path` | Where artefacts were written. |
 
-### `Manifest` schema (v0.5.0)
+### `Manifest` schema (v0.7.0)
 
 ```python
 class Manifest(BaseModel):
-    version: str                    # e.g. "0.5.0"
+    version: str                    # e.g. "0.7.0"
     generated_at: str               # ISO-8601 UTC
     provider: str                   # "gemini" | "openai" | ...
     model: str | None
@@ -388,8 +388,13 @@ class Manifest(BaseModel):
     npcs: dict[str, NpcEntry]
     world: WorldEntry | None
     lint: LintSummary
+    lines: LinesExport | None       # v0.7+: lines.csv summary, null when no dialogue
     elapsed_seconds: float
     voice_scoring_enabled: bool     # true when build was run with score_voice
+
+class LinesExport(BaseModel):       # v0.7+
+    csv: str                        # filename of lines.csv inside out/
+    total: int                      # total LineRecord rows written
 
 class NpcEntry(BaseModel):
     sheet_hash: str                 # 16-hex-char sha256 of the source sheet
@@ -425,6 +430,35 @@ best-match cosine similarity to any of the NPC's `sample_lines`. Values
 cluster in `[0.5, 0.9]` in practice — `< 0.5` signals register drift,
 `> 0.8` signals the branch is very close in voice to the reference
 exemplars.
+
+### `lines.csv` — the VO / localisation export (v0.7.0)
+
+Every walk-up turn and every bark variant emitted by `build_pipeline`
+also lands as one row in `out/lines.csv`. Column order is frozen so
+downstream tooling can rely on it:
+
+```
+line_id, npc_id, speaker, context, source_file, emotion,
+intensity, duration_sec, text
+```
+
+- **`line_id`** — `<npc_id>_<10-hex>` hash of the canonical English text
+  + context. Stable under regeneration as long as the line text itself
+  does not change.
+- **`context`** — origin tag:
+  - `walk_up:<intent_id>:turn_<n>`
+  - `bark:<trigger_id>:<variant_index>`
+- **`emotion`** / **`intensity`** — structured output from the bark
+  generator, heuristic from `infer_emotion` on walk-up assistant turns.
+  `infer_emotion` is pure and deterministic; extend or replace it for
+  project-specific tagging.
+- **`duration_sec`** — syllable-based estimate at ~4 syllables/sec,
+  minimum 0.3 s. Use as a *budget*, not a measurement.
+- **`text`** — the final dialogue line verbatim (CSV-escaped).
+
+Wwise / FMOD / Unity Audio and loc tools consume this CSV directly. See
+`LineRecord` in [`src/npcforge/audio.py`](../src/npcforge/audio.py) for
+the Pydantic model and `write_lines_csv` / `read_lines_csv` helpers.
 
 ---
 

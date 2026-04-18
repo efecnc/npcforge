@@ -73,6 +73,17 @@ class WorldEntry(BaseModel):
     yarn_hash: str
 
 
+class LinesExport(BaseModel):
+    """Summary of the audio / VO / localisation ``lines.csv`` export."""
+
+    csv: str = Field(
+        ..., description="Filename (inside out/) of the lines export."
+    )
+    total: int = Field(
+        ..., description="Number of LineRecord rows written to the CSV."
+    )
+
+
 class Manifest(BaseModel):
     """Top-level manifest written to ``out/manifest.json``."""
 
@@ -84,5 +95,12 @@ class Manifest(BaseModel):
     npcs: dict[str, NpcEntry] = Field(default_factory=dict)
     world: WorldEntry | None = None
     lint: LintSummary
+    lines: LinesExport | None = Field(
+        default=None,
+        description=(
+            "Lines CSV export summary (v0.7+). Null when the run did not "
+            "produce dialogue lines (e.g. barks-only builds still emit one)."
+        ),
+    )
     elapsed_seconds: float = 0.0
     voice_scoring_enabled: bool = False

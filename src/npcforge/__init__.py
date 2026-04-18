@@ -83,8 +83,19 @@ from .tools import (
     resolve_stubs,
     show_world_profile,
 )
+from .audio import (
+    LineRecord,
+    canonicalise_text,
+    count_syllables,
+    estimate_duration_seconds,
+    infer_emotion,
+    line_id,
+    read_lines_csv,
+    write_lines_csv,
+)
 from .manifest import (
     BarkTriggerEntry,
+    LinesExport,
     LintSummary,
     Manifest,
     NpcEntry,
@@ -140,7 +151,7 @@ from .yarn import (
     yarn_safe_title,
 )
 
-__version__ = "0.6.1"
+__version__ = "0.7.0"
 
 __all__ = [
     # Version

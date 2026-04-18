@@ -4,6 +4,77 @@ All notable changes to npcforge land here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [SemVer](https://semver.org/).
 
+## [0.7.0] — 2026-04-18
+
+First release focused on making every generated line **audio-pipeline
+ready** — the side-data Wwise / FMOD / Unity Audio / loc teams need
+alongside the Yarn files. No new generators; every existing output now
+carries line IDs, emotion, and duration estimates.
+
+### Added
+
+- **`src/npcforge/audio.py`** — new pure module with:
+  - `LineRecord` Pydantic model (line_id, npc_id, speaker, context,
+    source_file, emotion, intensity, duration_sec, text).
+  - `line_id(npc_id, text, context)` — deterministic hash-based ID.
+    Same text in same context → same ID across regens; different
+    context disambiguates same text in different places.
+  - `count_syllables(text)` — vowel-group + trailing-e heuristic.
+  - `estimate_duration_seconds(text)` — syllable-based speech-rate
+    estimate; minimum 0.3 s per line.
+  - `infer_emotion(text)` — token-rule heuristic returning
+    `(emotion, intensity)`. Matches the emotion vocabulary already on
+    barks.
+  - `write_lines_csv` / `read_lines_csv` — canonical CSV I/O with a
+    fixed column order downstream tooling can depend on.
+
+- **`LinesExport`** field on `Manifest` — `{csv: str, total: int}`.
+  Null on runs that produced no lines.
+
+- **`lines.csv` emitted by `build_pipeline`** — every walk-up turn and
+  every bark variant gets one row. Column order is frozen:
+  `line_id, npc_id, speaker, context, source_file, emotion, intensity, duration_sec, text`.
+
+### Changed
+
+- Manifest `version` now reads `0.7.0` on every new build.
+- `run_all` collects `LineRecord`s as walk-up and bark content flows
+  through, then writes `lines.csv` once at the end. Barks reuse the
+  structured emotion / intensity the generator already produces; walk-up
+  turns get heuristic-inferred emotion from `infer_emotion`.
+
+### Tests — 113 passing (up from 94)
+
+- `canonicalise_text` collapses whitespace consistently.
+- `line_id` is deterministic across whitespace variations, context, and
+  text changes; format is `<npc_id>_<10-hex>`.
+- `count_syllables` + `estimate_duration_seconds` — basic words,
+  trailing-e rule, minimum clamp, growth with length.
+- `infer_emotion` — threatening / pleading / warm / neutral rules +
+  intensity high-from-`!!!` and low-from-`...`.
+- `write_lines_csv` / `read_lines_csv` roundtrip preserves every field
+  and the column order contract.
+
+### Verified end-to-end on Gemini 2.5-flash
+
+`build --demo-dir /tmp/npcforge_v07 --only-npcs mira_vesser --mode all
+--turns 2` produced a 46-line `lines.csv`:
+
+- walk-up turns from 9 intent branches, each tagged with speaker,
+  duration (1.25 s … 10.50 s), and heuristic emotion.
+- bark variants across `greet_patron` + `reacts_to_hum` reusing the
+  structured emotion / intensity generated at bark time.
+- deterministic `line_id` format `mira_vesser_<10-hex>`.
+
+### Not in v0.7
+
+State-aware walk-up branches (emit `<<if>>` / `<<set>>` on the main
+walk-up pipeline) and Godot integration example are the v0.7.1 and
+v0.7.2 releases respectively — deliberately scoped out to keep this
+release focused on the audio/VO side of engine-consumable output.
+
+---
+
 ## [0.6.1+unity] — 2026-04-18
 
 Unity 2022 integration example — committed, no code changes.
