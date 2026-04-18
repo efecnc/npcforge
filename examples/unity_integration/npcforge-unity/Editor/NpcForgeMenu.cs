@@ -100,6 +100,9 @@ namespace Altai.NpcForge.Editor
             Application.OpenURL("https://github.com/efecnc/npcforge");
         }
 
+        [MenuItem("Tools/npcforge/Separator_1", true, priority = 19)]
+        private static bool Sep1() { return false; } // noop — makes the menu separator land between sections
+
         private static bool ValidateDemoDir(out string error)
         {
             if (string.IsNullOrEmpty(NpcForgePreferences.DemoDir))

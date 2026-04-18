@@ -109,6 +109,16 @@ namespace Altai.NpcForge.Editor
 
             thread.IsBackground = true;
             thread.Start();
+
+            // Show a progress bar that reflects "running" — canceling it only
+            // clears the bar; the subprocess continues to completion. Callers
+            // can add a real cancel path later if needed.
+            try
+            {
+                string label = $"npcforge {string.Join(" ", arguments)}";
+                EditorUtility.DisplayProgressBar("npcforge", label, 0.5f);
+            }
+            catch { /* running headless — ignore */ }
         }
 
         /// <summary>Fire a callback on the Unity Editor main thread.</summary>

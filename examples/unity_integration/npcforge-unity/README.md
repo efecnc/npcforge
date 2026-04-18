@@ -1,18 +1,30 @@
 # npcforge — Unity Editor package
 
-**Generate characters, conversations, barks, and time-of-day greetings
-from inside the Unity Editor.** Adds a `Tools → npcforge` menu and an
-EditorWindow that shells out to the [npcforge](https://github.com/efecnc/npcforge)
-CLI, then drops generated Yarn Spinner files straight into
-`Assets/NpcForge/Dialogue/`.
+**A Unity dialogue engine backed by npcforge.** Adds a `Tools → npcforge`
+menu with an NPC Browser, live Yarn state inspector, one-click scene
+setup, and a panel that drives the full npcforge CLI. Drops generated
+Yarn Spinner files, a typed state store, and bark triggers straight
+into your Unity project.
 
-- Full generator toolchain accessible from a panel: world profile, NPCs,
-  intents, barks, greetings, repeat-greetings, walk-up dialogue builds.
-- One-click sync into the current Unity project — Yarn Spinner imports
-  the new files automatically on the next Editor refresh.
-- Runtime glue scripts (`NpcForgeDialogueController`,
-  `TimeOfDayController`, `NpcApproachButton`, `NpcForgeStartup`) ship
-  inside the package; drop onto GameObjects and wire to UI buttons.
+- **NPC Browser** — every character in your `characters.yaml` rendered
+  with voice, motivations, relationships, knowledge gates, state
+  evolution. Searchable, read-only, reloads on focus.
+- **State Inspector** — live Yarn variable viewer. In Play mode you see
+  every variable update at 5 Hz; edit a value and see the running game
+  react immediately.
+- **Create Dialogue Scene Setup** menu — one click wires a DialogueRunner,
+  `NpcForge` controller GameObject, time-of-day UI buttons, and an
+  "Approach Mira" button ready to Play.
+- **Generator panel** — world profile, NPCs, intents, barks, greetings,
+  repeat-greetings, walk-up dialogue builds. Each button shells out to
+  the npcforge CLI with your API key as an env var; output streams into
+  the log; `EditorUtility.DisplayProgressBar` keeps the Editor honest.
+- **One-click sync** into `Assets/NpcForge/Dialogue/` — Yarn Spinner
+  reimports automatically.
+- **Runtime components** — `NpcForgeDialogueController`,
+  `NpcForgeStateStore` (typed variable API + change events),
+  `NpcForgeBarkTrigger` (invoke barks from UnityEvents / collisions),
+  `TimeOfDayController`, `NpcApproachButton`, `NpcForgeStartup`.
 
 ## Requirements
 
