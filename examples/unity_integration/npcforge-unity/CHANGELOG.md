@@ -2,6 +2,59 @@
 
 Versions follow the Unity package, not the npcforge Python package.
 
+## [1.1.0] — 2026-04-18
+
+Social graph foundation in the runtime, matching the v0.9.0 Python
+release. Two new runtime components give scenes and gameplay code a
+way to remember what happened and track how the player stands with
+each faction — and the formats are JSON-interop with the Python side
+so one store can feed both.
+
+### Added — Runtime
+
+- **`NpcForgeMemoryStore`** — log of `(turn, npc_id, event_type,
+  summary, salience, faction_id)` records, persisted as JSON under
+  `Application.persistentDataPath`. Salience drives decay (trivial
+  prunes after 3 turns, notable after 10, pivotal stays forever).
+  `ForNpc(id, primaryFactionId, secondaryFactionId)` folds the NPC's
+  own events with faction-shared ones and deduplicates double-faction
+  hits. `SummarizeForNpc` renders the same prompt block the Python
+  generator would inject, so runtime + next-generation stay in sync.
+  JSON format matches `src/npcforge/memory.py` byte-for-byte — one
+  store can feed both.
+- **`NpcForgeFactionStanding`** — player standing per faction on a
+  clamped -100..+100 scale with five named tiers (Hostile / Wary /
+  Neutral / Friendly / Trusted). `AdjustStanding` fires two
+  `UnityEvent`s: `onStandingChanged` on every delta with full before/
+  after payload, `onTierChanged` only when crossing a threshold so
+  UI can cheaply ignore within-tier noise. `IsAlly` / `IsRival`
+  convenience predicates drive scene-setup logic.
+
+### Verified
+
+- 39 / 39 EditMode tests pass in Unity 6000.4.3f1 — 23 pre-existing
+  plus 16 new for memory (decay horizons, faction folding, dedup,
+  JSON round-trip) and faction standing (tier thresholds, event
+  firing, clamping, persistence).
+- Python-side 193 / 194 tests pass, covering the cross-language
+  schema parity.
+
+### Upgrading from 1.0.2
+
+Remove + re-add from the Package Manager git URL. The new components
+are additive — nothing in the 1.0.x runtime changed. To use them:
+
+1. Drop `NpcForgeMemoryStore` and / or `NpcForgeFactionStanding` onto
+   a scene-root GameObject that survives reloads (or a dedicated
+   persistent bootstrap GO).
+2. From gameplay code, call `Record(...)` / `AdjustStanding(...)` at
+   narrative beats.
+3. Copy `memory.json` into your npcforge project's demo dir
+   (`<demo>/memory.json`) so `npcforge gen scene` sees the same
+   history the runtime does.
+
+---
+
 ## [1.0.2] — 2026-04-18
 
 Second validation pass — caught by running a 23-test NUnit EditMode
