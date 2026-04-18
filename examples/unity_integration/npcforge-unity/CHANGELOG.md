@@ -2,6 +2,90 @@
 
 Versions follow the Unity package, not the npcforge Python package.
 
+## [1.0.0] — 2026-04-18
+
+First production-intended release. Completes the seven roadmap items
+from 0.2.0 and ships as an opinionated Unity dialogue engine rather
+than a CLI wrapper: every step of the authoring loop has a dedicated
+Editor surface, runtime components cover save/load, and the
+Postprocessor removes the last piece of manual wiring.
+
+### Added — Editor
+
+- **`NpcForgeYarnAssetPostprocessor`** — watches
+  `Assets/NpcForge/Dialogue/**/*.yarn` and force-reimports the
+  configured Yarn Project whenever new `.yarn` files land from
+  `engine-sync`. Auto-selects the only YarnProject in the project when
+  the user hasn't picked one yet; persists the choice.
+- **`Tools → npcforge → Dialogue Preview…`** — parse-and-step viewer
+  for every generated `.yarn` file. Classifies node kind (walk-up,
+  bark rotation, enum greeting, repeat greeting, world start) and
+  renders variants inline. Pure static parsing — no Play mode needed.
+  Ships with `NpcForgeYarnParser`, a C# port of the Python
+  `npcforge.play` parser covering every Yarn construct npcforge emits.
+- **`Tools → npcforge → Relationship Graph…`** — IMGUI graph view of
+  the cast's relationship network. Circular layout, curved edges per
+  direction, colour-coded by opinion tone (ally / hostile / neutral),
+  click-to-focus filtering, zoom + pan.
+- **`Tools → npcforge → Open Panel (UI Toolkit)…`** — modern
+  UI Toolkit counterpart to the IMGUI panel. Full settings / generate /
+  sync / log parity with the classic panel. Lives alongside, not
+  instead of, the IMGUI window.
+- **Custom Inspectors** — `NpcForgeStateStoreInspector` shows a live
+  snapshot table in Play mode with typed quick-set fields; 
+  `NpcForgeBarkTriggerInspector` adds a Fire-now button and an animated
+  cooldown progress bar plus clickable trigger-id suggestions.
+
+### Added — Runtime
+
+- **`NpcForgeSaveLoad`** — MonoBehaviour with `Save()`, `Load()`,
+  `DeleteSlot()` methods wireable to UI buttons via UnityEvents.
+  Serializes every Yarn variable it can see to diff-friendly JSON under
+  `Application.persistentDataPath`. Uses reflection into
+  `VariableStorage.GetAllVariables` for complete coverage; falls back
+  to `NpcForgeStateStore.Snapshot` when unavailable. Slot naming is
+  supported (`default`, `slot2`, …).
+- `NpcForgeBarkTrigger` exposes `NextFireTime` and `CooldownSeconds`
+  public getters so the custom inspector can draw an accurate
+  cooldown bar without reflection.
+
+### Added — Samples
+
+- **`Samples~/RustedLantern`** — importable via Package Manager → Samples
+  → Import. Contains:
+  - `RustedLanternScaffold` — one-click menu that delegates to the
+    core Scene Setup command so the sample scaffolding stays in sync.
+  - `BarkOnProximity` — example distance-based proximity bark trigger.
+  - `AutoSaveOnSceneUnload` — demonstrates `NpcForgeSaveLoad.Save()`
+    wired to `OnApplicationPause` / `OnApplicationQuit` / `OnDestroy`.
+  - A standalone README covering install + run steps.
+
+### Changed
+
+- `package.json` — `version` bumped 0.2.0 → 1.0.0, `description`
+  rewritten to reflect the engine-scale scope, `samples` array
+  declared for the Rusted Lantern demo.
+- Meta files regenerated — the package now ships .meta for every new
+  Editor + Runtime source file plus the Samples~ tree.
+
+### Compatibility
+
+- Unity 2022.3 LTS or later. UI Toolkit panel uses APIs that have been
+  stable since 2022.3.
+- Yarn Spinner for Unity 2.4+ (2.3 may work; the Asset Postprocessor's
+  YarnProject t-filter and reflection fallback should cover both).
+- No new package dependencies.
+
+### Upgrading from 0.2.x
+
+Remove the package from Package Manager, re-add it from the same git
+URL. All prior APIs (`NpcForgeDialogueController`, `NpcForgeStateStore`,
+`NpcForgeBarkTrigger`, `TimeOfDayController`, `NpcApproachButton`,
+`NpcForgeStartup`) stay binary-compatible; new types (`NpcForgeSaveLoad`,
+the inspectors, the new windows) are additive.
+
+---
+
 ## [0.2.0] — 2026-04-18
 
 First pass toward "npcforge as an advanced Unity engine" — two new

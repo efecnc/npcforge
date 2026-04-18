@@ -38,6 +38,15 @@ namespace Altai.NpcForge.Editor
             set => EditorPrefs.SetBool(Scoped("InstallScripts"), value);
         }
 
+        /// <summary>AssetDatabase GUID of the Yarn Project that new .yarn
+        /// files should be wired into by NpcForgeYarnAssetPostprocessor.
+        /// Empty string means "auto-pick if exactly one project exists".</summary>
+        public static string YarnProjectGuid
+        {
+            get => EditorPrefs.GetString(Scoped("YarnProjectGuid"), "");
+            set => EditorPrefs.SetString(Scoped("YarnProjectGuid"), value);
+        }
+
         private static string Scoped(string key)
         {
             // Scope to the current Unity project so two projects on the

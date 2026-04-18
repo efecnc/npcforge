@@ -42,6 +42,15 @@ namespace Altai.NpcForge
 
         private float _nextFireTime;
 
+        /// <summary>Time.time at which the next bark is allowed to fire.
+        /// Inspector-visible so custom editors can draw a cooldown bar
+        /// without poking private fields via reflection.</summary>
+        public float NextFireTime => _nextFireTime;
+
+        /// <summary>Cooldown seconds as configured in the inspector. Read-only
+        /// accessor for editor tooling.</summary>
+        public float CooldownSeconds => cooldownSeconds;
+
         // ---------------------------------------------------------------
         // Public API
         // ---------------------------------------------------------------

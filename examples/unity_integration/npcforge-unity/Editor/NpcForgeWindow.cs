@@ -84,6 +84,60 @@ namespace Altai.NpcForge.Editor
                     new GUIContent("Install runtime scripts on first sync",
                         "Only relevant for engine-sync; Unity skips existing files so this is safe to leave on."),
                     NpcForgePreferences.InstallScriptsOnFirstSync);
+
+                // Yarn Project picker — wire new .yarn files automatically
+                // into whichever Yarn Project the user targets. Uses an
+                // ObjectField constrained to YarnProject's Type if it's
+                // resolvable via reflection; falls back to ScriptableObject
+                // so the picker still works when Yarn Spinner isn't
+                // installed yet.
+                DrawYarnProjectField();
+            }
+        }
+
+        private static System.Type _cachedYarnProjectType;
+        private static System.Type GetYarnProjectType()
+        {
+            if (_cachedYarnProjectType != null) return _cachedYarnProjectType;
+            foreach (var asm in System.AppDomain.CurrentDomain.GetAssemblies())
+            {
+                var t = asm.GetType("Yarn.Unity.YarnProject");
+                if (t != null) { _cachedYarnProjectType = t; return t; }
+            }
+            return null;
+        }
+
+        private static void DrawYarnProjectField()
+        {
+            var yarnProjectType = GetYarnProjectType() ?? typeof(ScriptableObject);
+            UnityEngine.Object current = null;
+            string guid = NpcForgePreferences.YarnProjectGuid;
+            if (!string.IsNullOrEmpty(guid))
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guid);
+                if (!string.IsNullOrEmpty(path))
+                {
+                    current = AssetDatabase.LoadAssetAtPath(path, yarnProjectType);
+                }
+            }
+
+            var picked = EditorGUILayout.ObjectField(
+                new GUIContent("Default Yarn Project",
+                    "New .yarn files synced under Assets/NpcForge/Dialogue are " +
+                    "wired into this Yarn Project automatically. Leave empty to " +
+                    "auto-pick when there's exactly one project in the scene."),
+                current, yarnProjectType, allowSceneObjects: false);
+            if (picked != current)
+            {
+                if (picked == null)
+                {
+                    NpcForgePreferences.YarnProjectGuid = string.Empty;
+                }
+                else
+                {
+                    string path = AssetDatabase.GetAssetPath(picked);
+                    NpcForgePreferences.YarnProjectGuid = AssetDatabase.AssetPathToGUID(path);
+                }
             }
         }
 
