@@ -288,7 +288,7 @@ intents:
 
 ## Ready-to-run starter worlds
 
-Plus a **[Unity 2022 integration](examples/unity_integration/)** — drop the `Assets/NpcForge/` folder into any Unity project, follow the [5-minute setup](examples/unity_integration/SETUP.md), and press Play to see Mira greet you differently at dawn vs. night and remember you across visits. Ships four real `.yarn` files (walk-up + time-of-day greetings + repeat-greet + world.yarn with `<<declare>>`) plus four C# scripts that wire the Yarn Spinner runtime to npcforge's naming conventions.
+Plus a **[Unity 2022 UPM package](examples/unity_integration/npcforge-unity/)** — install via Package Manager → *Add package from git URL* → `https://github.com/efecnc/npcforge.git?path=examples/unity_integration/npcforge-unity`. Adds a `Tools → npcforge` menu with an EditorWindow that drives the full CLI (world profile, generators, sync) from inside Unity, plus runtime glue scripts (`NpcForgeDialogueController` et al.) that plug into Yarn Spinner's `DialogueRunner`. Alternative drop-in folder at [`examples/unity_integration/Assets/NpcForge/`](examples/unity_integration/Assets/NpcForge/) for projects that prefer not to use UPM.
 
 Three settings ship in the repo — each a full walk-up + barks pipeline:
 

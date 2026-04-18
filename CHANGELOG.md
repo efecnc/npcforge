@@ -4,6 +4,71 @@ All notable changes to npcforge land here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [SemVer](https://semver.org/).
 
+## [0.7.1+unity-upm] — 2026-04-18
+
+Unity UPM package — installable from the Package Manager. Supplement to
+v0.7.1; no Python changes.
+
+### Added
+
+- **`examples/unity_integration/npcforge-unity/`** — full UPM package
+  structured per Unity's manifest + asmdef specs:
+  - `package.json` — `dev.altai.npcforge` @ `0.1.0`, `unity = "2022.3"`,
+    Apache-2.0 licence, keywords, repo/doc/changelog URLs.
+  - `Runtime/Altai.NpcForge.asmdef` — references `YarnSpinner.Unity`;
+    `versionDefines` gate a `NPCFORGE_HAS_YARN` symbol so code compiles
+    cleanly when Yarn Spinner is missing.
+  - `Runtime/*.cs` — four glue scripts in the `Altai.NpcForge`
+    namespace (`NpcForgeDialogueController`, `TimeOfDayController`,
+    `NpcApproachButton`, `NpcForgeStartup`).
+  - `Editor/Altai.NpcForge.Editor.asmdef` — `includePlatforms:
+    ["Editor"]`, references only the Runtime assembly.
+  - `Editor/NpcForgePreferences.cs` — per-project `EditorPrefs` scoped
+    by `PlayerSettings.productGUID`.
+  - `Editor/NpcForgeCliRunner.cs` — background-thread subprocess
+    runner with main-thread callback dispatch; streams stdout/stderr
+    line-by-line so multi-minute generations don't freeze the Editor.
+  - `Editor/NpcForgeWindow.cs` — IMGUI panel with Settings, Generate,
+    Sync, and Log sections. Calls `AssetDatabase.Refresh()` after
+    successful syncs so new `.yarn` files appear instantly.
+  - `Editor/NpcForgeMenu.cs` — top-level `Tools → npcforge` menu with
+    `Open Panel…` (`Ctrl/Cmd+Shift+Alt+N`), `Quick Sync to This
+    Project`, `Build All`, `Documentation`.
+  - `Documentation~/index.md` — package-scoped docs (tilde suffix keeps
+    Unity from importing it as an asset).
+  - `README.md` + `CHANGELOG.md` at package root.
+
+### Install
+
+In Unity, **Window → Package Manager → +** → **Add package from git URL…**:
+```
+https://github.com/efecnc/npcforge.git?path=examples/unity_integration/npcforge-unity
+```
+
+Users still need Python + the `npcforge` CLI installed separately (the
+CLI is what the package subprocesses out to). Yarn Spinner for Unity
+2.4+ is the only Unity-side hard dependency.
+
+### Built against the Unity docs
+
+Package structure, `package.json` fields, `.asmdef` format, and
+EditorWindow patterns were built against the current Unity 2022.3 LTS
+docs (`upm-manifestPkg.html`, `cus-layout.html`,
+`assembly-definition-file-format.html`, `EditorWindow` ScriptReference).
+IMGUI chosen over UI Toolkit for MVP to avoid an extra package
+dependency; a UI Toolkit rewrite can slot in later without changing the
+surface area.
+
+### Not tested inside Unity Editor
+
+Built correctly per the spec but not exercised in a live Editor this
+session (no Unity install on the dev machine). Expected issues to
+catch on first real install: `asmdef` reference syntax, IMGUI rect
+calculations on smaller windows, subprocess path resolution on
+Windows. All are localised; fixable without architectural changes.
+
+---
+
 ## [0.7.1] — 2026-04-18
 
 The "characters and conversations just appear in your engine" release.

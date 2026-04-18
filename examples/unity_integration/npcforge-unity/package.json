@@ -1,0 +1,29 @@
+{
+  "name": "dev.altai.npcforge",
+  "version": "0.1.0",
+  "displayName": "npcforge",
+  "description": "Character + dialogue generator for Unity. Drops npcforge-generated Yarn Spinner dialogue, reactive barks, time-of-day greetings, and lines.csv straight into your Assets folder. Includes runtime glue scripts and an Editor window that shells out to the npcforge CLI for regeneration and sync.",
+  "unity": "2022.3",
+  "author": {
+    "name": "Altai",
+    "email": "efe@altai.dev",
+    "url": "https://github.com/efecnc/npcforge"
+  },
+  "license": "Apache-2.0",
+  "keywords": [
+    "dialogue",
+    "npc",
+    "yarn-spinner",
+    "yarnspinner",
+    "narrative",
+    "generator",
+    "character",
+    "llm",
+    "ai",
+    "npcforge"
+  ],
+  "dependencies": {},
+  "documentationUrl": "https://github.com/efecnc/npcforge/blob/main/examples/unity_integration/npcforge-unity/Documentation~/index.md",
+  "changelogUrl": "https://github.com/efecnc/npcforge/blob/main/examples/unity_integration/npcforge-unity/CHANGELOG.md",
+  "licensesUrl": "https://github.com/efecnc/npcforge/blob/main/LICENSE"
+}

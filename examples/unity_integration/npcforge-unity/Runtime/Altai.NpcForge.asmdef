@@ -1,0 +1,22 @@
+{
+    "name": "Altai.NpcForge",
+    "rootNamespace": "Altai.NpcForge",
+    "references": [
+        "YarnSpinner.Unity"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "YarnSpinner",
+            "expression": "",
+            "define": "NPCFORGE_HAS_YARN"
+        }
+    ],
+    "noEngineReferences": false
+}
