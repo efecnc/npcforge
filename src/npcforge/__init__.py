@@ -14,6 +14,7 @@ from .generation import (
     gen_barks as gen_barks_impl,
     gen_intents as gen_intents_impl,
     gen_npcs as gen_npcs_impl,
+    gen_repeat_greeting_node as gen_repeat_greeting_node_impl,
     gen_time_of_day_greetings as gen_time_of_day_greetings_impl,
     resolve_stubs as resolve_stubs_impl,
 )
@@ -59,6 +60,8 @@ from .tools import (
     GenIntentsOutput,
     GenNpcsInput,
     GenNpcsOutput,
+    GenRepeatGreetingInput,
+    GenRepeatGreetingOutput,
     InferWorldProfileInput,
     InferWorldProfileOutput,
     ListNpcsInput,
@@ -73,6 +76,7 @@ from .tools import (
     gen_greetings,
     gen_intents,
     gen_npcs,
+    gen_repeat_greeting,
     infer_world_profile,
     list_npcs,
     list_tool_specs,
@@ -93,10 +97,14 @@ from .play import (
     YarnOption,
     parse_yarn,
     play_barks,
+    play_greetings,
+    play_repeat_greeting,
     play_walk_up,
     render_all_branches,
     render_barks,
     render_branch,
+    render_enum_variants,
+    render_visit_variants,
 )
 from .state import (
     ProjectVariable,
@@ -123,14 +131,16 @@ from .yarn import (
     greeting_node_title,
     render_bark_node,
     render_greetings_node,
+    render_repeat_greeting_node,
     render_world_start_node,
     render_yarn_branch,
     render_yarn_node_for_npc,
+    repeat_greeting_node_title,
     yarn_escape_line,
     yarn_safe_title,
 )
 
-__version__ = "0.6.0"
+__version__ = "0.6.1"
 
 __all__ = [
     # Version

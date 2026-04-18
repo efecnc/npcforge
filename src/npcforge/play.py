@@ -29,8 +29,17 @@ _TAGS_RE = re.compile(r"^tags:\s*(.+?)\s*$")
 _OPTION_RE = re.compile(r"^->\s*\[(.+?)\]\s*$")
 _BARE_OPTION_RE = re.compile(r"^->\s*(.+?)\s*$")
 _JUMP_RE = re.compile(r"^\s*<<jump\s+([^>\s]+)>>\s*$")
+# Bark-style rotation: ``<<if visited_count("X") % N == I>>``
 _IF_COUNTER_RE = re.compile(
     r"^<<(?:else)?if\s+visited_count\(\s*\"(?P<node>[^\"]+)\"\s*\)\s*%\s*(?P<mod>\d+)\s*==\s*(?P<idx>\d+)\s*>>"
+)
+# Repeat-greeting: ``<<if visited_count("X") == I>>`` (no ``%``)
+_IF_VISIT_RE = re.compile(
+    r"^<<(?:else)?if\s+visited_count\(\s*\"(?P<node>[^\"]+)\"\s*\)\s*==\s*(?P<idx>\d+)\s*>>"
+)
+# Enum greeting: ``<<if $var == "value">>``
+_IF_ENUM_RE = re.compile(
+    r'^<<(?:else)?if\s+\$(?P<var>\w+)\s*==\s*"(?P<value>[^"]+)"\s*>>\s*$'
 )
 _ELSE_RE = re.compile(r"^<<else>>\s*$")
 _ENDIF_RE = re.compile(r"^<<endif>>\s*$")
@@ -62,7 +71,13 @@ class YarnNode:
     tags: list[str] = field(default_factory=list)
     preamble: list[YarnLine] = field(default_factory=list)
     options: list[YarnOption] = field(default_factory=list)
-    bark_variants: list[YarnLine] = field(default_factory=list)  # for bark nodes
+    # Bark rotation (``visited_count % N == I``) — one line per variant.
+    bark_variants: list[YarnLine] = field(default_factory=list)
+    # Enum-keyed greeting (``$var == "value"``) — (variable_id, value, line).
+    enum_variants: list[tuple[str, str, YarnLine]] = field(default_factory=list)
+    # Repeat-greeting (``visited_count == I``) — (visit_index, line) plus a
+    # final ``else`` fallback exposed as visit_index = -1.
+    visit_variants: list[tuple[int, YarnLine]] = field(default_factory=list)
 
 
 def parse_yarn(text: str) -> list[YarnNode]:
@@ -116,24 +131,41 @@ def parse_yarn(text: str) -> list[YarnNode]:
 
         if in_body:
             # Node-level Yarn control.
-            if _ENDIF_RE.match(stripped) or _ELSE_RE.match(stripped):
+            if _ENDIF_RE.match(stripped):
+                i += 1
+                continue
+            if _ELSE_RE.match(stripped):
+                # The <<else>> branch inside a repeat-greeting node still
+                # carries a meaningful NPC line. Capture it as visit
+                # index = -1 so `play --repeat-greet` shows it. If no line
+                # follows (enum-greeting placeholder "..."), we skip.
+                scoop = _scoop_following_speaker_line(lines, i)
+                if scoop is not None and current.visit_variants:
+                    line, next_i = scoop
+                    current.visit_variants.append((-1, line))
+                    i = next_i
+                    continue
                 i += 1
                 continue
 
-            m = _IF_COUNTER_RE.match(stripped)
-            if m:
-                # We're inside a bark-rotation node. Each branch has one
-                # speaker line immediately after. Scoop it.
-                if i + 1 < len(lines):
-                    nxt = lines[i + 1].strip()
-                    sm = _SPEAKER_LINE_RE.match(nxt)
-                    if sm:
-                        text_content = _strip_trailing_comment(sm.group("text"))
-                        current.bark_variants.append(
-                            YarnLine(speaker=sm.group("speaker").strip(), text=text_content)
+            # Try each conditional shape. All have the same "one speaker
+            # line immediately after" pattern, so we share scooping logic.
+            cond = _match_conditional(stripped)
+            if cond is not None:
+                scoop = _scoop_following_speaker_line(lines, i)
+                if scoop is not None:
+                    line, next_i = scoop
+                    kind, payload = cond
+                    if kind == "counter":
+                        current.bark_variants.append(line)
+                    elif kind == "visit":
+                        current.visit_variants.append((int(payload["idx"]), line))
+                    elif kind == "enum":
+                        current.enum_variants.append(
+                            (payload["var"], payload["value"], line)
                         )
-                        i += 2
-                        continue
+                    i = next_i
+                    continue
                 i += 1
                 continue
 
@@ -190,6 +222,45 @@ def _strip_trailing_comment(text: str) -> str:
     if idx != -1:
         return text[:idx].rstrip()
     return text
+
+
+def _match_conditional(stripped: str) -> tuple[str, dict[str, str]] | None:
+    """Classify a conditional header line into (kind, captures).
+
+    Returns ``("counter", {...})`` for bark-style rotation,
+    ``("visit", {"idx": "N"})`` for repeat-greeting, or
+    ``("enum", {"var": ..., "value": ...})`` for enum greetings.
+    """
+    m = _IF_COUNTER_RE.match(stripped)
+    if m:
+        return "counter", m.groupdict()
+    m = _IF_VISIT_RE.match(stripped)
+    if m:
+        return "visit", m.groupdict()
+    m = _IF_ENUM_RE.match(stripped)
+    if m:
+        return "enum", m.groupdict()
+    return None
+
+
+def _scoop_following_speaker_line(
+    lines: list[str], i: int
+) -> tuple[YarnLine, int] | None:
+    """After a conditional header, consume the one speaker line that follows.
+
+    Returns the parsed :class:`YarnLine` plus the next index to resume at.
+    """
+    if i + 1 >= len(lines):
+        return None
+    nxt = lines[i + 1].strip()
+    sm = _SPEAKER_LINE_RE.match(nxt)
+    if not sm:
+        return None
+    text_content = _strip_trailing_comment(sm.group("text"))
+    return (
+        YarnLine(speaker=sm.group("speaker").strip(), text=text_content),
+        i + 2,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -280,6 +351,57 @@ def render_all_branches(
             _emit_line(line, stream=stream, tempo=tempo, wait=wait)
         if opt.jump_to:
             print(_fmt(stream, f"   (jump to {opt.jump_to})", "dim"), file=stream)
+
+
+def render_enum_variants(
+    node: YarnNode,
+    *,
+    stream=sys.stdout,
+    tempo: float = 0.0,
+    wait: bool = False,
+) -> None:
+    """Print every enum-keyed greeting variant (e.g. one per time_of_day value)."""
+    print(_fmt(stream, f"══ {node.title} ══", "dim"), file=stream)
+    if not node.enum_variants:
+        print(
+            _fmt(stream, "  (no enum variants parsed)", "dim"),
+            file=stream,
+        )
+        return
+    for var, value, line in node.enum_variants:
+        label = _fmt(stream, f"  [{var}={value}]", "label")
+        body = _fmt(stream, f"{line.speaker}: {line.text}", "npc")
+        print(f"{label} {body}", file=stream)
+        if tempo > 0:
+            time.sleep(0.15 * tempo)
+        if wait:
+            _wait_for_enter(stream)
+
+
+def render_visit_variants(
+    node: YarnNode,
+    *,
+    stream=sys.stdout,
+    tempo: float = 0.0,
+    wait: bool = False,
+) -> None:
+    """Print every repeat-greeting variant indexed by visit count."""
+    print(_fmt(stream, f"══ {node.title} ══", "dim"), file=stream)
+    if not node.visit_variants:
+        print(
+            _fmt(stream, "  (no visit variants parsed)", "dim"),
+            file=stream,
+        )
+        return
+    for idx, line in node.visit_variants:
+        tag = "visit else" if idx == -1 else f"visit #{idx}"
+        label = _fmt(stream, f"  [{tag}]", "label")
+        body = _fmt(stream, f"{line.speaker}: {line.text}", "npc")
+        print(f"{label} {body}", file=stream)
+        if tempo > 0:
+            time.sleep(0.15 * tempo)
+        if wait:
+            _wait_for_enter(stream)
 
 
 def render_barks(
@@ -374,6 +496,60 @@ def play_walk_up(
             return 1
         return 0
     render_all_branches(node, stream=stream, tempo=tempo, wait=wait)
+    return 0
+
+
+def play_greetings(
+    *,
+    demo_dir: Path,
+    npc_id: str,
+    variable_id: str = "time_of_day",
+    out: Path | None = None,
+    tempo: float = 1.0,
+    wait: bool = False,
+    stream=sys.stdout,
+) -> int:
+    """Play an enum-keyed greeting node (``<npc>_greet_<variable>.yarn``)."""
+    path = _out_dir(demo_dir, out) / f"{npc_id}_greet_{variable_id}.yarn"
+    if not path.exists():
+        print(
+            f"No greeting file at {path}. Run "
+            f"`npcforge gen greetings --demo-dir {demo_dir} --variable "
+            f"{variable_id}` first.",
+            file=sys.stderr,
+        )
+        return 1
+    nodes = parse_yarn(path.read_text(encoding="utf-8"))
+    if not nodes:
+        print(f"{path} parsed to zero nodes.", file=sys.stderr)
+        return 1
+    render_enum_variants(nodes[0], stream=stream, tempo=tempo, wait=wait)
+    return 0
+
+
+def play_repeat_greeting(
+    *,
+    demo_dir: Path,
+    npc_id: str,
+    out: Path | None = None,
+    tempo: float = 1.0,
+    wait: bool = False,
+    stream=sys.stdout,
+) -> int:
+    """Play a visit-counter greeting node (``<npc>_repeat_greet.yarn``)."""
+    path = _out_dir(demo_dir, out) / f"{npc_id}_repeat_greet.yarn"
+    if not path.exists():
+        print(
+            f"No repeat-greeting file at {path}. Run "
+            f"`npcforge gen repeat-greeting --demo-dir {demo_dir}` first.",
+            file=sys.stderr,
+        )
+        return 1
+    nodes = parse_yarn(path.read_text(encoding="utf-8"))
+    if not nodes:
+        print(f"{path} parsed to zero nodes.", file=sys.stderr)
+        return 1
+    render_visit_variants(nodes[0], stream=stream, tempo=tempo, wait=wait)
     return 0
 
 

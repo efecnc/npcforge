@@ -138,6 +138,60 @@ def build_bark_respondent_prompt(npc: NpcSheet, trigger: BarkTrigger) -> str:
     return "\n\n".join(blocks) + "\n"
 
 
+def build_repeat_greeting_prompt(
+    npc: NpcSheet, visit_index: int, n_total: int, is_else: bool
+) -> str:
+    """System prompt for ONE visit-count-gated greeting variant.
+
+    ``visit_index`` is 0-based. ``is_else`` is true for the trailing
+    fallback variant ("on every subsequent visit").
+    """
+    if is_else:
+        situation = (
+            "The player has now approached you for at least the "
+            f"{n_total}-th time (and every time after that). They are a "
+            "regular. Acknowledge the relationship without ceremony."
+        )
+    elif visit_index == 0:
+        situation = (
+            "This is the FIRST time this player has approached you. They "
+            "are a stranger. Greet them as you would any unknown arrival."
+        )
+    elif visit_index == 1:
+        situation = (
+            "This is the SECOND time this player has approached you. "
+            "Some mild recognition is appropriate — a comment that you've "
+            "seen them before."
+        )
+    else:
+        situation = (
+            f"This is visit number {visit_index + 1}. The player is "
+            "becoming a familiar face. Your greeting should reflect "
+            "growing familiarity without resetting to first-meet tone."
+        )
+
+    head = (
+        f"You are {npc.name}, an NPC in a game world.\n"
+        f"Role: {npc.role}\n"
+        f"Voice: {npc.voice.strip()}\n\n"
+        f"SITUATION: {situation}\n"
+    )
+    rules = (
+        "Produce ONE greeting line the NPC would give in this situation.\n"
+        "Constraints:\n"
+        "- One sentence, at most 18 words.\n"
+        "- Stay fully in character. First-person dialogue only.\n"
+        "- Do not reference the visit number directly ('this is your "
+        "fourth time' breaks immersion). Signal familiarity through tone.\n"
+        "- No narration, no stage directions, no meta references.\n"
+    )
+    ceiling = _voice_ceiling_block(npc)
+    blocks = [head, rules.rstrip()]
+    if ceiling:
+        blocks.append(ceiling)
+    return "\n\n".join(blocks) + "\n"
+
+
 def build_time_of_day_greeting_prompt(npc: NpcSheet, time_value: str) -> str:
     """System prompt for generating ONE time-of-day greeting variant.
 

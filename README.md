@@ -61,10 +61,17 @@ npcforge gen greetings --demo-dir examples/rusted_lantern --only-npcs mira_vesse
 # → examples/rusted_lantern/out/mira_vesser_greet_time_of_day.yarn with
 #   <<if $time_of_day == "morning">> ... <<elseif $time_of_day == "night">> ...
 
+# 3d. Visit-count-gated greetings — stranger → recognised → regular
+npcforge gen repeat-greeting --demo-dir examples/rusted_lantern --only-npcs mira_vesser --n 4
+# → examples/rusted_lantern/out/mira_vesser_repeat_greet.yarn with
+#   <<if visited_count("mira_vesser_RepeatGreet") == 0>> ... <<else>> ...
+
 # 4. Read it like a writer — playback in the terminal at speaking pace.
 npcforge play --demo-dir examples/rusted_lantern --npc mira_vesser
 npcforge play --demo-dir examples/rusted_lantern --npc mira_vesser --intent "threaten for info"
 npcforge play --demo-dir examples/rusted_lantern --npc mira_vesser --bark reacts_to_hum --tempo 1.0
+npcforge play --demo-dir examples/rusted_lantern --npc mira_vesser --greet time_of_day
+npcforge play --demo-dir examples/rusted_lantern --npc mira_vesser --repeat-greet
 
 # Start the MCP server so an agent can drive everything:
 npcforge mcp            # stdio transport, used by Claude Desktop / Cursor / Cline
@@ -114,6 +121,7 @@ Every capability is a single async function with Pydantic input/output. Defined 
 | `gen_barks` | Propose new bark *triggers* for one or more NPCs, **append** to `barks.yaml` (trigger contexts that feed the build pipeline) | one per trigger |
 | `resolve_stubs` | Expand `_generate: true` placeholder entries in `characters.yaml` into full `NpcSheet`s, honouring `role_hint` / `voice_hint` | one per stub |
 | `gen_greetings` | Generate one time-of-day greeting per enum-value, per NPC. Emits state-aware Yarn with `<<if $var == "value">>` chains | one per (NPC, value) |
+| `gen_repeat_greeting` | Generate visit-count-gated greetings per NPC; emits Yarn keyed on `visited_count()` | one per (NPC, visit) |
 | `build_pipeline` | Run the walk-up + bark pipeline; writes Yarn, manifest, lint report | many |
 
 ### MCP server
@@ -342,6 +350,11 @@ asyncio.run(main())
 See [`docs/TOOLS.md`](docs/TOOLS.md) for every input / output schema and [`docs/MCP.md`](docs/MCP.md) for MCP client setup.
 
 ## Roadmap
+
+### Shipped in v0.6.1
+
+- **`gen repeat-greeting`** — visit-count-gated greetings (stranger → recognised → regular → else-fallback) via Yarn's `visited_count()` builtin; no project variable needed.
+- **`play --greet <variable>` and `play --repeat-greet`** — terminal playback for both state-aware greeting node types, with labelled variants (`[time_of_day=morning]`, `[visit #0]`, `[visit else]`).
 
 ### Shipped in v0.6.0
 

@@ -4,6 +4,69 @@ All notable changes to npcforge land here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [SemVer](https://semver.org/).
 
+## [0.6.1] — 2026-04-18
+
+Completes the two v0.6.0 known-limitations: `play` now renders both
+state-aware node types, and `gen repeat-greeting` ships alongside
+`gen greetings`.
+
+### Added
+
+- **`gen_repeat_greeting`** tool (9th in `TOOL_REGISTRY`) — generates
+  visit-count-gated greetings per NPC. Visits 0 .. n-2 play distinct
+  variants; the final variant is an `<<else>>` fallback for every
+  subsequent visit. Uses Yarn's `visited_count()` builtin so no project
+  variable is required.
+- **`npcforge gen repeat-greeting --n 3 --only-npcs mira_vesser`** CLI
+  subcommand.
+- **`npcforge play --greet <variable>`** — render an enum-keyed
+  greeting node (one line per enum value, labelled
+  `[time_of_day=morning] Mira: ...`).
+- **`npcforge play --repeat-greet`** — render a visit-counter greeting
+  node (labels `[visit #0] ... [visit else]`, including the
+  else-fallback line).
+- Play parser now dispatches on three conditional shapes cleanly —
+  bark rotation (`% N == I`), enum greeting (`$var == "value"`), and
+  visit counter (`== I`) — into three typed variant lists on
+  `YarnNode` (`bark_variants`, `enum_variants`, `visit_variants`).
+
+### Changed
+
+- Yarn exporter gains `render_repeat_greeting_node(npc, variants)` and
+  `repeat_greeting_node_title(npc_id)`; shape mirrors `render_bark_node`
+  but keyed on `visited_count() == N` rather than `% N == I`.
+- Prompts gain `build_repeat_greeting_prompt(npc, visit_index, n_total,
+  is_else)` — situational framing per visit (stranger / recognised /
+  familiar / regular).
+
+### Tests — 94 passing (up from 83)
+
+- `render_repeat_greeting_node` shape: N=2, N=3, empty-variants fallback.
+- Parser extracts enum variants (cleanly routed away from bark / visit
+  lists) and visit variants (including the `<<else>>` branch as
+  index = -1).
+- `render_enum_variants` and `render_visit_variants` label each line
+  with the right bracket form.
+- `play_greetings` and `play_repeat_greeting` round-trip from disk.
+
+### Verified end-to-end on Gemini 2.5-flash
+
+`npcforge gen repeat-greeting --only-npcs mira_vesser --n 4`:
+
+```
+[visit 0] Table's empty. Drink, or just passing through?
+[visit 1] Seen you before. What'll it be?
+[visit 2] You're getting comfortable in deep's walls. What's need?
+[else]    Don't bother with a menu; you know what you like.
+```
+
+Her accent marker holds across the arc — "deep's walls" for "the
+mine's walls" — and the tone walks cleanly from stranger → regular.
+`npcforge play --npc mira_vesser --repeat-greet` prints all four
+variants including the else-fallback.
+
+---
+
 ## [0.6.0] — 2026-04-18
 
 The state layer. First release that crosses from "style-sample generator"

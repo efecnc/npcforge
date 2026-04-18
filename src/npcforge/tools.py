@@ -35,6 +35,7 @@ from .generation import (
     gen_barks as _gen_barks_impl,
     gen_intents as _gen_intents_impl,
     gen_npcs as _gen_npcs_impl,
+    gen_repeat_greeting_node as _gen_repeat_greet_impl,
     gen_time_of_day_greetings as _gen_greetings_impl,
     resolve_stubs as _resolve_stubs_impl,
 )
@@ -589,7 +590,88 @@ async def gen_greetings(input: GenGreetingsInput) -> GenGreetingsOutput:
 
 
 # ---------------------------------------------------------------------------
-# Tool 9: build_pipeline (walk_up + barks)
+# Tool 9: gen_repeat_greeting (visit-count gated greetings)
+# ---------------------------------------------------------------------------
+
+
+class GenRepeatGreetingInput(_LLMOptions):
+    """Generate visit-gated greeting variants for one or more NPCs.
+
+    Emits a Yarn node keyed on ``visited_count()``: the first ``n-1``
+    variants play on visits 0 .. n-2, and the final variant is an
+    ``<<else>>`` fallback played on every subsequent visit.
+    """
+
+    demo_dir: Path = Field(..., description="Project directory.")
+    n: int = Field(
+        default=3,
+        ge=2,
+        le=8,
+        description=(
+            "Total number of greeting variants. Must be >= 2. Last variant "
+            "is the else-fallback for all visits >= n-1."
+        ),
+    )
+    only_npcs: list[str] = Field(
+        default_factory=list,
+        description="Restrict to a subset of NPC ids (default: all).",
+    )
+    concurrency: int = Field(default=4, ge=1, le=8)
+    write: bool = Field(
+        default=True,
+        description=(
+            "Write greeting nodes to <demo_dir>/out/. False returns only."
+        ),
+    )
+
+
+class _NpcRepeatGreetingAdded(BaseModel):
+    npc: str
+    variants: list[str] = Field(default_factory=list)
+
+
+class GenRepeatGreetingOutput(BaseModel):
+    added: list[_NpcRepeatGreetingAdded]
+    out_dir: Path
+    wrote: bool
+
+
+async def gen_repeat_greeting(input: GenRepeatGreetingInput) -> GenRepeatGreetingOutput:
+    profile = load_cached_profile(input.demo_dir)
+    if profile is None:
+        profile = await _infer_world_profile_impl(
+            demo_dir=input.demo_dir,
+            api_key=input.api_key,
+            provider=input.provider,
+            model=input.model,
+            overwrite_cache=False,
+        )
+
+    result = await _gen_repeat_greet_impl(
+        demo_dir=input.demo_dir,
+        profile=profile,
+        api_key=input.api_key,
+        n=input.n,
+        npc_ids=input.only_npcs or None,
+        provider=input.provider,
+        model=input.model,
+        concurrency=input.concurrency,
+        write=input.write,
+    )
+
+    added = [
+        _NpcRepeatGreetingAdded(npc=npc_id, variants=variants)
+        for npc_id, variants in result.items()
+    ]
+    return GenRepeatGreetingOutput(
+        added=added,
+        out_dir=input.demo_dir / "out",
+        wrote=input.write and bool(result),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Tool 10: build_pipeline (walk_up + barks)
 # ---------------------------------------------------------------------------
 
 
@@ -748,6 +830,15 @@ TOOL_REGISTRY: dict[str, tuple[ToolFn, type[BaseModel], type[BaseModel], str]] =
         an <<if>> chain keyed on the variable — the first state-aware
         output npcforge produces. Requires a variables.yaml declaring the
         chosen variable.""",
+    ),
+    "gen_repeat_greeting": (
+        gen_repeat_greeting,
+        GenRepeatGreetingInput,
+        GenRepeatGreetingOutput,
+        """Generate visit-count-gated greeting variants for one or more
+        NPCs. Emits a per-NPC Yarn node keyed on visited_count(): visits
+        0..n-2 play distinct greetings; the final variant is an <<else>>
+        fallback for every subsequent visit. No schema changes required.""",
     ),
     "build_pipeline": (
         build_pipeline,

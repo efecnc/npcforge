@@ -308,6 +308,48 @@ for entry in out.added:
 
 ---
 
+## `gen_repeat_greeting`
+
+Generates visit-count-gated greeting variants per NPC. Emits a Yarn node
+keyed on `visited_count("<node_title>")`: visits 0 .. n-2 play distinct
+variants; the final variant is an `<<else>>` fallback played on every
+subsequent visit. Unlike `gen_greetings`, this does NOT require a project
+variable — Yarn's `visited_count()` builtin handles the state.
+
+**Input — `GenRepeatGreetingInput`:**
+
+| Field | Type | Default | Purpose |
+|---|---|---|---|
+| `demo_dir` | `Path` | required | Project directory. |
+| `n` | `int` | `3` | Total variants per NPC (2–8). Last one is the else-fallback. |
+| `only_npcs` | `list[str]` | `[]` | Restrict to a subset of NPC ids. |
+| `concurrency` | `int` | `4` | Max parallel LLM calls. |
+| `write` | `bool` | `True` | Write `.yarn` nodes to `<demo_dir>/out/`. |
+| `api_key` / `provider` / `model` | — | — | See `_LLMOptions`. |
+
+**Output — `GenRepeatGreetingOutput`:**
+
+| Field | Type | Purpose |
+|---|---|---|
+| `added` | `list[{npc: str, variants: list[str]}]` | Per-NPC variants in visit order (final item is the else-fallback). |
+| `out_dir` | `Path` | Where greeting nodes were written. |
+| `wrote` | `bool` | True when files were written. |
+
+```python
+out = await gen_repeat_greeting(GenRepeatGreetingInput(
+    demo_dir=Path("my_game"),
+    n=4,
+    only_npcs=["mira_vesser"],
+    api_key="...",
+))
+for entry in out.added:
+    for idx, text in enumerate(entry.variants):
+        label = "else" if idx == len(entry.variants) - 1 else f"visit {idx}"
+        print(f"{entry.npc} [{label}] {text}")
+```
+
+---
+
 ## `build_pipeline`
 
 Runs the walk-up / bark / all pipeline, wrapping the existing

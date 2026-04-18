@@ -130,6 +130,70 @@ def greeting_node_title(npc_id: str, variable_id: str) -> str:
     return yarn_safe_title(f"{npc_id}_Greet_{variable_id}")
 
 
+def repeat_greeting_node_title(npc_id: str) -> str:
+    """Deterministic Yarn title for an NPC's visit-counter greeting node."""
+    return yarn_safe_title(f"{npc_id}_RepeatGreet")
+
+
+def render_repeat_greeting_node(
+    npc: NpcSheet,
+    variants: list[str],
+) -> str:
+    """Render a Yarn node that plays one greeting per visit count.
+
+    ``variants`` is ordered: index 0 is visit #0 (stranger), index 1 is
+    visit #1, and the final entry is the ``else`` fallback played on every
+    subsequent visit.
+
+    Output shape (for three variants):
+
+    ::
+
+        title: mira_vesser_RepeatGreet
+        tags: repeat_greeting,npc:mira_vesser
+        ---
+        <<if visited_count("mira_vesser_RepeatGreet") == 0>>
+            Mira Vesser: First time I've seen that face. Drink?
+        <<elseif visited_count("mira_vesser_RepeatGreet") == 1>>
+            Mira Vesser: Back already, friend?
+        <<else>>
+            Mira Vesser: The Lantern remembers you now.
+        <<endif>>
+        ===
+    """
+    title = repeat_greeting_node_title(npc.id)
+    lines: list[str] = [
+        f"{_YARN_TITLE}{title}",
+        _YARN_TAGS + f"repeat_greeting,npc:{npc.id}",
+        "---",
+        f"// Repeat-greeting variants keyed on visited_count(\"{title}\").",
+    ]
+    if not variants:
+        lines.extend([f"{npc.name}: ...", _YARN_SEP])
+        return "\n".join(lines) + "\n"
+
+    total = len(variants)
+    for idx, text in enumerate(variants):
+        body = yarn_escape_line(text)
+        if total == 1:
+            lines.append(f"{npc.name}: {body}")
+            break
+        if idx == total - 1:
+            # Final variant is the else-fallback played on every later visit.
+            lines.append("<<else>>")
+            lines.append(f"    {npc.name}: {body}")
+            lines.append("<<endif>>")
+            break
+        if idx == 0:
+            lines.append(f'<<if visited_count("{title}") == 0>>')
+        else:
+            lines.append(f'<<elseif visited_count("{title}") == {idx}>>')
+        lines.append(f"    {npc.name}: {body}")
+
+    lines.append(_YARN_SEP)
+    return "\n".join(lines) + "\n"
+
+
 def render_greetings_node(
     npc: NpcSheet,
     variable_id: str,

@@ -36,14 +36,17 @@ from .schemas import (
     load_npcs,
     load_npcs_with_stubs,
 )
-from .prompts import build_time_of_day_greeting_prompt
+from .prompts import (
+    build_repeat_greeting_prompt,
+    build_time_of_day_greeting_prompt,
+)
 from .state import (
     ProjectVariable,
     VariableType,
     format_variables_for_prompt,
 )
 from .world_profile import WorldProfile, format_profile_for_prompt
-from .yarn import render_greetings_node
+from .yarn import render_greetings_node, render_repeat_greeting_node
 
 logger = logging.getLogger(__name__)
 
@@ -921,6 +924,135 @@ async def gen_time_of_day_greetings(
             node_path.write_text(
                 render_greetings_node(npc, variable.id, variants),
                 encoding="utf-8",
+            )
+
+    return out
+
+
+async def _generate_one_repeat_greeting(
+    *,
+    npc: NpcSheet,
+    visit_index: int,
+    n_total: int,
+    is_else: bool,
+    profile_block: str,
+    api_key: str,
+    model: str | None,
+    provider: str,
+) -> _GreetingLine | None:
+    """Single LLM call for one visit-gated greeting variant."""
+    llm = LLMFactory.create(
+        provider=provider,
+        model_name=model or _AFTERIMAGE_DEFAULT_MODEL,
+        api_key=api_key,
+        system_instruction=build_repeat_greeting_prompt(
+            npc, visit_index, n_total, is_else
+        ),
+    )
+    try:
+        response = await llm.agenerate_structured(
+            prompt=(
+                f"{profile_block}\n\nReturn JSON matching the schema."
+            ),
+            schema=_GreetingLine,
+            temperature=0.95,
+        )
+    except Exception as exc:
+        logger.warning(
+            "gen_repeat_greeting call failed for %s visit %d: %s",
+            npc.id,
+            visit_index,
+            exc,
+        )
+        return None
+    parsed = getattr(response, "parsed", None)
+    if isinstance(parsed, _GreetingLine):
+        return parsed
+    try:
+        return _GreetingLine.model_validate_json(response.text)
+    except Exception as exc:
+        logger.warning(
+            "gen_repeat_greeting parse failed for %s visit %d: %s",
+            npc.id,
+            visit_index,
+            exc,
+        )
+        return None
+
+
+async def gen_repeat_greeting_node(
+    *,
+    demo_dir: Path,
+    profile,  # WorldProfile — untyped to avoid circular import
+    api_key: str,
+    n: int = 3,
+    npc_ids: list[str] | None = None,
+    provider: str = "gemini",
+    model: str | None = None,
+    concurrency: int = 4,
+    write: bool = True,
+) -> dict[str, list[str]]:
+    """Generate ``n`` visit-gated greeting variants for one or more NPCs.
+
+    Convention: index 0 is the first visit (stranger), index 1 is the
+    second visit, ..., index ``n-1`` is the ``else`` fallback played on
+    every subsequent visit. Output is a map ``{npc_id: [variant, ...]}``
+    in order. When ``write`` is true, a per-NPC Yarn node is emitted via
+    :func:`npcforge.yarn.render_repeat_greeting_node` into
+    ``<demo_dir>/out/<npc_id>_repeat_greet.yarn``.
+    """
+    if n < 2:
+        raise ValueError("n must be >= 2 (stranger + 1 repeat)")
+
+    characters_yaml = demo_dir / "characters.yaml"
+    all_npcs = load_npcs(characters_yaml) if characters_yaml.exists() else []
+    if npc_ids:
+        allow = {i.strip() for i in npc_ids if i.strip()}
+        target_npcs = [x for x in all_npcs if x.id in allow]
+    else:
+        target_npcs = all_npcs
+    if not target_npcs:
+        return {}
+
+    profile_block = format_profile_for_prompt(profile)
+    semaphore = asyncio.Semaphore(max(concurrency, 1))
+
+    async def _one(npc: NpcSheet, idx: int, is_else: bool) -> _GreetingLine | None:
+        async with semaphore:
+            return await _generate_one_repeat_greeting(
+                npc=npc,
+                visit_index=idx,
+                n_total=n,
+                is_else=is_else,
+                profile_block=profile_block,
+                api_key=api_key,
+                model=model,
+                provider=provider,
+            )
+
+    out: dict[str, list[str]] = {}
+    out_dir = demo_dir / "out"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    for npc in target_npcs:
+        tasks = []
+        for idx in range(n):
+            is_else = idx == n - 1
+            tasks.append(_one(npc, idx, is_else))
+        results = await asyncio.gather(*tasks)
+        texts: list[str] = []
+        for r in results:
+            if r is None or not r.text.strip():
+                continue
+            texts.append(r.text.strip())
+        if len(texts) < 2:
+            # Skip NPC if we couldn't even produce stranger + 1 fallback.
+            continue
+        out[npc.id] = texts
+        if write:
+            node_path = out_dir / f"{npc.id}_repeat_greet.yarn"
+            node_path.write_text(
+                render_repeat_greeting_node(npc, texts), encoding="utf-8"
             )
 
     return out

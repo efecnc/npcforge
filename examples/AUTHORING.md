@@ -1,10 +1,10 @@
 # Authoring a new world
 
 One-page guide for pointing npcforge at a new setting. Updated for
-v0.6.0 — the full generator trio (NPCs / intents / barks), stub
-resolution, AND the state layer: writers declare project variables
-(`time_of_day`, disposition, quest stages) once, every generator reads
-them.
+v0.6.1 — the full generator trio (NPCs / intents / barks), stub
+resolution, the state layer (`time_of_day`, disposition, quest stages),
+and both state-aware greeting modes: enum-keyed (`gen greetings`) and
+visit-counter (`gen repeat-greeting`).
 
 ## The four files
 
@@ -231,6 +231,18 @@ npcforge gen greetings --demo-dir my_game --variable time_of_day
 
 Your game engine just sets `$time_of_day` on scene load and jumps into
 the greeting node. Mira says something different at dawn vs. night.
+
+And for visit-count-gated greetings (no project variable required —
+Yarn's `visited_count()` tracks it for you):
+
+```bash
+npcforge gen repeat-greeting --demo-dir my_game --only-npcs mira_vesser --n 4
+# → mira_vesser_repeat_greet.yarn:
+#   <<if visited_count(node) == 0>>  "Table's empty. Drink?"
+#   <<elseif visited_count(node) == 1>>  "Seen you before."
+#   <<elseif visited_count(node) == 2>>  "You're getting comfortable."
+#   <<else>>  "Don't bother with a menu; you know what you like."
+```
 
 Opt each NPC in to the variables they react to via the new `reacts_to`
 field on the character sheet:

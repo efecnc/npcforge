@@ -27,13 +27,14 @@ import os
 import sys
 from pathlib import Path
 
-from .play import play_barks, play_walk_up
+from .play import play_barks, play_greetings, play_repeat_greeting, play_walk_up
 from .tools import (
     BuildPipelineInput,
     GenBarksInput,
     GenGreetingsInput,
     GenIntentsInput,
     GenNpcsInput,
+    GenRepeatGreetingInput,
     InferWorldProfileInput,
     ListNpcsInput,
     ResolveStubsInput,
@@ -43,6 +44,7 @@ from .tools import (
     gen_greetings,
     gen_intents,
     gen_npcs,
+    gen_repeat_greeting,
     infer_world_profile,
     list_npcs,
     resolve_stubs,
@@ -332,12 +334,56 @@ async def _cmd_gen_greetings(args: argparse.Namespace) -> int:
     return 0
 
 
+async def _cmd_gen_repeat_greet(args: argparse.Namespace) -> int:
+    key = _resolve_api_key(args.provider, args.api_key_env)
+    result = await gen_repeat_greeting(
+        GenRepeatGreetingInput(
+            demo_dir=args.demo_dir,
+            n=args.n,
+            only_npcs=_split_csv(args.only_npcs),
+            concurrency=args.concurrency,
+            write=not args.dry_run,
+            provider=args.provider,
+            model=args.model,
+            api_key=key,
+        )
+    )
+    total = sum(len(e.variants) for e in result.added)
+    print(
+        f"generated: {total} visit-gated variant(s) across "
+        f"{len(result.added)} NPC(s)  (wrote={result.wrote})"
+    )
+    for entry in result.added:
+        print(f"  = {entry.npc}")
+        for idx, text in enumerate(entry.variants):
+            label = f"visit {idx}" if idx < len(entry.variants) - 1 else "else"
+            print(f"      [{label}] {text}")
+    return 0
+
+
 async def _cmd_play(args: argparse.Namespace) -> int:
     if args.bark:
         return play_barks(
             demo_dir=args.demo_dir,
             npc_id=args.npc,
             trigger=args.bark,
+            out=args.out,
+            tempo=args.tempo,
+            wait=args.wait,
+        )
+    if args.greet:
+        return play_greetings(
+            demo_dir=args.demo_dir,
+            npc_id=args.npc,
+            variable_id=args.greet,
+            out=args.out,
+            tempo=args.tempo,
+            wait=args.wait,
+        )
+    if args.repeat_greet:
+        return play_repeat_greeting(
+            demo_dir=args.demo_dir,
+            npc_id=args.npc,
             out=args.out,
             tempo=args.tempo,
             wait=args.wait,
@@ -521,6 +567,33 @@ def build_arg_parser() -> argparse.ArgumentParser:
     _add_llm_flags(p_gg)
     p_gg.set_defaults(func=_cmd_gen_greetings)
 
+    p_rg = p_gen_sub.add_parser(
+        "repeat-greeting",
+        help=(
+            "Generate visit-count-gated greeting variants per NPC (first "
+            "visit / second visit / ... / else fallback). Uses Yarn's "
+            "visited_count() builtin — no project variable required."
+        ),
+    )
+    p_rg.add_argument("--demo-dir", type=Path, required=True)
+    p_rg.add_argument(
+        "--n",
+        type=int,
+        default=3,
+        help=(
+            "Total variants per NPC (last one is the else-fallback). Min 2."
+        ),
+    )
+    p_rg.add_argument(
+        "--only-npcs",
+        default=None,
+        help="Comma-separated NPC ids. Default: every NPC in characters.yaml.",
+    )
+    p_rg.add_argument("--concurrency", type=int, default=4)
+    p_rg.add_argument("--dry-run", action="store_true")
+    _add_llm_flags(p_rg)
+    p_rg.set_defaults(func=_cmd_gen_repeat_greet)
+
     # ---- resolve (nested) ----
     p_res = subs.add_parser(
         "resolve", help="Fill in placeholder / stub entries."
@@ -569,7 +642,24 @@ def build_arg_parser() -> argparse.ArgumentParser:
         default=None,
         help=(
             "Play the bark library for this trigger id (e.g. greet_patron). "
-            "Mutually exclusive with --intent."
+            "Mutually exclusive with --intent / --greet / --repeat-greet."
+        ),
+    )
+    p_play.add_argument(
+        "--greet",
+        default=None,
+        metavar="VARIABLE",
+        help=(
+            "Play the enum-keyed greeting node for the given variable id "
+            "(default target: time_of_day). Shows one line per enum value."
+        ),
+    )
+    p_play.add_argument(
+        "--repeat-greet",
+        action="store_true",
+        help=(
+            "Play the visit-count-gated greeting node for this NPC. "
+            "Mutually exclusive with --intent / --bark / --greet."
         ),
     )
     p_play.add_argument(
