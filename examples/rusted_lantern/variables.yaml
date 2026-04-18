@@ -1,0 +1,28 @@
+# Project-level state variables for the Rusted Lantern demo.
+# Downstream generators (gen greetings, future state-aware dialogue) read
+# these; build emits `<<declare>>` lines for each at the top of world.yarn
+# so the generated Yarn compiles standalone.
+
+variables:
+  - id: time_of_day
+    type: enum
+    values: [dawn, morning, afternoon, dusk, night]
+    default: morning
+    description: >
+      Hour-bucket of the in-game clock. Used by gen-greetings to produce
+      a time-aware greeting node per NPC.
+
+  - id: player_visits_mira
+    type: int
+    default: 0
+    description: >
+      Number of times the player has approached Mira Vesser. Reserved for
+      the forthcoming repeat-greeting mode.
+
+  - id: disposition_mira
+    type: int
+    range: [0, 100]
+    default: 50
+    description: >
+      Mira's opinion of the player, 0-100. Reserved for disposition-aware
+      dialogue (v0.7+).

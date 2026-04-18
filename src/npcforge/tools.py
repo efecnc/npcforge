@@ -35,10 +35,12 @@ from .generation import (
     gen_barks as _gen_barks_impl,
     gen_intents as _gen_intents_impl,
     gen_npcs as _gen_npcs_impl,
+    gen_time_of_day_greetings as _gen_greetings_impl,
     resolve_stubs as _resolve_stubs_impl,
 )
 from .manifest import Manifest
 from .pipeline import run_all as _run_all_impl
+from .state import ProjectVariable, VariableType, load_variables
 from .schemas import (
     BarksConfig,
     BarkTrigger,
@@ -481,7 +483,113 @@ async def resolve_stubs(input: ResolveStubsInput) -> ResolveStubsOutput:
 
 
 # ---------------------------------------------------------------------------
-# Tool 8: build_pipeline (walk_up + barks)
+# Tool 8: gen_greetings (state-aware time-of-day variants)
+# ---------------------------------------------------------------------------
+
+
+class GenGreetingsInput(_LLMOptions):
+    """Generate one greeting per value of an enum variable, per NPC.
+
+    The output is a per-NPC Yarn node that plays the right greeting based
+    on the current value of the chosen project variable (most commonly
+    ``time_of_day``). Drop ``variables.yaml`` in the project directory
+    first — the tool requires a declared enum variable to key against.
+    """
+
+    demo_dir: Path = Field(..., description="Project directory.")
+    variable_id: str = Field(
+        default="time_of_day",
+        description=(
+            "Project-variable id to key greetings on. Must be declared in "
+            "variables.yaml and must have type=enum."
+        ),
+    )
+    only_npcs: list[str] = Field(
+        default_factory=list,
+        description=(
+            "NPC ids to generate greetings for. Empty = every NPC in "
+            "characters.yaml."
+        ),
+    )
+    concurrency: int = Field(default=4, ge=1, le=8)
+    write: bool = Field(
+        default=True,
+        description=(
+            "Write greeting nodes to <demo_dir>/out/. False returns the "
+            "variants without touching disk."
+        ),
+    )
+
+
+class _NpcGreetingsAdded(BaseModel):
+    npc: str
+    variable_id: str
+    variants: list[tuple[str, str]] = Field(
+        default_factory=list,
+        description="Ordered (variable_value, greeting_text) pairs.",
+    )
+
+
+class GenGreetingsOutput(BaseModel):
+    added: list[_NpcGreetingsAdded]
+    variable_id: str
+    out_dir: Path
+    wrote: bool
+
+
+async def gen_greetings(input: GenGreetingsInput) -> GenGreetingsOutput:
+    variables_cfg = load_variables(input.demo_dir / "variables.yaml")
+    variable = next(
+        (v for v in variables_cfg.variables if v.id == input.variable_id), None
+    )
+    if variable is None:
+        raise ValueError(
+            f"No variable '{input.variable_id}' in "
+            f"{input.demo_dir / 'variables.yaml'}. Declare it first."
+        )
+    if variable.type != VariableType.ENUM:
+        raise ValueError(
+            f"Variable '{input.variable_id}' must be type=enum "
+            f"(got {variable.type.value}). gen_greetings keys on enum values."
+        )
+
+    profile = load_cached_profile(input.demo_dir)
+    if profile is None:
+        profile = await _infer_world_profile_impl(
+            demo_dir=input.demo_dir,
+            api_key=input.api_key,
+            provider=input.provider,
+            model=input.model,
+            overwrite_cache=False,
+        )
+
+    result = await _gen_greetings_impl(
+        demo_dir=input.demo_dir,
+        profile=profile,
+        variable=variable,
+        variables=variables_cfg.variables,
+        npc_ids=input.only_npcs or None,
+        api_key=input.api_key,
+        provider=input.provider,
+        model=input.model,
+        concurrency=input.concurrency,
+        write=input.write,
+    )
+
+    added = [
+        _NpcGreetingsAdded(npc=npc_id, variable_id=input.variable_id, variants=variants)
+        for npc_id, variants in result.items()
+    ]
+    return GenGreetingsOutput(
+        added=added,
+        variable_id=input.variable_id,
+        out_dir=input.demo_dir / "out",
+        wrote=input.write and bool(result),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Tool 9: build_pipeline (walk_up + barks)
 # ---------------------------------------------------------------------------
 
 
@@ -522,6 +630,7 @@ async def build_pipeline(input: BuildPipelineInput) -> BuildPipelineOutput:
     npcs = load_npcs(input.demo_dir / "characters.yaml")
     intents = load_intents(input.demo_dir / "player_intents.yaml")
     barks_cfg = load_barks_config(input.demo_dir / "barks.yaml")
+    variables_cfg = load_variables(input.demo_dir / "variables.yaml")
     world_bible = load_world_bible(input.demo_dir / "lore")
     out_dir = input.out_dir or (input.demo_dir / "out")
     manifest = await _run_all_impl(
@@ -531,6 +640,7 @@ async def build_pipeline(input: BuildPipelineInput) -> BuildPipelineOutput:
         api_key=input.api_key,
         out_dir=out_dir,
         barks_config=barks_cfg,
+        variables=variables_cfg.variables,
         mode=input.mode,
         only_npcs=input.only_npcs or None,
         model_provider_name=input.provider,
@@ -628,6 +738,16 @@ TOOL_REGISTRY: dict[str, tuple[ToolFn, type[BaseModel], type[BaseModel], str]] =
         """Expand every _generate: true entry in characters.yaml into a full
         NpcSheet. Honours role_hint / voice_hint / name seeds. Rewrites the
         yaml in place unless write=false.""",
+    ),
+    "gen_greetings": (
+        gen_greetings,
+        GenGreetingsInput,
+        GenGreetingsOutput,
+        """Generate one greeting per value of an enum project variable
+        (typically time_of_day), per NPC. Emits a per-NPC Yarn node with
+        an <<if>> chain keyed on the variable — the first state-aware
+        output npcforge produces. Requires a variables.yaml declaring the
+        chosen variable.""",
     ),
     "build_pipeline": (
         build_pipeline,

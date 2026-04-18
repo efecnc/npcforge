@@ -1,8 +1,10 @@
 # Authoring a new world
 
 One-page guide for pointing npcforge at a new setting. Updated for
-v0.4.0 — the full generator trio (NPCs / intents / barks) plus stub
-resolution.
+v0.6.0 — the full generator trio (NPCs / intents / barks), stub
+resolution, AND the state layer: writers declare project variables
+(`time_of_day`, disposition, quest stages) once, every generator reads
+them.
 
 ## The four files
 
@@ -15,6 +17,9 @@ my_game/
 ├── characters.yaml          Top-level `npcs:` list. Hand-author some,
 │                            let `gen npcs` append more — both work.
 ├── player_intents.yaml      Top-level `intents:` list.
+├── variables.yaml           Optional. Top-level `variables:` list —
+│                            project state (time_of_day, bounty,
+│                            disposition) that generators can reference.
 └── barks.yaml               Optional. Top-level `barks:` list.
 ```
 
@@ -185,6 +190,58 @@ npcforge resolve stubs --demo-dir my_game
 The expanded sheet inherits the world profile's anachronism blocklist,
 the project-wide intent ids, and respects the hints you provided —
 ids stay exactly as you wrote them.
+
+### 5c. Declare project state (v0.6.0+)
+
+Drop a `variables.yaml` with the state your game cares about:
+
+```yaml
+# variables.yaml
+variables:
+  - id: time_of_day
+    type: enum
+    values: [dawn, morning, afternoon, dusk, night]
+    default: morning
+    description: "Hour-bucket of the in-game clock."
+
+  - id: player_bounty
+    type: int
+    range: [0, 1000]
+    default: 0
+
+  - id: disposition_mira
+    type: int
+    range: [0, 100]
+    default: 50
+    description: "Mira's opinion of the player."
+```
+
+Supported types: `enum` (string with fixed value set), `int`, `float`,
+`bool`, `string`. `enum` variables drive the `gen greetings` generator;
+all types appear at the top of `world.yarn` as `<<declare>>` lines so
+generated Yarn compiles standalone.
+
+Generate time-of-day greetings for some or all of the cast:
+
+```bash
+npcforge gen greetings --demo-dir my_game --variable time_of_day
+# → one <npc>_greet_time_of_day.yarn per NPC, with a 5-branch <<if>>
+# chain keyed on $time_of_day.
+```
+
+Your game engine just sets `$time_of_day` on scene load and jumps into
+the greeting node. Mira says something different at dawn vs. night.
+
+Opt each NPC in to the variables they react to via the new `reacts_to`
+field on the character sheet:
+
+```yaml
+- id: mira_vesser
+  # ... other fields ...
+  reacts_to: [time_of_day, player_bounty, disposition_mira]
+```
+
+Reserved for state-aware dialogue coming in v0.7+; harmless no-op today.
 
 ### 6. Build the Yarn files
 

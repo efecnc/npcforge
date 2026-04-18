@@ -31,6 +31,7 @@ from .play import play_barks, play_walk_up
 from .tools import (
     BuildPipelineInput,
     GenBarksInput,
+    GenGreetingsInput,
     GenIntentsInput,
     GenNpcsInput,
     InferWorldProfileInput,
@@ -39,6 +40,7 @@ from .tools import (
     ShowWorldProfileInput,
     build_pipeline,
     gen_barks,
+    gen_greetings,
     gen_intents,
     gen_npcs,
     infer_world_profile,
@@ -303,6 +305,33 @@ async def _cmd_resolve_stubs(args: argparse.Namespace) -> int:
     return 0
 
 
+async def _cmd_gen_greetings(args: argparse.Namespace) -> int:
+    key = _resolve_api_key(args.provider, args.api_key_env)
+    result = await gen_greetings(
+        GenGreetingsInput(
+            demo_dir=args.demo_dir,
+            variable_id=args.variable,
+            only_npcs=_split_csv(args.only_npcs),
+            concurrency=args.concurrency,
+            write=not args.dry_run,
+            provider=args.provider,
+            model=args.model,
+            api_key=key,
+        )
+    )
+    total = sum(len(e.variants) for e in result.added)
+    print(
+        f"generated: {total} greeting variant(s) across "
+        f"{len(result.added)} NPC(s) for '${result.variable_id}' "
+        f"(wrote={result.wrote})"
+    )
+    for entry in result.added:
+        print(f"  = {entry.npc}")
+        for value, text in entry.variants:
+            print(f"      [{value:>10s}] {text}")
+    return 0
+
+
 async def _cmd_play(args: argparse.Namespace) -> int:
     if args.bark:
         return play_barks(
@@ -467,6 +496,30 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p_gb.add_argument("--dry-run", action="store_true")
     _add_llm_flags(p_gb)
     p_gb.set_defaults(func=_cmd_gen_barks)
+
+    p_gg = p_gen_sub.add_parser(
+        "greetings",
+        help=(
+            "Generate one greeting per enum-value of a project variable "
+            "(typically time_of_day), per NPC. Emits state-aware Yarn "
+            "nodes using <<if $var == \"value\">> chains."
+        ),
+    )
+    p_gg.add_argument("--demo-dir", type=Path, required=True)
+    p_gg.add_argument(
+        "--variable",
+        default="time_of_day",
+        help="Project-variable id to key greetings on (default: time_of_day).",
+    )
+    p_gg.add_argument(
+        "--only-npcs",
+        default=None,
+        help="Comma-separated NPC ids. Default: every NPC in characters.yaml.",
+    )
+    p_gg.add_argument("--concurrency", type=int, default=4)
+    p_gg.add_argument("--dry-run", action="store_true")
+    _add_llm_flags(p_gg)
+    p_gg.set_defaults(func=_cmd_gen_greetings)
 
     # ---- resolve (nested) ----
     p_res = subs.add_parser(

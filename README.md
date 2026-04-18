@@ -56,6 +56,11 @@ npcforge build --demo-dir examples/rusted_lantern --mode all
 #     from the NPC's sample_lines. Surfaced in manifest.json.
 npcforge build --demo-dir examples/rusted_lantern --mode walk_up --score-voice
 
+# 3c. State-aware greetings — one per declared enum value (e.g. time_of_day)
+npcforge gen greetings --demo-dir examples/rusted_lantern --only-npcs mira_vesser
+# → examples/rusted_lantern/out/mira_vesser_greet_time_of_day.yarn with
+#   <<if $time_of_day == "morning">> ... <<elseif $time_of_day == "night">> ...
+
 # 4. Read it like a writer — playback in the terminal at speaking pace.
 npcforge play --demo-dir examples/rusted_lantern --npc mira_vesser
 npcforge play --demo-dir examples/rusted_lantern --npc mira_vesser --intent "threaten for info"
@@ -108,6 +113,7 @@ Every capability is a single async function with Pydantic input/output. Defined 
 | `gen_intents` | Generate new `PlayerIntent` entries consistent with the world, **append** to `player_intents.yaml` | one per intent |
 | `gen_barks` | Propose new bark *triggers* for one or more NPCs, **append** to `barks.yaml` (trigger contexts that feed the build pipeline) | one per trigger |
 | `resolve_stubs` | Expand `_generate: true` placeholder entries in `characters.yaml` into full `NpcSheet`s, honouring `role_hint` / `voice_hint` | one per stub |
+| `gen_greetings` | Generate one time-of-day greeting per enum-value, per NPC. Emits state-aware Yarn with `<<if $var == "value">>` chains | one per (NPC, value) |
 | `build_pipeline` | Run the walk-up + bark pipeline; writes Yarn, manifest, lint report | many |
 
 ### MCP server
@@ -336,6 +342,12 @@ asyncio.run(main())
 See [`docs/TOOLS.md`](docs/TOOLS.md) for every input / output schema and [`docs/MCP.md`](docs/MCP.md) for MCP client setup.
 
 ## Roadmap
+
+### Shipped in v0.6.0
+
+- **State layer** — `variables.yaml` declares `time_of_day`, `disposition_*`, `quest_*_stage`, any enum / int / bool / string. Values feed every downstream generator's prompt; `build` emits `<<declare>>` lines at the top of `world.yarn` so the output compiles standalone.
+- **`gen greetings`** — first state-aware output. One in-character greeting per enum value (e.g. dawn / morning / afternoon / dusk / night) per NPC, wrapped in a Yarn `<<if $var == "value">>` chain that any Yarn Spinner 2 runtime plays directly.
+- **`NpcSheet.reacts_to`** — opt-in list of variable ids an NPC cares about; foundation for future reactive dialogue.
 
 ### Shipped in v0.5.0
 

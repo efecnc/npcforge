@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Iterable
 
 import yaml
+from pydantic import BaseModel, Field
 from afterimage.common import default_model_name as _AFTERIMAGE_DEFAULT_MODEL
 from afterimage.providers import LLMFactory
 
@@ -35,7 +36,14 @@ from .schemas import (
     load_npcs,
     load_npcs_with_stubs,
 )
+from .prompts import build_time_of_day_greeting_prompt
+from .state import (
+    ProjectVariable,
+    VariableType,
+    format_variables_for_prompt,
+)
 from .world_profile import WorldProfile, format_profile_for_prompt
+from .yarn import render_greetings_node
 
 logger = logging.getLogger(__name__)
 
@@ -765,6 +773,157 @@ def _rewrite_characters_yaml_replacing_stubs(
         encoding="utf-8",
     )
     return characters_yaml
+
+
+# ---------------------------------------------------------------------------
+# State-aware generation: time-of-day greeting variants (v0.6.0)
+# ---------------------------------------------------------------------------
+
+
+class _GreetingLine(BaseModel):
+    """Structured-output target for one time-of-day greeting."""
+
+    text: str = Field(..., description="One-sentence in-character greeting.")
+    emotion: str = Field(
+        default="neutral",
+        description="Short emotion tag: neutral / warm / tired / wary / amused.",
+    )
+
+
+_GREETING_USER_TEMPLATE = (
+    "{world_profile}\n\n"
+    "{variables}\n\n"
+    "TIME BUCKET FOR THIS CALL: {value}\n\n"
+    "Produce ONE greeting matching the schema."
+)
+
+
+async def _generate_one_greeting(
+    *,
+    npc: NpcSheet,
+    variable: ProjectVariable,
+    value: str,
+    profile_block: str,
+    variables_block: str,
+    api_key: str,
+    model: str | None,
+    provider: str,
+    temperature: float = 0.95,
+) -> _GreetingLine | None:
+    llm = LLMFactory.create(
+        provider=provider,
+        model_name=model or _AFTERIMAGE_DEFAULT_MODEL,
+        api_key=api_key,
+        system_instruction=build_time_of_day_greeting_prompt(npc, value),
+    )
+    prompt = _GREETING_USER_TEMPLATE.format(
+        world_profile=profile_block,
+        variables=variables_block,
+        value=value,
+    )
+    try:
+        response = await llm.agenerate_structured(
+            prompt=prompt,
+            schema=_GreetingLine,
+            temperature=temperature,
+        )
+    except Exception as exc:
+        logger.warning(
+            "gen_greetings call failed for %s/%s: %s", npc.id, value, exc
+        )
+        return None
+    parsed = getattr(response, "parsed", None)
+    if isinstance(parsed, _GreetingLine):
+        return parsed
+    try:
+        return _GreetingLine.model_validate_json(response.text)
+    except Exception as exc:
+        logger.warning(
+            "gen_greetings parse failed for %s/%s: %s", npc.id, value, exc
+        )
+        return None
+
+
+async def gen_time_of_day_greetings(
+    *,
+    demo_dir: Path,
+    profile,  # WorldProfile — untyped to avoid a circular import
+    variable: ProjectVariable,
+    variables: list[ProjectVariable],
+    npc_ids: list[str] | None,
+    api_key: str,
+    provider: str = "gemini",
+    model: str | None = None,
+    concurrency: int = 4,
+    write: bool = True,
+) -> dict[str, list[tuple[str, str]]]:
+    """Generate one greeting per (NPC, variable-value).
+
+    Returns a map ``{npc_id: [(value, text), ...]}`` in the order declared
+    by ``variable.values``. When ``write`` is true, a per-NPC greeting node
+    is emitted via :func:`npcforge.yarn.render_greetings_node` into
+    ``<demo_dir>/out/``.
+
+    ``variable`` must be an enum-typed variable (validated at the call site
+    via its :class:`~npcforge.state.VariableType`).
+    """
+    if variable.type != VariableType.ENUM:
+        raise ValueError(
+            "gen_time_of_day_greetings requires an enum-typed variable "
+            f"(got {variable.type})"
+        )
+
+    characters_yaml = demo_dir / "characters.yaml"
+    all_npcs = load_npcs(characters_yaml) if characters_yaml.exists() else []
+    if npc_ids:
+        allow = {i.strip() for i in npc_ids if i.strip()}
+        target_npcs = [n for n in all_npcs if n.id in allow]
+    else:
+        target_npcs = all_npcs
+    if not target_npcs:
+        return {}
+
+    profile_block = format_profile_for_prompt(profile)
+    variables_block = format_variables_for_prompt(variables)
+
+    semaphore = asyncio.Semaphore(max(concurrency, 1))
+
+    async def _one(npc: NpcSheet, value: str) -> _GreetingLine | None:
+        async with semaphore:
+            return await _generate_one_greeting(
+                npc=npc,
+                variable=variable,
+                value=value,
+                profile_block=profile_block,
+                variables_block=variables_block,
+                api_key=api_key,
+                model=model,
+                provider=provider,
+            )
+
+    out: dict[str, list[tuple[str, str]]] = {}
+    out_dir = demo_dir / "out"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    for npc in target_npcs:
+        tasks = [_one(npc, value) for value in variable.values]
+        results = await asyncio.gather(*tasks)
+        variants: list[tuple[str, str]] = []
+        for value, result in zip(variable.values, results):
+            if result is None or not result.text.strip():
+                continue
+            variants.append((value, result.text.strip()))
+        if not variants:
+            continue
+        out[npc.id] = variants
+        if write:
+            node_path = out_dir / f"{npc.id}_greet_{variable.id}.yarn"
+            node_path.write_text(
+                render_greetings_node(npc, variable.id, variants),
+                encoding="utf-8",
+            )
+
+    return out
 
 
 async def resolve_stubs(

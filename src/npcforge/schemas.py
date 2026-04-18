@@ -55,6 +55,13 @@ class NpcSheet(BaseModel):
     # Per-NPC intent whitelist (v0.2.0). Empty = all intents allowed.
     allowed_intents: list[str] = Field(default_factory=list)
 
+    # State-layer hook (v0.6.0). Project-variable ids this NPC reacts to —
+    # injected into greeting/dialogue generators so their output references
+    # the right variables without leaking every declared variable into every
+    # NPC's prompt. Empty = no state reactions beyond implicit defaults
+    # (e.g. the time-of-day greeting generator uses time_of_day regardless).
+    reacts_to: list[str] = Field(default_factory=list)
+
 
 class NpcStub(BaseModel):
     """A placeholder entry in ``characters.yaml`` that ``resolve_stubs`` fills in.

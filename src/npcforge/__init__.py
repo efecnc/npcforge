@@ -14,6 +14,7 @@ from .generation import (
     gen_barks as gen_barks_impl,
     gen_intents as gen_intents_impl,
     gen_npcs as gen_npcs_impl,
+    gen_time_of_day_greetings as gen_time_of_day_greetings_impl,
     resolve_stubs as resolve_stubs_impl,
 )
 from .lint import ForbiddenHit, LintReport, lint_barks, lint_text, lint_walk_up_branches
@@ -52,6 +53,8 @@ from .tools import (
     BuildPipelineOutput,
     GenBarksInput,
     GenBarksOutput,
+    GenGreetingsInput,
+    GenGreetingsOutput,
     GenIntentsInput,
     GenIntentsOutput,
     GenNpcsInput,
@@ -67,6 +70,7 @@ from .tools import (
     ToolSpec,
     build_pipeline,
     gen_barks,
+    gen_greetings,
     gen_intents,
     gen_npcs,
     infer_world_profile,
@@ -94,6 +98,15 @@ from .play import (
     render_barks,
     render_branch,
 )
+from .state import (
+    ProjectVariable,
+    VariablesConfig,
+    VariableType,
+    format_variables_for_prompt,
+    load_variables,
+    yarn_declare_block,
+    yarn_literal,
+)
 from .validate import CompileResult, compile_yarn_files, ysc_available
 from .voice_score import score_voice_consistency
 from .world_profile import (
@@ -107,7 +120,9 @@ from .yarn import (
     Branch,
     DialogTurn,
     bark_node_title,
+    greeting_node_title,
     render_bark_node,
+    render_greetings_node,
     render_world_start_node,
     render_yarn_branch,
     render_yarn_node_for_npc,
@@ -115,7 +130,7 @@ from .yarn import (
     yarn_safe_title,
 )
 
-__version__ = "0.5.0"
+__version__ = "0.6.0"
 
 __all__ = [
     # Version

@@ -265,6 +265,49 @@ print(f"resolved={len(out.resolved)} retry={out.unresolved_ids}")
 
 ---
 
+## `gen_greetings`
+
+Generates one in-character greeting per value of an enum project
+variable (typically `time_of_day`), per NPC. Emits a per-NPC Yarn node
+using `<<if $var == "value">>` / `<<elseif>>` / `<<else>>` / `<<endif>>`.
+The first state-aware output npcforge produces. Requires a
+`variables.yaml` in the project directory declaring the chosen variable
+as `type: enum`.
+
+**Input — `GenGreetingsInput`:**
+
+| Field | Type | Default | Purpose |
+|---|---|---|---|
+| `demo_dir` | `Path` | required | Project directory. Must contain `variables.yaml` and `characters.yaml`. |
+| `variable_id` | `str` | `"time_of_day"` | Project-variable id to key greetings on. Must be enum-typed. |
+| `only_npcs` | `list[str]` | `[]` | Restrict to a subset of NPC ids. |
+| `concurrency` | `int` | `4` | Max parallel LLM calls. |
+| `write` | `bool` | `True` | Write `.yarn` nodes to `<demo_dir>/out/`. |
+| `api_key` / `provider` / `model` | — | — | See `_LLMOptions`. |
+
+**Output — `GenGreetingsOutput`:**
+
+| Field | Type | Purpose |
+|---|---|---|
+| `added` | `list[{npc: str, variable_id: str, variants: list[(str, str)]}]` | Per-NPC variants as `(value, text)` pairs in declaration order. |
+| `variable_id` | `str` | Echoes the variable the variants key on. |
+| `out_dir` | `Path` | Where the greeting nodes were written. |
+| `wrote` | `bool` | True when files were written. |
+
+```python
+out = await gen_greetings(GenGreetingsInput(
+    demo_dir=Path("my_game"),
+    variable_id="time_of_day",
+    only_npcs=["mira_vesser"],
+    api_key="...",
+))
+for entry in out.added:
+    for value, text in entry.variants:
+        print(f"{entry.npc} [{value}] {text}")
+```
+
+---
+
 ## `build_pipeline`
 
 Runs the walk-up / bark / all pipeline, wrapping the existing

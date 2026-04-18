@@ -96,9 +96,19 @@ def render_yarn_node_for_npc(npc: NpcSheet, branches: list[Branch]) -> str:
     return "\n".join(out) + "\n"
 
 
-def render_world_start_node(npcs: list[NpcSheet]) -> str:
-    """Master ``Start`` node with one option per NPC."""
+def render_world_start_node(
+    npcs: list[NpcSheet],
+    declare_lines: list[str] | None = None,
+) -> str:
+    """Master ``Start`` node with one option per NPC.
+
+    When ``declare_lines`` is provided (from :func:`npcforge.state.yarn_declare_block`)
+    each line is emitted at the top of the node body — Yarn Spinner requires
+    ``<<declare>>`` statements before any dialogue lines.
+    """
     out: list[str] = [f"{_YARN_TITLE}Start", _YARN_TAGS + "start", "---"]
+    if declare_lines:
+        out.extend(declare_lines)
     out.append(
         "You step inside. Firelight, low voices, a hush that settles when you arrive."
     )
@@ -108,6 +118,78 @@ def render_world_start_node(npcs: list[NpcSheet]) -> str:
         out.append(f"    <<jump {yarn_safe_title(npc.id)}>>")
     out.append(_YARN_SEP)
     return "\n".join(out) + "\n"
+
+
+# ---------------------------------------------------------------------------
+# State-aware greeting node (v0.6.0)
+# ---------------------------------------------------------------------------
+
+
+def greeting_node_title(npc_id: str, variable_id: str) -> str:
+    """Deterministic Yarn title for an NPC's state-variant greeting node."""
+    return yarn_safe_title(f"{npc_id}_Greet_{variable_id}")
+
+
+def render_greetings_node(
+    npc: NpcSheet,
+    variable_id: str,
+    variants: list[tuple[str, str]],
+) -> str:
+    """Render a Yarn node that emits one line per value of a project variable.
+
+    ``variants`` is an ordered list of ``(value, greeting_text)`` pairs.
+    Output shape (for ``variable_id='time_of_day'``):
+
+    ::
+
+        title: mira_vesser_Greet_time_of_day
+        tags: greeting,variable:time_of_day,npc:mira_vesser
+        ---
+        <<if $time_of_day == "dawn">>
+            Mira Vesser: Early, friend. Ale or coffee?
+        <<elseif $time_of_day == "morning">>
+            Mira Vesser: Morning. Fire's lit.
+        <<elseif $time_of_day == "night">>
+            Mira Vesser: Late. Kitchen's closed.
+        <<else>>
+            Mira Vesser: (nods)
+        <<endif>>
+        ===
+    """
+    title = greeting_node_title(npc.id, variable_id)
+    lines: list[str] = [
+        f"{_YARN_TITLE}{title}",
+        _YARN_TAGS + f"greeting,variable:{variable_id},npc:{npc.id}",
+        "---",
+        f"// Greeting variants keyed on ${variable_id}.",
+    ]
+    if not variants:
+        lines.extend([f"{npc.name}: ...", _YARN_SEP])
+        return "\n".join(lines) + "\n"
+
+    total = len(variants)
+    for idx, (value, text) in enumerate(variants):
+        literal = yarn_escape_line(value)
+        body = yarn_escape_line(text)
+        if idx == 0:
+            lines.append(f'<<if ${variable_id} == "{literal}">>')
+        elif idx == total - 1:
+            lines.append(f'<<elseif ${variable_id} == "{literal}">>')
+            lines.append(f"    {npc.name}: {body}")
+            lines.append("<<else>>")
+            lines.append(f"    {npc.name}: ...")
+            lines.append("<<endif>>")
+            lines.append(_YARN_SEP)
+            return "\n".join(lines) + "\n"
+        else:
+            lines.append(f'<<elseif ${variable_id} == "{literal}">>')
+        lines.append(f"    {npc.name}: {body}")
+    # With a single variant we never hit the final branch above.
+    lines.append("<<else>>")
+    lines.append(f"    {npc.name}: ...")
+    lines.append("<<endif>>")
+    lines.append(_YARN_SEP)
+    return "\n".join(lines) + "\n"
 
 
 # ---------------------------------------------------------------------------

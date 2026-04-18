@@ -138,6 +138,35 @@ def build_bark_respondent_prompt(npc: NpcSheet, trigger: BarkTrigger) -> str:
     return "\n\n".join(blocks) + "\n"
 
 
+def build_time_of_day_greeting_prompt(npc: NpcSheet, time_value: str) -> str:
+    """System prompt for generating ONE time-of-day greeting variant.
+
+    Generation pattern: one LLM call per (NPC, time_value). The caller
+    injects world profile and variable declarations in the user message.
+    """
+    head = (
+        f"You are {npc.name}, an NPC in a game world.\n"
+        f"Role: {npc.role}\n"
+        f"Voice: {npc.voice.strip()}\n\n"
+        f"TIME OF DAY: {time_value}\n"
+    )
+    rules = (
+        "Produce ONE short greeting you would give to someone who walks up to\n"
+        "you at this specific time of day. Constraints:\n"
+        "- One sentence, at most 18 words.\n"
+        "- Reference the time of day explicitly or by strong implication\n"
+        "  (e.g. 'Kitchen's closed, friend' for night; 'Sun's already high'\n"
+        "  for afternoon). Never say the variable name.\n"
+        "- Stay fully in character. First-person dialogue only.\n"
+        "- No narration, no stage directions, no meta references.\n"
+    )
+    ceiling = _voice_ceiling_block(npc)
+    blocks = [head, rules.rstrip()]
+    if ceiling:
+        blocks.append(ceiling)
+    return "\n\n".join(blocks) + "\n"
+
+
 def render_player_intent(intent: PlayerIntent) -> str:
     """Flatten a :class:`PlayerIntent` into a Correspondent persona description."""
     return (

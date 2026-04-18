@@ -61,6 +61,7 @@ from .schemas import (
     PlayerIntent,
     resolve_intents_for_npc,
 )
+from .state import ProjectVariable, yarn_declare_block
 from .voice_score import score_voice_consistency
 from .yarn import (
     Branch,
@@ -316,6 +317,7 @@ async def run_all(
     api_key: str,
     out_dir: Path,
     barks_config: BarksConfig | None = None,
+    variables: list[ProjectVariable] | None = None,
     mode: Mode = "walk_up",
     only_npcs: Iterable[str] | None = None,
     model_provider_name: str = "gemini",
@@ -461,7 +463,11 @@ async def run_all(
 
     if do_walk and not only_npcs:
         world_path = out_dir / "world.yarn"
-        world_path.write_text(render_world_start_node(selected), encoding="utf-8")
+        declares = yarn_declare_block(variables or [])
+        world_path.write_text(
+            render_world_start_node(selected, declare_lines=declares),
+            encoding="utf-8",
+        )
         world_entry = WorldEntry(
             yarn=world_path.name, yarn_hash=_file_hash(world_path)
         )

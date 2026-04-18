@@ -4,6 +4,91 @@ All notable changes to npcforge land here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [SemVer](https://semver.org/).
 
+## [0.6.0] — 2026-04-18
+
+The state layer. First release that crosses from "style-sample generator"
+to "engines can consume the output with state." Foundation for the next
+four planned releases (relationships, knowledge gates, disposition,
+appearance state) — all of which build on this.
+
+### Added
+
+- **`npcforge.state`** — new module defining `ProjectVariable` (enum /
+  int / float / bool / string), `VariablesConfig`, `load_variables`,
+  `format_variables_for_prompt` (LLM-facing block), `yarn_literal`, and
+  `yarn_declare_block` (emits `<<declare $id = default>>` lines).
+- **`variables.yaml`** per project — writers declare state variables
+  once, every downstream generator reads them. The demo
+  `examples/rusted_lantern/variables.yaml` ships `time_of_day`,
+  `player_visits_mira`, and `disposition_mira`.
+- **`gen_greetings`** tool (8th tool in `TOOL_REGISTRY`) — given an
+  enum project variable (typically `time_of_day`), generates one
+  in-character greeting per value per NPC and writes a Yarn node per
+  NPC using `<<if $var == "value">>` / `<<elseif>>` / `<<else>>` /
+  `<<endif>>`. Requires a declared enum variable; raises clearly if
+  one is missing.
+- **`npcforge gen greetings` CLI subcommand** with `--variable`,
+  `--only-npcs`, `--concurrency`, `--dry-run`.
+- **`NpcSheet.reacts_to: list[str]`** — opt-in list of variable ids
+  this NPC cares about. Reserved for future state-aware dialogue
+  generators; present now so future releases can add reactivity
+  without another schema change.
+- **`build_pipeline` now emits `<<declare>>`** blocks at the top of
+  `world.yarn` when `variables.yaml` is present — generated Yarn
+  compiles standalone.
+
+### Changed
+
+- `run_all` gains a `variables: list[ProjectVariable] | None = None`
+  parameter (defaults unchanged; omitting it keeps v0.5 behaviour).
+- Yarn `render_world_start_node` now accepts a `declare_lines:
+  list[str] | None` keyword. Old callers still work.
+- `build` automatically loads `variables.yaml` and passes it through.
+
+### Tests — 83 passing (up from 61)
+
+- `ProjectVariable` validators: enum default inference, default outside
+  values rejected, empty values list rejected, numeric / bool sensible
+  defaults.
+- `load_variables` on the committed demo, plus graceful empty return
+  when the file is missing.
+- `yarn_literal` for every type, including escaped quotes.
+- `yarn_declare_block` one-line-per-variable emission.
+- `render_world_start_node` with declares: declares appear before the
+  first option line (Yarn requires it); backward-compatible without.
+- `render_greetings_node` emits the correct `if` / (N-1) × `elseif` /
+  `else` / `endif` chain for N variants, metadata tags, every value
+  as a literal.
+- `NpcSheet.reacts_to` round-trips through YAML.
+
+### Verified end-to-end on Gemini 2.5-flash
+
+`gen greetings --only-npcs mira_vesser,gereth_blackstone` on a /tmp
+copy of the Rusted Lantern produced 10 variants, all in voice:
+
+Mira's five stayed distinctly time-flavoured while holding her accent
+markers (drops "the" — *"Pour yourself a drink"*; never says "mine"):
+
+- dawn:     *"First light. No easy coin this early."*
+- morning:  *"Sun's barely up. What do you need?"*
+- afternoon:*"Afternoon. Pour yourself a drink if you're thirsty."*
+- dusk:     *"Dusk settling in. You here for trouble or a pint?"*
+- night:    *"Kitchen's closed. Just drinks for now."*
+
+Gereth's five carried the four-note hum and "twelve, one" trauma motif
+in every single one — same character continuity the generator trio and
+voice-scoring layers already demonstrated.
+
+The two generated Yarn files each compile to a 5-branch `<<if>>` chain
+keyed on `$time_of_day`. A Yarn Spinner 2 runtime plays them directly.
+
+### Known limitation
+
+`npcforge play` does not yet render greeting nodes (only walk-up +
+barks). Ships in v0.6.1 alongside `repeat_greeting` mode.
+
+---
+
 ## [0.5.0] — 2026-04-17
 
 Writer-workflow polish — the three items the veteran-designer review
