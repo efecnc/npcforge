@@ -1,0 +1,47 @@
+{
+  "npc": "ulrik_the_old_man",
+  "trigger": "idle_by_fire",
+  "node_title": "ulrik_the_old_man_Bark_idle_by_fire",
+  "barks": [
+    {
+      "text": "Hmm... the Weaver's thread has pulled tight, hasn't it, after all these winters?",
+      "emotion": "neutral",
+      "intensity": "low"
+    },
+    {
+      "text": "Tell me, Saria, do you see the comet's tail stretching as far as the Dragon's eye this eve?",
+      "emotion": "neutral",
+      "intensity": "low"
+    },
+    {
+      "text": "Mm, does a falling star truly fall, or merely choose a new path through the dark?",
+      "emotion": "neutral",
+      "intensity": "low"
+    },
+    {
+      "text": "These old charts... do they truly show the Wanderer's true path, dear Elara, or only echoes?",
+      "emotion": "confused",
+      "intensity": "low"
+    },
+    {
+      "text": "The Twin Serpents... will they align as they did ten winters past, eh, Lyra?",
+      "emotion": "neutral",
+      "intensity": "low"
+    },
+    {
+      "text": "Mm, the Eye of the Serpent... it shows a curious flicker tonight, my old friend.",
+      "emotion": "confused",
+      "intensity": "low"
+    },
+    {
+      "text": "Mm, this ancient chart, showing a comet's return within two winters, suggests a precise convergence.",
+      "emotion": "neutral",
+      "intensity": "medium"
+    },
+    {
+      "text": "These ancient charts... do they truly show us what we seek, or merely what we expect?",
+      "emotion": "neutral",
+      "intensity": "low"
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "npc": "mira_vesser",
+  "trigger": "reacts_to_hum",
+  "node_title": "mira_vesser_Bark_reacts_to_hum",
+  "barks": [
+    {
+      "text": "Deep gets louder; mind your drinks.",
+      "emotion": "neutral",
+      "intensity": "medium"
+    },
+    {
+      "text": "Deep's humming again.",
+      "emotion": "neutral",
+      "intensity": "medium"
+    },
+    {
+      "text": "Mind your ale. The deep's got its own hunger.",
+      "emotion": "sarcastic",
+      "intensity": "medium"
+    },
+    {
+      "text": "The deep's humming. Don't spill your ale.",
+      "emotion": "neutral",
+      "intensity": "low"
+    },
+    {
+      "text": "Deep's stirring again.",
+      "emotion": "neutral",
+      "intensity": "low"
+    },
+    {
+      "text": "The deep makes its own noise, as it always does.",
+      "emotion": "neutral",
+      "intensity": "medium"
+    }
+  ]
+}

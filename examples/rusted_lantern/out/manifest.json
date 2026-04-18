@@ -1,0 +1,158 @@
+{
+  "version": "0.2.0",
+  "generated_at": "2026-04-17T14:32:10.561387+00:00",
+  "provider": "gemini",
+  "model": null,
+  "mode": "all",
+  "npcs": {
+    "mira_vesser": {
+      "sheet_hash": "2aa829295837a376",
+      "walk_up": {
+        "yarn": "mira_vesser.yarn",
+        "yarn_hash": "0e750f65d918c32c",
+        "intents": [
+          "ask_about_local_events",
+          "ask_about_locket",
+          "ask_about_rumors",
+          "ask_about_npc_other",
+          "threaten_for_info",
+          "bribe_for_info",
+          "barter_wares",
+          "accept_refuge",
+          "farewell"
+        ],
+        "branch_count": 9
+      },
+      "barks": [
+        {
+          "trigger": "greet_patron",
+          "requested": 10,
+          "produced": 10,
+          "yarn": "mira_vesser_bark_greet_patron.yarn",
+          "yarn_hash": "84c55db7e801444e",
+          "json": "mira_vesser_bark_greet_patron.json"
+        },
+        {
+          "trigger": "reacts_to_hum",
+          "requested": 6,
+          "produced": 6,
+          "yarn": "mira_vesser_bark_reacts_to_hum.yarn",
+          "yarn_hash": "69e9c6d048e96dba",
+          "json": "mira_vesser_bark_reacts_to_hum.json"
+        }
+      ]
+    },
+    "gereth_blackstone": {
+      "sheet_hash": "e3693fc187e5f5ea",
+      "walk_up": {
+        "yarn": "gereth_blackstone.yarn",
+        "yarn_hash": "50c20f416b9f1a67",
+        "intents": [
+          "ask_about_local_events",
+          "ask_about_locket",
+          "confess_vulnerability",
+          "farewell"
+        ],
+        "branch_count": 4
+      },
+      "barks": [
+        {
+          "trigger": "sees_new_face",
+          "requested": 10,
+          "produced": 10,
+          "yarn": "gereth_blackstone_bark_sees_new_face.yarn",
+          "yarn_hash": "1ae433d7b1a92b76",
+          "json": "gereth_blackstone_bark_sees_new_face.json"
+        }
+      ]
+    },
+    "sister_adelie": {
+      "sheet_hash": "474ae98ea205478e",
+      "walk_up": {
+        "yarn": "sister_adelie.yarn",
+        "yarn_hash": "6ca9dfec5a122df3",
+        "intents": [
+          "ask_about_local_events",
+          "ask_about_locket",
+          "ask_about_rumors",
+          "ask_about_npc_other",
+          "ask_to_bless",
+          "confess_vulnerability",
+          "farewell"
+        ],
+        "branch_count": 7
+      },
+      "barks": [
+        {
+          "trigger": "offers_blessing",
+          "requested": 8,
+          "produced": 8,
+          "yarn": "sister_adelie_bark_offers_blessing.yarn",
+          "yarn_hash": "e5f1868c1bacf757",
+          "json": "sister_adelie_bark_offers_blessing.json"
+        }
+      ]
+    },
+    "kess_the_knife": {
+      "sheet_hash": "1ae1f4dcc63bb12f",
+      "walk_up": {
+        "yarn": "kess_the_knife.yarn",
+        "yarn_hash": "af2d514b407d3b48",
+        "intents": [
+          "ask_about_locket",
+          "ask_about_rumors",
+          "ask_about_npc_other",
+          "bribe_for_info",
+          "barter_wares",
+          "flirt",
+          "farewell"
+        ],
+        "branch_count": 7
+      },
+      "barks": [
+        {
+          "trigger": "greets_customer",
+          "requested": 10,
+          "produced": 10,
+          "yarn": "kess_the_knife_bark_greets_customer.yarn",
+          "yarn_hash": "3cb5b1179b3135a1",
+          "json": "kess_the_knife_bark_greets_customer.json"
+        }
+      ]
+    },
+    "ulrik_the_old_man": {
+      "sheet_hash": "5e41208f91a8801b",
+      "walk_up": {
+        "yarn": "ulrik_the_old_man.yarn",
+        "yarn_hash": "9013c1964447b5ab",
+        "intents": [
+          "ask_about_local_events",
+          "ask_about_locket",
+          "ask_about_rumors",
+          "ask_about_npc_other",
+          "farewell"
+        ],
+        "branch_count": 5
+      },
+      "barks": [
+        {
+          "trigger": "idle_by_fire",
+          "requested": 8,
+          "produced": 8,
+          "yarn": "ulrik_the_old_man_bark_idle_by_fire.yarn",
+          "yarn_hash": "46346d011e7ea2d6",
+          "json": "ulrik_the_old_man_bark_idle_by_fire.json"
+        }
+      ]
+    }
+  },
+  "world": {
+    "yarn": "world.yarn",
+    "yarn_hash": "4d806ebc273a7689"
+  },
+  "lint": {
+    "markdown": "lint.md",
+    "total_hits": 0
+  },
+  "elapsed_seconds": 331.79
+}

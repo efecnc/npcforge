@@ -23,6 +23,126 @@ VocabularyCeiling = Literal[
 ]
 
 
+class Faction(BaseModel):
+    """A social group NPCs belong to (v0.9.0 — social graph).
+
+    Factions are loaded from ``factions.yaml`` at the project root. They
+    let the respondent prompt know how an NPC's tone should shift when
+    allies, rivals, or neutrals are in the room, and they give the
+    memory layer a way to attribute player actions to a group rather
+    than just an individual ("player helped the Guild" vs "player helped
+    Kess specifically").
+
+    Keep ``allies`` and ``rivals`` as **lists of faction ids** — the
+    loader validates they exist. Symbols and values are free-text and
+    get injected into the respondent prompt as character-grounding.
+    """
+
+    id: str = Field(..., description="Lower_snake_case faction id used in references.")
+    name: str = Field(..., description="Display name, e.g. 'The Miners' Guild'.")
+    description: str = Field(
+        default="",
+        description=(
+            "One or two sentences capturing the faction's role in the world. "
+            "Injected into respondent prompts when a member references it."
+        ),
+    )
+    values: list[str] = Field(
+        default_factory=list,
+        description=(
+            "What the faction cares about: 'coin', 'silence', 'pre-Forgetting "
+            "relics', 'the old songs'. Each entry is a short phrase."
+        ),
+    )
+    symbols: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Visible markers that identify members: 'black-gloved left hand', "
+            "'brass guild pin', 'humming the third verse'."
+        ),
+    )
+    allies: list[str] = Field(
+        default_factory=list,
+        description="Faction ids this faction considers aligned. Must resolve.",
+    )
+    rivals: list[str] = Field(
+        default_factory=list,
+        description="Faction ids this faction considers hostile. Must resolve.",
+    )
+
+
+class FactionsConfig(BaseModel):
+    """Top-level ``factions.yaml`` schema."""
+
+    factions: list[Faction] = Field(default_factory=list)
+
+
+MemorySalience = Literal["trivial", "notable", "pivotal"]
+
+
+class MemoryEvent(BaseModel):
+    """One recorded player-NPC interaction (v0.9.0 — memory layer).
+
+    Memory events persist across sessions so NPCs can reference what the
+    player did before. Events are scoped to a single NPC (``npc_id``) but
+    may also be tagged with a ``faction_id`` — enabling "the player
+    insulted a Guildsman" to register with every Guild member, not just
+    the one they insulted.
+
+    ``salience`` drives decay: trivial events get pruned after a small
+    number of subsequent encounters; notable events last longer; pivotal
+    events are permanent (betrayals, gifts, secrets shared, deaths
+    witnessed). The memory summariser respects this.
+
+    ``turn`` is a monotonic counter the runtime bumps whenever gameplay
+    reaches a narrative beat (not a frame counter). It's opaque to npcforge
+    — we only use it to sort-by-recency and compute "how many beats ago."
+    """
+
+    turn: int = Field(
+        ...,
+        description=(
+            "Monotonic event counter set by the runtime. Higher = more recent. "
+            "Opaque to npcforge; we only sort and subtract."
+        ),
+    )
+    npc_id: str = Field(
+        ...,
+        description="The NPC this event is about (memory is per-NPC).",
+    )
+    event_type: str = Field(
+        ...,
+        description=(
+            "Short tag categorising the event: 'player_lied', 'gift_given', "
+            "'threat', 'secret_shared', 'faction_helped', 'faction_harmed'. "
+            "Free-form — the summariser includes the tag verbatim."
+        ),
+    )
+    summary: str = Field(
+        ...,
+        description=(
+            "One short sentence describing what happened, phrased from the "
+            "NPC's point of view. 'The player offered coin for my silence.' "
+            "Becomes verbatim prompt fuel."
+        ),
+    )
+    salience: MemorySalience = Field(
+        default="notable",
+        description=(
+            "trivial = prune after ~3 subsequent turns. notable = ~10 turns. "
+            "pivotal = permanent. Drives decay in the memory summariser."
+        ),
+    )
+    faction_id: str = Field(
+        default="",
+        description=(
+            "Optional faction tag. If present, this event is visible to every "
+            "member of the faction when they summarise their memory of the "
+            "player — enables 'the Guild remembers' dynamics."
+        ),
+    )
+
+
 class Relationship(BaseModel):
     """One NPC's stance toward another NPC in the cast (v0.8.0).
 
@@ -173,6 +293,25 @@ class NpcSheet(BaseModel):
     # NPC undergoes when a trigger condition becomes true. Injected into
     # the respondent prompt so generated dialogue reflects the shift.
     state_evolution: list[StateEvolution] = Field(default_factory=list)
+
+    # Faction membership (v0.9.0 — social graph). Most NPCs belong to
+    # exactly one faction; allow a second slot for dual loyalties (a
+    # spy, a family member with a conflict of allegiances). Empty =
+    # faction-free (hermits, travellers, the player's own shadow).
+    faction_id: str = Field(
+        default="",
+        description=(
+            "Primary faction id. Must resolve against factions.yaml when "
+            "factions are defined. Empty string = no affiliation."
+        ),
+    )
+    secondary_faction_id: str = Field(
+        default="",
+        description=(
+            "Optional secondary faction — for spies, torn loyalties, "
+            "family ties that cross faction lines."
+        ),
+    )
 
 
 class NpcStub(BaseModel):
@@ -334,6 +473,63 @@ def load_barks_config(path: Path) -> BarksConfig:
         return BarksConfig()
     data = _load_yaml(path)
     return BarksConfig(**data)
+
+
+def load_factions(path: Path) -> FactionsConfig:
+    """Load ``factions.yaml`` if present. Returns an empty config if missing.
+
+    Validates that ``allies`` and ``rivals`` reference ids that exist in
+    the same file — dangling references silently become empty strings in
+    practice but we want a loud failure at load time.
+    """
+    if not path.exists():
+        return FactionsConfig()
+    data = _load_yaml(path)
+    cfg = FactionsConfig(**data)
+    known = {f.id for f in cfg.factions}
+    for f in cfg.factions:
+        for side, items in (("allies", f.allies), ("rivals", f.rivals)):
+            unknown = [x for x in items if x not in known]
+            if unknown:
+                raise ValueError(
+                    f"Faction '{f.id}' lists unknown {side}: {unknown}. "
+                    f"Known ids: {sorted(known)}"
+                )
+    return cfg
+
+
+def validate_npc_factions(
+    npcs: list[NpcSheet], factions: FactionsConfig
+) -> None:
+    """Fail loudly if any NPC references a faction that isn't declared.
+
+    Called after loading both files. A typo in ``characters.yaml``'s
+    ``faction_id`` would otherwise compile prompts with an unknown id —
+    still functional but the social-graph injection would be inert.
+    """
+    if not factions.factions:
+        # No factions declared — NPCs simply must not claim membership.
+        offenders = [
+            n.id for n in npcs
+            if n.faction_id or n.secondary_faction_id
+        ]
+        if offenders:
+            raise ValueError(
+                f"NPCs claim faction membership but no factions.yaml was "
+                f"loaded: {offenders}"
+            )
+        return
+    known = {f.id for f in factions.factions}
+    for npc in npcs:
+        for slot, value in (
+            ("faction_id", npc.faction_id),
+            ("secondary_faction_id", npc.secondary_faction_id),
+        ):
+            if value and value not in known:
+                raise ValueError(
+                    f"NPC '{npc.id}' {slot}='{value}' is not a declared "
+                    f"faction. Known: {sorted(known)}"
+                )
 
 
 def load_world_bible(lore_dir: Path) -> str:

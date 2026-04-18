@@ -7,7 +7,14 @@ LLM has a hard frame before sampling.
 
 from __future__ import annotations
 
-from .schemas import BarkTrigger, NpcSheet, PlayerIntent, VocabularyCeiling
+from .schemas import (
+    BarkTrigger,
+    Faction,
+    FactionsConfig,
+    NpcSheet,
+    PlayerIntent,
+    VocabularyCeiling,
+)
 
 
 _CEILING_DESCRIPTIONS: dict[VocabularyCeiling, str] = {
@@ -92,6 +99,50 @@ def _render_relationships(
     return "\n".join(lines)
 
 
+def _render_faction_affiliation(
+    npc: NpcSheet,
+    factions: FactionsConfig | None = None,
+) -> str:
+    """Render the NPC's faction membership block.
+
+    We resolve the id against ``factions`` so the respondent prompt sees
+    the display name + description + values + symbols + allies / rivals
+    inline. Without the config, we fall back to emitting just the id —
+    still useful (the LLM can at least reference it consistently) but
+    much less grounded.
+    """
+    if not npc.faction_id and not npc.secondary_faction_id:
+        return ""
+
+    by_id: dict[str, Faction] = {}
+    if factions is not None:
+        by_id = {f.id: f for f in factions.factions}
+
+    def render_one(slot_label: str, faction_id: str) -> list[str]:
+        f = by_id.get(faction_id)
+        if f is None:
+            return [f"{slot_label}: {faction_id} (details not loaded)"]
+        block = [f"{slot_label}: {f.name} ({f.id})"]
+        if f.description:
+            block.append(f"    About: {f.description.strip()}")
+        if f.values:
+            block.append("    Values: " + ", ".join(f.values))
+        if f.symbols:
+            block.append("    Visible markers: " + "; ".join(f.symbols))
+        if f.allies:
+            block.append("    Allied factions: " + ", ".join(f.allies))
+        if f.rivals:
+            block.append("    Rival factions: " + ", ".join(f.rivals))
+        return block
+
+    lines: list[str] = ["Faction affiliation (shapes how you speak to whom):"]
+    if npc.faction_id:
+        lines.extend(render_one("Primary", npc.faction_id))
+    if npc.secondary_faction_id:
+        lines.extend(render_one("Secondary", npc.secondary_faction_id))
+    return "\n".join(lines)
+
+
 def _render_state_evolution(npc: NpcSheet) -> str:
     if not npc.state_evolution:
         return ""
@@ -126,6 +177,7 @@ def _render_knowledge(npc: NpcSheet) -> str:
 def render_character_sheet(
     npc: NpcSheet,
     cast: list[NpcSheet] | None = None,
+    factions: FactionsConfig | None = None,
 ) -> str:
     """Flatten an :class:`NpcSheet` into a bible-style text block.
 
@@ -134,6 +186,11 @@ def render_character_sheet(
     ``cast`` is supplied (v0.8.1+), each declared relationship target is
     annotated with that NPC's role from the sheet so the LLM cannot
     substitute generic fantasy priors for the real world-bible role.
+
+    When ``factions`` is supplied (v0.9.0+), the NPC's primary and
+    secondary faction memberships get fully expanded (name, values,
+    symbols, allies, rivals) so the respondent has the social-graph
+    context it needs to shift tone per audience.
     """
     quirks = "\n".join(f"- {q}" for q in npc.speech_quirks) or "(none)"
     motivations = "\n".join(f"- {m}" for m in npc.motivations) or "(none)"
@@ -149,6 +206,9 @@ def render_character_sheet(
         f"Speech quirks:\n{quirks}",
         f"Sample lines (for tone only):\n{samples}",
     ]
+    faction_block = _render_faction_affiliation(npc, factions=factions)
+    if faction_block:
+        sections.append(faction_block)
     relationships = _render_relationships(npc, cast=cast)
     if relationships:
         sections.append(relationships)
@@ -182,20 +242,44 @@ _BASE_RULES = (
     "   volunteer directly.\n"
     "9. If the sheet declares state-evolution voice shifts, apply the shifts whose triggers are\n"
     "   currently active. Treat them as modifiers on your core voice, not replacements.\n"
+    "10. If the sheet declares faction affiliation, your tone shifts based on who else is in the\n"
+    "    scene. With an ally present: warmer register, code-shared references. With a rival\n"
+    "    present: clipped, guarded, or confrontational — per your core voice. Never narrate\n"
+    "    the shift; just do it.\n"
+    "11. If a 'Memory of past encounters' block is provided, those events actually happened\n"
+    "    between you and this specific player in prior scenes. Reference them naturally when\n"
+    "    they're relevant to what the player is saying now. Do not list them. Do not mention\n"
+    "    turn numbers or event_type tags — those are bookkeeping, not dialogue.\n"
 )
 
 
-def build_npc_respondent_prompt(npc: NpcSheet) -> str:
-    """System prompt for the Respondent (NPC) side of a walk-up dialog."""
+def build_npc_respondent_prompt(
+    npc: NpcSheet,
+    factions: FactionsConfig | None = None,
+    memory_summary: str = "",
+) -> str:
+    """System prompt for the Respondent (NPC) side of a walk-up dialog.
+
+    v0.9.0: optional ``factions`` expands the NPC's affiliation into a
+    full social-graph block; optional ``memory_summary`` (produced by
+    :func:`npcforge.memory.summarize_for_npc`) drops a 'what happened
+    before' note into the system prompt. Both hooks are additive —
+    existing callers that pass neither keep pre-v0.9 behaviour.
+    """
     head = (
         f"You are {npc.name}, an NPC in a game world.\n"
         f"Role: {npc.role}\n"
         f"Voice: {npc.voice.strip()}\n"
     )
     ceiling = _voice_ceiling_block(npc)
+    faction_block = _render_faction_affiliation(npc, factions=factions)
     blocks = [head, _BASE_RULES.rstrip()]
+    if faction_block:
+        blocks.append(faction_block)
     if ceiling:
         blocks.append(ceiling)
+    if memory_summary.strip():
+        blocks.append(memory_summary.strip())
     return "\n\n".join(blocks) + "\n"
 
 

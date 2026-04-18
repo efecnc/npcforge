@@ -1,0 +1,92 @@
+# Factions of Emberfall / the Greywild Frontier.
+#
+# Five factions, three of them at active odds with each other. NPCs
+# carry at most one primary and (rarely) one secondary affiliation. The
+# respondent prompt uses faction data to shift tone per audience — a
+# Grindholt miner speaks differently when a Silent Order sister is in
+# the room than when alone with the tavernkeeper.
+
+factions:
+
+  - id: lantern_regulars
+    name: "The Rusted Lantern's Regulars"
+    description: >
+      Not a guild or order, but a loose fellowship of locals who take
+      their meals and their trouble at Mira's bar. They close ranks
+      when an outsider starts asking questions about the mine.
+    values:
+      - "keep the Lantern standing"
+      - "settle trouble before it reaches the road"
+      - "silence about the deep"
+    symbols:
+      - "a copper token left by the mug — means 'I owe this round'"
+      - "never orders by name, only by gesture"
+    allies:
+      - grindholt_miners
+    rivals:
+      - free_councils
+
+  - id: grindholt_miners
+    name: "The Grindholt Miners' Compact"
+    description: >
+      Dwarven mining compact out of Grindholt. Bought access to Emberfall's
+      lower copper mine from Mira twelve winters ago. After the cave-in
+      they kept their word to honour the contract — and their grief to
+      themselves.
+    values:
+      - "the contract above all"
+      - "naming the dead aloud is a duty, not a display"
+      - "stone remembers; mouths should be slower"
+    symbols:
+      - "brass pick-pin on the left collar"
+      - "black-gloved left hand when in public"
+      - "a humming of the fourth verse of the long songs, only when alone"
+    allies:
+      - lantern_regulars
+    rivals:
+      - silent_order
+
+  - id: silent_order
+    name: "The Silent Order"
+    description: >
+      Cloistered sisters who tend the forgotten dead and keep ledgers
+      no surviving family asked them to keep. They do not proselytise.
+      They also do not forget a debt — nor a sealing broken.
+    values:
+      - "the dead keep what the living owe them"
+      - "no door shut without a reason"
+      - "no song sung over an unnamed grave"
+    symbols:
+      - "ash-grey stole over the left shoulder"
+      - "a small unlit candle at the belt — lit only at dusk"
+    allies: []
+    rivals:
+      - grindholt_miners
+
+  - id: free_councils
+    name: "The Free Town Councils"
+    description: >
+      Federation of town councils along the western road. They want
+      Emberfall's mine contracts transferred to their oversight 'for
+      transparency'. Everyone in Emberfall knows what that phrase costs.
+    values:
+      - "open ledgers"
+      - "one standard of justice, town to town"
+      - "fewer private deeds"
+    symbols:
+      - "a blue sash worn over the travelling cloak"
+      - "speaks in full titles when in unfamiliar company"
+    allies: []
+    rivals:
+      - lantern_regulars
+
+  - id: unaffiliated
+    name: "The Unaffiliated"
+    description: >
+      A bookkeeping convenience for hermits, drifters, and NPCs whose
+      story demands they stand outside the town's tangled alliances.
+      No shared values, no symbols, no enemies.
+    values: []
+    symbols: []
+    allies: []
+    rivals: []

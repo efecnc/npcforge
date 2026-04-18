@@ -5,6 +5,10 @@ npcs:
   - id: mira_vesser
     name: "Mira Vesser"
     role: "Tavernkeeper of the Rusted Lantern"
+    faction_id: lantern_regulars
+    # She holds the original mine lease — Grindholt considers her an
+    # ally but won't name her a member. The secondary slot captures this.
+    secondary_faction_id: grindholt_miners
     voice: >
       Gruff, dry, pragmatic. Short sentences. Rare smiles. Measures people in a glance.
       Never explains herself twice.
@@ -113,6 +117,7 @@ npcs:
   - id: gereth_blackstone
     name: "Gereth Blackstone"
     role: "Dwarven miner, sole survivor of the cave-in"
+    faction_id: grindholt_miners
     voice: >
       Fragmented, repeats himself, sudden lucid clarity. Hums a four-note pattern
       between phrases without noticing he is doing it.
@@ -202,6 +207,7 @@ npcs:
   - id: sister_adelie
     name: "Sister Adelie"
     role: "Wandering cleric of the Moon Court"
+    faction_id: silent_order
     voice: >
       Formal and lilting, asks questions to steer conversation. Patient with fools,
       impatient with liars.
@@ -246,6 +252,9 @@ npcs:
   - id: kess_the_knife
     name: "Kess (the Knife)"
     role: "Thief posing as a traveling merchant"
+    # Kess is drifting; no faction claims him. Standing-shifts with him
+    # won't ripple outward, which is exactly the story his arc needs.
+    faction_id: unaffiliated
     voice: >
       Warm, quick, disarming. Treats strangers like old friends inside the first sentence.
       Laughs easily. Watches harder than she smiles.
@@ -291,6 +300,7 @@ npcs:
   - id: ulrik_the_old_man
     name: "Ulrik"
     role: "Old man reading star-maps by the fire"
+    faction_id: lantern_regulars
     voice: >
       Slow, patient, answers questions with questions. Drops into sudden precision
       when the conversation stops being small.
