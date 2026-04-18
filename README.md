@@ -360,6 +360,11 @@ See [`docs/TOOLS.md`](docs/TOOLS.md) for every input / output schema and [`docs/
 
 ## Roadmap
 
+### Shipped in v0.8.1
+
+- **`state_evolution:`** on every `NpcSheet` — list of `{trigger, voice_shift, description}`. NPC voice shifts at quest beats: Gereth's trauma eases after the investigation, Mira drops the bartender veneer when the town turns on her. The respondent prompt applies active shifts as modifiers on the core voice.
+- **Peer-role anchor in relationships** — the character-sheet renderer now annotates each declared relationship target with their real role from the sheet (*"gereth_blackstone (Gereth Blackstone, Dwarven miner, sole survivor of the cave-in)"*). Fixes the v0.8.0 generic-prior drift where the LLM called Gereth a blacksmith. Pipeline threads the full cast down to `render_character_sheet`.
+
 ### Shipped in v0.8.0
 
 - **`relationships:`** on every `NpcSheet` — list of `{npc_id, opinion, reason}` entries. The LLM references other NPCs by declared opinion instead of inventing stances.

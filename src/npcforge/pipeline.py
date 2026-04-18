@@ -93,9 +93,17 @@ def _build_provider(
     world_bible: str,
     npc: NpcSheet,
     intent: PlayerIntent,
+    cast: list[NpcSheet] | None = None,
 ) -> InMemoryDocumentProvider:
-    """Single-document provider seeded with exactly one intent persona."""
-    doc_text = f"{world_bible}\n\n---\n\n{render_character_sheet(npc)}"
+    """Single-document provider seeded with exactly one intent persona.
+
+    When ``cast`` is supplied the rendered character sheet annotates each
+    declared relationship target with their role — closes the v0.8.0
+    generic-prior leak in cross-cast references.
+    """
+    doc_text = (
+        f"{world_bible}\n\n---\n\n{render_character_sheet(npc, cast=cast)}"
+    )
     provider = InMemoryDocumentProvider([doc_text])
     doc = provider.get_all()[0]
     doc.personas = [
@@ -117,9 +125,10 @@ async def generate_branch(
     model_provider_name: str,
     max_turns: int,
     out_path: Path,
+    cast: list[NpcSheet] | None = None,
 ) -> Branch:
     """Run one Correspondent↔Respondent loop for (NPC, intent) and return the branch."""
-    provider = _build_provider(world_bible, npc, intent)
+    provider = _build_provider(world_bible, npc, intent, cast=cast)
 
     instruction_cb = PersonaInstructionGeneratorCallback(
         api_key=api_key,
@@ -161,6 +170,7 @@ async def generate_for_npc(
     max_turns: int,
     max_concurrency: int,
     out_path: Path,
+    cast: list[NpcSheet] | None = None,
 ) -> list[Branch]:
     """Generate one branch per resolved intent for this NPC (parallel, bounded)."""
     out_path.unlink(missing_ok=True)
@@ -181,6 +191,7 @@ async def generate_for_npc(
                 model_provider_name=model_provider_name,
                 max_turns=max_turns,
                 out_path=out_path,
+                cast=cast,
             )
 
     results = await asyncio.gather(*(_bounded(i) for i in resolved))
@@ -445,6 +456,7 @@ async def run_all(
                 max_turns=max_turns,
                 max_concurrency=intent_concurrency,
                 out_path=jsonl_path,
+                cast=selected,
             )
             if branches:
                 yarn_path.write_text(

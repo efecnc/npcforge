@@ -1,11 +1,12 @@
 # Authoring a new world
 
 One-page guide for pointing npcforge at a new setting. Updated for
-v0.8.0 — full generator trio (NPCs / intents / barks), stub resolution,
-the state layer (`time_of_day`, disposition, quest stages), both
+v0.8.1 — full generator trio (NPCs / intents / barks), stub resolution,
+state layer (`time_of_day`, disposition, quest stages), both
 state-aware greeting modes (enum-keyed via `gen greetings` and
-visit-counter via `gen repeat-greeting`), and **character depth**:
-cross-cast relationships plus structured knowledge gates.
+visit-counter via `gen repeat-greeting`), **character depth**
+(cross-cast relationships + structured knowledge gates), and
+**character state evolution** (voice shifts at quest beats).
 
 ## The four files
 
@@ -338,6 +339,35 @@ npcs:
 Works on Gemini 2.5-flash: Gereth's trauma gate opens only when the
 player names a parallel loss first; Mira's locket gate opens
 incrementally as the player offers coin + mentions the expedition.
+
+### Character state evolution (v0.8.1)
+
+NPCs whose voice should shift at quest beats declare it on the sheet:
+
+```yaml
+- id: gereth_blackstone
+  state_evolution:
+    - trigger: "quest_locket_stage >= 3"
+      voice_shift: >
+        The four-note hum halves in frequency. Sentences grow longer and
+        more complete. The 'twelve, one' repetition still surfaces but only
+        in moments of real grief.
+      description: >
+        After the player has investigated the lower mine alongside Gereth,
+        his trauma eases — the locket is no longer his alone.
+
+    - trigger: "disposition_mira < 20"
+      voice_shift: "Stops defending Mira. Will answer questions about her sold lease if asked."
+      description: "When the town has turned on Mira, Gereth's quiet loyalty breaks."
+```
+
+Each entry applies as a **modifier** on the NPC's core voice, not a
+replacement. The respondent prompt lists active shifts; the LLM layers
+them onto whatever it would otherwise generate. Trigger syntax is
+free-text — same pattern as `knowledge.gate`. Writers describe the
+condition in prose; the LLM honours it. A structured
+`{variable, op, value}` resolver that reads the state layer at build
+time is on the v0.8.2 roadmap.
 
 ## Common mistakes
 

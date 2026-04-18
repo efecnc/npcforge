@@ -4,6 +4,83 @@ All notable changes to npcforge land here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [SemVer](https://semver.org/).
 
+## [0.8.1] — 2026-04-18
+
+Closes the two items deliberately deferred in v0.8.0: character state
+evolution, and the relationship-anchor fix for the "blacksmith drift"
+the LLM occasionally showed when describing another cast member.
+
+### Added
+
+- **`StateEvolution`** schema — `{trigger, voice_shift, description}`.
+  Each entry is a voice shift the NPC undergoes when a condition
+  becomes true (*"disposition_mira < 20"*, *"quest_locket_stage >= 3"*).
+  Gate syntax is free-text; matches `KnowledgeItem.gate`. The
+  respondent prompt rule-set gets a rule 9 instructing the LLM to apply
+  active shifts as modifiers on the core voice, not replacements.
+- **`NpcSheet.state_evolution: list[StateEvolution]`** — default empty.
+- **Peer-role anchor in relationships** — `render_character_sheet` now
+  accepts an optional `cast: list[NpcSheet]`. When supplied, each
+  relationship target is annotated with that NPC's real role from the
+  sheet:
+  ```
+  - gereth_blackstone (Gereth Blackstone, Dwarven miner, sole survivor of the cave-in): protective, guilty
+      Why: She sold the mine lease to the expedition...
+  ```
+  Rule 7 of the respondent prompt was extended to name-check this
+  column and explicitly forbid inventing generic occupations. Pipeline
+  threading (`_build_provider` → `generate_branch` → `generate_for_npc`
+  → `run_all`) passes the full `selected` cast all the way down.
+
+### Demo updates
+
+- Mira gets two state-evolution entries:
+  - `disposition_mira < 20` → *"drops the transactional bartender
+    veneer... calls people by surnames not 'friend'. The 'deep' accent
+    marker holds."*
+  - `quest_locket_stage >= 4` → *"acknowledges the deep by name...
+    stops pretending the humming is just weather."*
+- Gereth gets two:
+  - `quest_locket_stage >= 3` → *"four-note hum halves in frequency.
+    Sentences grow longer... 'twelve, one' only in real grief."*
+  - `disposition_mira < 20` → *"stops defending Mira."*
+
+### Tests — 152 passing (up from 143)
+
+- `StateEvolution` default fields; NpcSheet's default-empty
+  `state_evolution`; demo sheets ship with evolution entries.
+- Peer-role anchor: rendering without `cast` matches v0.8.0 shape;
+  rendering with `cast` annotates each relationship target with their
+  role; unknown-target relationships fall back gracefully.
+- State-evolution block rendering includes Trigger / Voice shift /
+  optional Note; omitted entirely when empty.
+
+### Verified end-to-end on Gemini 2.5-flash
+
+Re-ran the v0.8.0 failure case — asking Mira about Gereth:
+
+> **Mira:** *"He's a miner. Sole survivor from deep's cave-in. Keeps to himself."*
+
+Correct role from the world bible. No fantasy-blacksmith leakage. The
+v0.8.0 known-limitation is resolved.
+
+### New known limitation (v0.8.2)
+
+When the Correspondent (player) model drops an NPC's name and says
+"that dwarf I saw earlier", the LLM occasionally fabricates a
+substitute name ("Grak Stonehand") rather than committing to the real
+one. Separate naming-fidelity pass in v0.8.2. The role grounding that
+v0.8.1 fixes is intact.
+
+### Not in v0.8.1 (deliberately)
+
+- Multi-character scenes (`group_chatter_pair` mode).
+- Structured gate matching — `{variable, op, value}` resolver that
+  reads the state layer at generation time.
+Both are v0.8.2.
+
+---
+
 ## [0.8.0] — 2026-04-18
 
 Character depth — the first half of the veteran-designer review's

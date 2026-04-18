@@ -94,6 +94,21 @@ npcs:
           - "I don't look that far back."
           - "A ward's just carved rock until someone carves over it."
           - "Some questions aren't drink-sized."
+    state_evolution:
+      - trigger: "disposition_mira < 20"
+        voice_shift: >
+          Drops the transactional bartender veneer. Shorter sentences still, but the edges show —
+          calls people by their surnames, not 'friend'. The 'deep' accent marker holds.
+        description: >
+          When the town has turned on her (low disposition), Mira stops pretending the Lantern is
+          business-as-usual.
+      - trigger: "quest_locket_stage >= 4"
+        voice_shift: >
+          Acknowledges the deep by name at least once per conversation. Still refuses to discuss
+          the seal. The tired edge under the gruffness becomes audible.
+        description: >
+          After the locket's nature is common knowledge, Mira stops pretending the humming is just
+          weather.
 
   - id: gereth_blackstone
     name: "Gereth Blackstone"
@@ -170,6 +185,19 @@ npcs:
           - "I found it. Hmm-hmm-hmm-hmm. I found it."
           - "The deep gives. The deep takes. Twelve, one."
           - "That question doesn't fit in a mouth."
+    state_evolution:
+      - trigger: "quest_locket_stage >= 3"
+        voice_shift: >
+          The four-note hum halves in frequency. Sentences grow longer and more complete. The
+          'twelve, one' repetition still surfaces but only in moments of real grief.
+        description: >
+          After the player has investigated the lower mine alongside Gereth, his trauma eases —
+          the locket is no longer his alone.
+      - trigger: "disposition_mira < 20"
+        voice_shift: >
+          Stops defending Mira. Will answer questions about her sold lease if asked.
+        description: >
+          When the town has turned on Mira, Gereth's quiet loyalty breaks.
 
   - id: sister_adelie
     name: "Sister Adelie"

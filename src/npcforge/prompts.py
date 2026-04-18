@@ -61,13 +61,46 @@ def _voice_ceiling_block(npc: NpcSheet) -> str:
     return "VOICE CONSTRAINTS (hard rules):\n" + "\n\n".join(parts)
 
 
-def _render_relationships(npc: NpcSheet) -> str:
+def _render_relationships(
+    npc: NpcSheet,
+    cast: list[NpcSheet] | None = None,
+) -> str:
+    """Render the relationships block, anchoring each target NPC in their
+    declared role when the cast is supplied.
+
+    The cast-aware form fixes a v0.8.0 failure mode where the LLM
+    substituted generic priors ("dwarves are blacksmiths") for the actual
+    world-bible role when asked about another NPC. Embedding the role
+    next to the opinion gives the LLM no room to invent.
+    """
     if not npc.relationships:
         return ""
+    by_id: dict[str, NpcSheet] = {}
+    if cast:
+        by_id = {n.id: n for n in cast}
+
     lines = ["Relationships with other characters:"]
     for r in npc.relationships:
-        tail = f" — {r.reason.strip()}" if r.reason else ""
-        lines.append(f"- {r.npc_id}: {r.opinion.strip()}{tail}")
+        target = by_id.get(r.npc_id)
+        if target is not None:
+            header = f"- {r.npc_id} ({target.name}, {target.role}): {r.opinion.strip()}"
+        else:
+            header = f"- {r.npc_id}: {r.opinion.strip()}"
+        lines.append(header)
+        if r.reason:
+            lines.append(f"    Why: {r.reason.strip()}")
+    return "\n".join(lines)
+
+
+def _render_state_evolution(npc: NpcSheet) -> str:
+    if not npc.state_evolution:
+        return ""
+    lines = ["State evolution (voice shifts to apply when a trigger is active):"]
+    for s in npc.state_evolution:
+        lines.append(f"- Trigger: {s.trigger.strip()}")
+        lines.append(f"    Voice shift: {s.voice_shift.strip()}")
+        if s.description:
+            lines.append(f"    Note: {s.description.strip()}")
     return "\n".join(lines)
 
 
@@ -90,12 +123,17 @@ def _render_knowledge(npc: NpcSheet) -> str:
     return "\n".join(out)
 
 
-def render_character_sheet(npc: NpcSheet) -> str:
+def render_character_sheet(
+    npc: NpcSheet,
+    cast: list[NpcSheet] | None = None,
+) -> str:
     """Flatten an :class:`NpcSheet` into a bible-style text block.
 
     The result is concatenated with the world bible and passed to the
-    afterimage document provider as the NPC's grounding context. v0.8+
-    surfaces relationships and structured knowledge when present.
+    afterimage document provider as the NPC's grounding context. When
+    ``cast`` is supplied (v0.8.1+), each declared relationship target is
+    annotated with that NPC's role from the sheet so the LLM cannot
+    substitute generic fantasy priors for the real world-bible role.
     """
     quirks = "\n".join(f"- {q}" for q in npc.speech_quirks) or "(none)"
     motivations = "\n".join(f"- {m}" for m in npc.motivations) or "(none)"
@@ -111,12 +149,15 @@ def render_character_sheet(npc: NpcSheet) -> str:
         f"Speech quirks:\n{quirks}",
         f"Sample lines (for tone only):\n{samples}",
     ]
-    relationships = _render_relationships(npc)
+    relationships = _render_relationships(npc, cast=cast)
     if relationships:
         sections.append(relationships)
     knowledge = _render_knowledge(npc)
     if knowledge:
         sections.append(knowledge)
+    state_evolution = _render_state_evolution(npc)
+    if state_evolution:
+        sections.append(state_evolution)
     return "\n\n".join(sections) + "\n"
 
 
@@ -132,11 +173,15 @@ _BASE_RULES = (
     "6. Match the player's energy — friendly, hostile, evasive — but keep your core voice fixed.\n"
     "7. If the sheet declares relationships with other characters, your lines may reference those\n"
     "   NPCs with the stated opinion when the topic arises. Do not invent relationships that are\n"
-    "   not on the sheet.\n"
+    "   not on the sheet. When another NPC is mentioned, describe them using the ROLE noted\n"
+    "   beside their id (e.g. 'Dwarven miner, sole survivor of the cave-in') — never invent\n"
+    "   generic occupations (blacksmith, tinker) that contradict the sheet.\n"
     "8. If the sheet declares structured knowledge with a gate, reveal the fact only when the\n"
     "   gate is clearly met by the player's approach. Otherwise deflect in character using the\n"
     "   tone of the sample deflection lines. Facts without a gate are background you never\n"
     "   volunteer directly.\n"
+    "9. If the sheet declares state-evolution voice shifts, apply the shifts whose triggers are\n"
+    "   currently active. Treat them as modifiers on your core voice, not replacements.\n"
 )
 
 

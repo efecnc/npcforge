@@ -51,6 +51,38 @@ class Relationship(BaseModel):
     )
 
 
+class StateEvolution(BaseModel):
+    """One voice shift this NPC undergoes when a world condition becomes true (v0.8.1).
+
+    Unlike greeting variants (which branch at runtime), evolution entries
+    describe how the NPC's *written voice* changes at quest beats. The
+    respondent prompt lists active evolution entries so the LLM adjusts
+    its output. Gates are free-text for now — same pattern as
+    :class:`KnowledgeItem.gate`.
+    """
+
+    trigger: str = Field(
+        ...,
+        description=(
+            "When the shift applies. Free-text reference to project "
+            "variables: 'quest_locket_stage >= 3', 'disposition_mira < 20', "
+            "'after the cave-in is public knowledge'."
+        ),
+    )
+    voice_shift: str = Field(
+        ...,
+        description=(
+            "Concrete description of how the voice changes when the trigger "
+            "is active: 'speaks in full sentences now', 'stops defending "
+            "Mira in conversation', 'humming stops almost entirely'."
+        ),
+    )
+    description: str = Field(
+        default="",
+        description="Writer-facing note explaining why this shift happens.",
+    )
+
+
 class KnowledgeItem(BaseModel):
     """One structured fact an NPC possesses, with a gate controlling reveal (v0.8.0).
 
@@ -136,6 +168,11 @@ class NpcSheet(BaseModel):
     # reference them consistently.
     relationships: list[Relationship] = Field(default_factory=list)
     knowledge: list[KnowledgeItem] = Field(default_factory=list)
+
+    # Character state evolution (v0.8.1). Each entry is a voice shift the
+    # NPC undergoes when a trigger condition becomes true. Injected into
+    # the respondent prompt so generated dialogue reflects the shift.
+    state_evolution: list[StateEvolution] = Field(default_factory=list)
 
 
 class NpcStub(BaseModel):
