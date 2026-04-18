@@ -4,6 +4,38 @@ All notable changes to npcforge land here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [SemVer](https://semver.org/).
 
+## [0.6.1+unity] — 2026-04-18
+
+Unity 2022 integration example — committed, no code changes.
+
+### Added
+
+- **`examples/unity_integration/`** — drop-in Unity starter:
+  - `Assets/NpcForge/Dialogue/` — real `.yarn` files produced by v0.6.1:
+    `world.yarn` with `<<declare>>` defaults, `mira_vesser.yarn` (9
+    walk-up intent branches), `mira_vesser_greet_time_of_day.yarn` (5
+    time-of-day variants), `mira_vesser_repeat_greet.yarn` (4
+    visit-gated variants + else-fallback).
+  - `Assets/NpcForge/Scripts/` — four C# scripts that wire Yarn
+    Spinner 2 to npcforge's node-naming conventions:
+    `NpcForgeDialogueController` (state setters + node entry points),
+    `TimeOfDayController` (UI button glue), `NpcApproachButton`
+    (per-button mode selector), `NpcForgeStartup` (seed variables at
+    scene load).
+  - `SETUP.md` — step-by-step: new 2022.3 LTS project → Yarn Spinner
+    package install → Yarn Project with the shipped `.yarn` files →
+    scene wiring → press Play.
+- Root README links the integration under "Ready-to-run starter worlds".
+
+### Why
+
+The v0.6.x state layer produces dialogue that *claims* to be
+engine-ready. This commit proves it: every generated `.yarn` file
+imports into Yarn Spinner without edits, and Unity reads / writes the
+same variable storage that the generator's prompts reference.
+
+---
+
 ## [0.6.1] — 2026-04-18
 
 Completes the two v0.6.0 known-limitations: `play` now renders both

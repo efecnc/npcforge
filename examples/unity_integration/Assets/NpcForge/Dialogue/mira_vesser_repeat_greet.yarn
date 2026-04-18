@@ -1,0 +1,14 @@
+title: mira_vesser_RepeatGreet
+tags: repeat_greeting,npc:mira_vesser
+---
+// Repeat-greeting variants keyed on visited_count("mira_vesser_RepeatGreet").
+<<if visited_count("mira_vesser_RepeatGreet") == 0>>
+    Mira Vesser: Table's empty. Drink, or just passing through?
+<<elseif visited_count("mira_vesser_RepeatGreet") == 1>>
+    Mira Vesser: Seen you before. What'll it be?
+<<elseif visited_count("mira_vesser_RepeatGreet") == 2>>
+    Mira Vesser: You're getting comfortable in deep's walls. What's need?
+<<else>>
+    Mira Vesser: Don't bother with a menu; you know what you like.
+<<endif>>
+===

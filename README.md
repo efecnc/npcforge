@@ -281,6 +281,8 @@ intents:
 
 ## Ready-to-run starter worlds
 
+Plus a **[Unity 2022 integration](examples/unity_integration/)** — drop the `Assets/NpcForge/` folder into any Unity project, follow the [5-minute setup](examples/unity_integration/SETUP.md), and press Play to see Mira greet you differently at dawn vs. night and remember you across visits. Ships four real `.yarn` files (walk-up + time-of-day greetings + repeat-greet + world.yarn with `<<declare>>`) plus four C# scripts that wire the Yarn Spinner runtime to npcforge's naming conventions.
+
 Three settings ship in the repo — each a full walk-up + barks pipeline:
 
 - **[`examples/rusted_lantern/`](examples/rusted_lantern/)** — low fantasy, 5 NPCs in a mining-town tavern

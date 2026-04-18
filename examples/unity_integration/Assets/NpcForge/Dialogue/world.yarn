@@ -1,0 +1,15 @@
+title: Start
+tags: start
+---
+// Project-variable defaults, emitted by `npcforge build` when
+// variables.yaml is present. Yarn Spinner reads these once at load
+// and every subsequent node can use the variables freely.
+<<declare $time_of_day = "morning" as string>>
+<<declare $player_visits_mira = 0 as number>>
+<<declare $disposition_mira = 50 as number>>
+
+You step inside. Firelight, low voices, a hush that settles when you arrive.
+Someone you came to speak with is here. Who do you approach?
+-> Mira Vesser — Tavernkeeper of the Rusted Lantern
+    <<jump mira_vesser_Greet_time_of_day>>
+===

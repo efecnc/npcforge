@@ -1,0 +1,56 @@
+title: mira_vesser
+tags: walk_up
+---
+Mira Vesser waits. How do you approach them?
+-> [Ask About Local Events]
+    Player: Good evening, Mira. I've just arrived in Emberfall. Anything interesting or... unusual been happening around town lately?
+    Mira Vesser: Evening. Been quiet. Fewer faces than usual.
+    <<jump mira_vesser_End>>
+-> [Ask About the Locket]
+    Player: I've heard tell of a locket, an old iron one, that's been making the rounds here. What's the story behind it?
+    Mira Vesser: Heard tell of locket, eh? Just another trinket people pass. Means little.
+    Player: Who told you about it?
+    Mira Vesser: Whispers carry in here. Always do.
+    <<jump mira_vesser_End>>
+-> [Ask About Rumors]
+    Player: Evening, Mira. Just settled in. What's the word on the road these days? Anyone interesting passed through lately, or any new whispers making the rounds?
+    Mira Vesser: Evening. Roads are wet. Seen a few faces. Same as always, mostly.
+    <<jump mira_vesser_End>>
+-> [Ask About Another Person]
+    Player: Good evening, innkeeper. A tankard of ale, if you please. And tell me, who's the old fellow warming himself by the fire? Seems he's been there a while.
+    Mira Vesser: Ale. Two coppers. Old Silas. He's always by fire.
+    <<jump mira_vesser_End>>
+-> [Threaten for Information]
+    Player: Mira. I'm not here for a drink. You're going to tell me what happened in the deep, and you're going to tell me everything. Now.
+    Mira Vesser: You're not here for a drink, then you're wasting air. I don't talk about the deep for free. And I don't talk under threat.
+    <<jump mira_vesser_End>>
+-> [Bribe for Information]
+    Player: I slide a silver coin across the bar, letting it spin to a stop in front of you. "This," I say, "what kind of information does a coin like this buy in Emberfall?"
+    Mira Vesser: Depends what you're asking. A silver buys a pint, usually.
+    Player: What about a room for the night?
+    Mira Vesser: A silver buys a pint. A room costs more than that.
+    <<jump mira_vesser_End>>
+-> [Barter Wares]
+    Player: Evening, Mira. What provisions do you have for sale tonight? I'm looking to stock up on a few things.
+    Mira Vesser: Dried meat, hardtack. Got some stale ale too. That's about it.
+    Player: Just dried meat and hardtack, huh? Well, I'll take a serving of that, and a stale ale to wash it down. Things seem a bit quiet around here, Mira. Is business slow, or is that just how the Rusted Lantern is?
+    Mira Vesser: Three coppers. It's quiet enough.
+    <<jump mira_vesser_End>>
+-> [Accept Refuge]
+    Player: Evenin', Mira. Any chance you've a room for the night, and what would that cost me?
+    Mira Vesser: Aye. Got one left. Five coppers a night. Includes a cot and a roof.
+    Player: I'll take it for the night. Where's my room?
+    Mira Vesser: Up stairs. First door on left. Pay first.
+    <<jump mira_vesser_End>>
+-> [Farewell]
+    Player: Much obliged for your hospitality, Mira. I'll take my leave.
+    Mira Vesser: Alright. Roads aren't kind tonight.
+    Player: No, they are not. My feet can attest to that. A tankard of your finest ale, if you please, and a warm meal if anything's still cooking.
+    Mira Vesser: Ale's on tap. Stew's still hot. Find a seat.
+    <<jump mira_vesser_End>>
+===
+title: mira_vesser_End
+tags: walk_up,end
+---
+Mira Vesser: (returns to their work)
+===

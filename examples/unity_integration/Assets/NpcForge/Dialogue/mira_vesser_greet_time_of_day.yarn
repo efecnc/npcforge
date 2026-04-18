@@ -1,0 +1,18 @@
+title: mira_vesser_Greet_time_of_day
+tags: greeting,variable:time_of_day,npc:mira_vesser
+---
+// Greeting variants keyed on $time_of_day.
+<<if $time_of_day == "dawn">>
+    Mira Vesser: First light. No easy coin this early.
+<<elseif $time_of_day == "morning">>
+    Mira Vesser: Sun's barely up. What do you need?
+<<elseif $time_of_day == "afternoon">>
+    Mira Vesser: Afternoon. Pour yourself a drink if you're thirsty.
+<<elseif $time_of_day == "dusk">>
+    Mira Vesser: Dusk settling in. You here for trouble or a pint?
+<<elseif $time_of_day == "night">>
+    Mira Vesser: Kitchen's closed. Just drinks for now.
+<<else>>
+    Mira Vesser: ...
+<<endif>>
+===
