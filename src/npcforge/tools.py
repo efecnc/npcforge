@@ -39,6 +39,7 @@ from .generation import (
     gen_time_of_day_greetings as _gen_greetings_impl,
     resolve_stubs as _resolve_stubs_impl,
 )
+from .engines import SyncAction, SyncResult, get_adapter, supported_engines
 from .manifest import Manifest
 from .pipeline import run_all as _run_all_impl
 from .state import ProjectVariable, VariableType, load_variables
@@ -671,7 +672,106 @@ async def gen_repeat_greeting(input: GenRepeatGreetingInput) -> GenRepeatGreetin
 
 
 # ---------------------------------------------------------------------------
-# Tool 10: build_pipeline (walk_up + barks)
+# Tool 10: engine_sync (copy generated output into an engine's tree)
+# ---------------------------------------------------------------------------
+
+
+class EngineSyncInput(BaseModel):
+    """Copy ``<demo_dir>/out/`` into a game engine's expected project layout."""
+
+    demo_dir: Path = Field(
+        ..., description="npcforge project directory. Must contain an out/ sibling."
+    )
+    project_dir: Path = Field(
+        ...,
+        description=(
+            "Target engine project root. For Unity this is the folder that "
+            "contains `Assets/`; for Unreal the one with `Content/`; for "
+            "Godot the folder with `project.godot`."
+        ),
+    )
+    engine: Literal["unity", "godot", "unreal"] = Field(
+        ..., description="Target engine."
+    )
+    source_dir: Path | None = Field(
+        default=None,
+        description=(
+            "Override the source directory. Defaults to <demo_dir>/out. Use "
+            "this to sync a frozen snapshot (e.g. sample_output/)."
+        ),
+    )
+    install_scripts: bool = Field(
+        default=False,
+        description=(
+            "Also copy the engine's runtime glue scripts on first sync "
+            "(currently Unity-only: the C# drop-in from "
+            "examples/unity_integration)."
+        ),
+    )
+    scripts_source_dir: Path | None = Field(
+        default=None,
+        description=(
+            "Override the source directory for runtime glue scripts. Default "
+            "is discovered from the repo checkout."
+        ),
+    )
+    dry_run: bool = Field(
+        default=False,
+        description="Plan the sync without writing anything.",
+    )
+
+
+class _SyncActionOut(BaseModel):
+    action: str
+    destination: str
+    source: str | None = None
+    reason: str = ""
+
+
+class EngineSyncOutput(BaseModel):
+    engine: str
+    project_dir: Path
+    source_dir: Path
+    dry_run: bool
+    marker_path: Path | None
+    total_files: int
+    actions: list[_SyncActionOut]
+    errors: list[str] = Field(default_factory=list)
+
+
+def _action_to_out(action: SyncAction) -> _SyncActionOut:
+    return _SyncActionOut(
+        action=action.action,
+        destination=str(action.destination),
+        source=str(action.source) if action.source else None,
+        reason=action.reason,
+    )
+
+
+async def engine_sync(input: EngineSyncInput) -> EngineSyncOutput:
+    adapter = get_adapter(input.engine)
+    source_dir = input.source_dir or (input.demo_dir / "out")
+    result = adapter.sync(
+        source_out_dir=source_dir,
+        project_dir=input.project_dir,
+        install_scripts=input.install_scripts,
+        scripts_source_dir=input.scripts_source_dir,
+        dry_run=input.dry_run,
+    )
+    return EngineSyncOutput(
+        engine=result.engine,
+        project_dir=input.project_dir,
+        source_dir=source_dir,
+        dry_run=result.dry_run,
+        marker_path=result.marker_path,
+        total_files=result.total_files,
+        actions=[_action_to_out(a) for a in result.actions],
+        errors=list(result.errors),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Tool 11: build_pipeline (walk_up + barks)
 # ---------------------------------------------------------------------------
 
 
@@ -839,6 +939,17 @@ TOOL_REGISTRY: dict[str, tuple[ToolFn, type[BaseModel], type[BaseModel], str]] =
         NPCs. Emits a per-NPC Yarn node keyed on visited_count(): visits
         0..n-2 play distinct greetings; the final variant is an <<else>>
         fallback for every subsequent visit. No schema changes required.""",
+    ),
+    "engine_sync": (
+        engine_sync,
+        EngineSyncInput,
+        EngineSyncOutput,
+        """Copy the generated dialogue + lines.csv from <demo_dir>/out into
+        a game engine's expected project layout (Unity, Godot, Unreal).
+        Skips files whose contents are unchanged; writes a
+        .npcforge-sync.json marker so subsequent runs are incremental.
+        Optionally installs the engine's runtime glue scripts on first
+        sync (Unity only as of v0.7.1).""",
     ),
     "build_pipeline": (
         build_pipeline,

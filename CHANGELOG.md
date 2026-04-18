@@ -4,6 +4,88 @@ All notable changes to npcforge land here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [SemVer](https://semver.org/).
 
+## [0.7.1] — 2026-04-18
+
+The "characters and conversations just appear in your engine" release.
+One command pushes the generator's output into Unity, Godot, or Unreal's
+expected filesystem layout — no copy-paste step between npcforge and
+the engine ever again.
+
+### Added
+
+- **`src/npcforge/engines/`** — new package with one file per engine:
+  - `base.py` — `EngineAdapter` base class + `SyncAction` / `SyncResult`
+    dataclasses + `SyncMarker` (read / write / hash the
+    `.npcforge-sync.json` bookkeeping file).
+  - `unity.py` — Unity adapter. Dialogue → `Assets/NpcForge/Dialogue/`;
+    runtime glue (the 4 C# scripts from `examples/unity_integration`) →
+    `Assets/NpcForge/Scripts/` with `--install-scripts`.
+  - `godot.py` — Godot adapter. Dialogue → `<project>/npcforge/dialogue/`.
+  - `unreal.py` — Unreal adapter. `.yarn` → `Content/NpcForge/Dialogue/`;
+    `lines.csv` relocates to `Content/NpcForge/Data/` so the engine
+    indexes it as a data asset rather than a dialogue script.
+  - Registry in `__init__.py` with `get_adapter(name)` +
+    `supported_engines()` for tool / CLI dispatch.
+- **`engine_sync` tool** (10th in `TOOL_REGISTRY`) — Pydantic
+  input / output with `demo_dir`, `project_dir`, `engine`, optional
+  `source_dir` override (to sync a frozen `sample_output/` instead of
+  live `out/`), `install_scripts`, `dry_run`. Returns typed actions +
+  errors + marker path.
+- **`npcforge engine-sync` CLI subcommand** with the same flags plus
+  `--verbose` for per-file action logging.
+- **Sync marker (`.npcforge-sync.json`)** — written inside the engine's
+  dialogue folder. Tracks {file → sha256} so subsequent syncs skip
+  unchanged content and only recopy what actually changed.
+
+### Design choices worth calling out
+
+- **We do not write engine-specific sidecars** (`.yarn.meta`, `.import`,
+  `.uasset`). Yarn Spinner / Godot / Unreal all generate those on first
+  reimport. Hand-writing them drifts with Yarn Spinner versions; letting
+  the engine do it is the robust path.
+- **Project root is the engine's filesystem root**, not `res://` or any
+  editor alias — we're a filesystem tool, not an in-editor plugin.
+  Users point `--project-dir` at the folder that contains `Assets/` for
+  Unity, `Content/` for Unreal, `project.godot` for Godot.
+- **Content filter is whitelist-only**. Only `.yarn` and `.csv` from the
+  source `out/` get synced — JSONL traces, `manifest.json`, `lint.md`
+  stay out of the engine tree.
+
+### Tests — 133 passing (up from 113)
+
+- Registry: `supported_engines()` exposes {godot, unity, unreal};
+  `get_adapter` rejects unknown names.
+- Path resolution per engine (dialogue folder, scripts folder).
+- `SyncMarker.read` / `.to_json` roundtrip; graceful null on missing
+  or corrupt file.
+- Unity sync copies `.yarn` + `.csv`, skips debug output (`.jsonl`,
+  `manifest.json`, `lint.md`), writes the marker.
+- Second sync skips unchanged files; changed file is re-copied with
+  reason `"content changed"`.
+- Dry-run writes nothing (no dialogue dir, no marker).
+- Missing source directory surfaces as an error, no crash.
+- Unreal relocates `lines.csv` from `Dialogue/` to `Data/`.
+- `engine_sync` tool: round-trip on Unity via `demo_dir` convention,
+  dry-run preserves action planning, `source_dir` override works.
+
+### Verified end-to-end against committed sample_output
+
+Fresh sync of `examples/rusted_lantern/sample_output/` (12 `.yarn` files
+from a prior full build):
+
+- Unity + `--install-scripts`: 12 dialogue files + 4 C# glue files = 16
+  deliverables, marker at `Assets/NpcForge/Dialogue/.npcforge-sync.json`.
+- Godot: 12 dialogue files under `npcforge/dialogue/`, marker alongside.
+- Unreal: 12 dialogue files under `Content/NpcForge/Dialogue/`, marker
+  alongside.
+
+Every tree is what each engine's importer expects to find. The user's
+workflow compresses from *"run build → find out/ → copy files into
+engine → set up Yarn Project manually"* to *"npcforge engine-sync
+--engine X --project-dir Y"*.
+
+---
+
 ## [0.7.0] — 2026-04-18
 
 First release focused on making every generated line **audio-pipeline

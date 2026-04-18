@@ -52,6 +52,8 @@ from .tools import (
     TOOL_REGISTRY,
     BuildPipelineInput,
     BuildPipelineOutput,
+    EngineSyncInput,
+    EngineSyncOutput,
     GenBarksInput,
     GenBarksOutput,
     GenGreetingsInput,
@@ -72,6 +74,7 @@ from .tools import (
     ShowWorldProfileOutput,
     ToolSpec,
     build_pipeline,
+    engine_sync,
     gen_barks,
     gen_greetings,
     gen_intents,
@@ -92,6 +95,18 @@ from .audio import (
     line_id,
     read_lines_csv,
     write_lines_csv,
+)
+from .engines import (
+    EngineAdapter,
+    GodotAdapter,
+    SyncAction,
+    SyncMarker,
+    SyncResult,
+    UnityAdapter,
+    UnrealAdapter,
+    get_adapter,
+    marker_path_for,
+    supported_engines,
 )
 from .manifest import (
     BarkTriggerEntry,
@@ -151,7 +166,7 @@ from .yarn import (
     yarn_safe_title,
 )
 
-__version__ = "0.7.0"
+__version__ = "0.7.1"
 
 __all__ = [
     # Version

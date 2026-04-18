@@ -73,6 +73,12 @@ npcforge play --demo-dir examples/rusted_lantern --npc mira_vesser --bark reacts
 npcforge play --demo-dir examples/rusted_lantern --npc mira_vesser --greet time_of_day
 npcforge play --demo-dir examples/rusted_lantern --npc mira_vesser --repeat-greet
 
+# 5. Push everything straight into your Unity / Godot / Unreal project.
+#    No manual copy — files land in the layout each engine's importer expects.
+npcforge engine-sync --engine unity  --demo-dir examples/rusted_lantern --project-dir ~/MyGame --install-scripts
+npcforge engine-sync --engine godot  --demo-dir examples/rusted_lantern --project-dir ~/MyGodotGame
+npcforge engine-sync --engine unreal --demo-dir examples/rusted_lantern --project-dir ~/MyUnrealGame
+
 # Start the MCP server so an agent can drive everything:
 npcforge mcp            # stdio transport, used by Claude Desktop / Cursor / Cline
 ```
@@ -122,6 +128,7 @@ Every capability is a single async function with Pydantic input/output. Defined 
 | `resolve_stubs` | Expand `_generate: true` placeholder entries in `characters.yaml` into full `NpcSheet`s, honouring `role_hint` / `voice_hint` | one per stub |
 | `gen_greetings` | Generate one time-of-day greeting per enum-value, per NPC. Emits state-aware Yarn with `<<if $var == "value">>` chains | one per (NPC, value) |
 | `gen_repeat_greeting` | Generate visit-count-gated greetings per NPC; emits Yarn keyed on `visited_count()` | one per (NPC, visit) |
+| `engine_sync` | Copy generated `.yarn` + `lines.csv` into Unity / Godot / Unreal's expected project tree. Marker-tracked and idempotent | no |
 | `build_pipeline` | Run the walk-up + bark pipeline; writes Yarn, `lines.csv` (v0.7+), manifest, lint report | many |
 
 ### MCP server
@@ -352,6 +359,11 @@ asyncio.run(main())
 See [`docs/TOOLS.md`](docs/TOOLS.md) for every input / output schema and [`docs/MCP.md`](docs/MCP.md) for MCP client setup.
 
 ## Roadmap
+
+### Shipped in v0.7.1
+
+- **`npcforge engine-sync`** — copy generated `.yarn` + `lines.csv` into Unity, Godot, or Unreal's expected project tree with a single command. Marker-tracked (`.npcforge-sync.json`) so subsequent runs only copy what changed. Unity sync optionally installs the C# runtime-glue scripts too.
+- **Engine adapter layer** (`npcforge.engines`) — per-engine path resolution + script installation, usable from Python directly when building your own build pipeline.
 
 ### Shipped in v0.7.0
 

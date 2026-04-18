@@ -30,6 +30,7 @@ from pathlib import Path
 from .play import play_barks, play_greetings, play_repeat_greeting, play_walk_up
 from .tools import (
     BuildPipelineInput,
+    EngineSyncInput,
     GenBarksInput,
     GenGreetingsInput,
     GenIntentsInput,
@@ -40,6 +41,7 @@ from .tools import (
     ResolveStubsInput,
     ShowWorldProfileInput,
     build_pipeline,
+    engine_sync,
     gen_barks,
     gen_greetings,
     gen_intents,
@@ -398,6 +400,37 @@ async def _cmd_play(args: argparse.Namespace) -> int:
     )
 
 
+async def _cmd_engine_sync(args: argparse.Namespace) -> int:
+    result = await engine_sync(
+        EngineSyncInput(
+            demo_dir=args.demo_dir,
+            project_dir=args.project_dir,
+            engine=args.engine,
+            source_dir=args.source_dir,
+            install_scripts=args.install_scripts,
+            scripts_source_dir=args.scripts_source_dir,
+            dry_run=args.dry_run,
+        )
+    )
+    prefix = "[dry-run] " if result.dry_run else ""
+    print(
+        f"{prefix}engine={result.engine}  project={result.project_dir}  "
+        f"source={result.source_dir}  files_written={result.total_files}"
+    )
+    if args.verbose:
+        for a in result.actions:
+            loc = a.destination
+            src = f"  <- {a.source}" if a.source else ""
+            print(f"  {a.action:6s}  {loc}{src}  ({a.reason})")
+    if result.errors:
+        for err in result.errors:
+            print(f"error: {err}", file=sys.stderr)
+        return 1
+    if result.marker_path:
+        print(f"marker: {result.marker_path}")
+    return 0
+
+
 async def _cmd_mcp(args: argparse.Namespace) -> int:
     # Deferred import keeps the mcp package optional for users who only need
     # the CLI. Any ImportError is surfaced with a clear install hint.
@@ -618,6 +651,65 @@ def build_arg_parser() -> argparse.ArgumentParser:
     )
     _add_llm_flags(p_rs)
     p_rs.set_defaults(func=_cmd_resolve_stubs)
+
+    # ---- engine-sync ----
+    p_es = subs.add_parser(
+        "engine-sync",
+        help=(
+            "Copy generated .yarn + lines.csv into a game engine's project "
+            "tree (Unity / Godot / Unreal)."
+        ),
+    )
+    p_es.add_argument("--demo-dir", type=Path, required=True)
+    p_es.add_argument(
+        "--project-dir",
+        type=Path,
+        required=True,
+        help=(
+            "Engine project root. Unity: folder with Assets/. Unreal: "
+            "folder with Content/. Godot: folder with project.godot."
+        ),
+    )
+    p_es.add_argument(
+        "--engine",
+        required=True,
+        choices=["unity", "godot", "unreal"],
+    )
+    p_es.add_argument(
+        "--source-dir",
+        type=Path,
+        default=None,
+        help=(
+            "Source directory to sync from. Defaults to <demo-dir>/out. "
+            "Use to sync a frozen snapshot (e.g. sample_output/)."
+        ),
+    )
+    p_es.add_argument(
+        "--install-scripts",
+        action="store_true",
+        help=(
+            "Also copy the engine's runtime glue scripts (Unity-only as of "
+            "v0.7.1: the C# drop-in from examples/unity_integration)."
+        ),
+    )
+    p_es.add_argument(
+        "--scripts-source",
+        dest="scripts_source_dir",
+        type=Path,
+        default=None,
+        help="Override source directory for runtime glue scripts.",
+    )
+    p_es.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Plan the sync without writing anything.",
+    )
+    p_es.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Log every file action.",
+    )
+    p_es.set_defaults(func=_cmd_engine_sync)
 
     # ---- play ----
     p_play = subs.add_parser(
