@@ -360,6 +360,13 @@ See [`docs/TOOLS.md`](docs/TOOLS.md) for every input / output schema and [`docs/
 
 ## Roadmap
 
+### Shipped in v0.8.0
+
+- **`relationships:`** on every `NpcSheet` — list of `{npc_id, opinion, reason}` entries. The LLM references other NPCs by declared opinion instead of inventing stances.
+- **`knowledge:`** on every `NpcSheet` — list of `{id, fact, gate, reveal_lines, deflect_lines}`. Each gated fact carries tone exemplars for both sides of the gate. NPCs reveal facts only when the gate is met; otherwise they deflect in the declared tone.
+- Respondent prompt gains rules 7 and 8 that operationalise both fields. Writers control *who each NPC knows*, *what they know*, and *what the player has to do to earn the reveal*.
+- Demo: Mira and Gereth both gain cross-cast relationships + gated knowledge. See the Rusted Lantern `characters.yaml` for the worked pattern.
+
 ### Shipped in v0.7.1
 
 - **`npcforge engine-sync`** — copy generated `.yarn` + `lines.csv` into Unity, Godot, or Unreal's expected project tree with a single command. Marker-tracked (`.npcforge-sync.json`) so subsequent runs only copy what changed. Unity sync optionally installs the C# runtime-glue scripts too.

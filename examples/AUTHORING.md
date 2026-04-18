@@ -1,10 +1,11 @@
 # Authoring a new world
 
 One-page guide for pointing npcforge at a new setting. Updated for
-v0.6.1 — the full generator trio (NPCs / intents / barks), stub
-resolution, the state layer (`time_of_day`, disposition, quest stages),
-and both state-aware greeting modes: enum-keyed (`gen greetings`) and
-visit-counter (`gen repeat-greeting`).
+v0.8.0 — full generator trio (NPCs / intents / barks), stub resolution,
+the state layer (`time_of_day`, disposition, quest stages), both
+state-aware greeting modes (enum-keyed via `gen greetings` and
+visit-counter via `gen repeat-greeting`), and **character depth**:
+cross-cast relationships plus structured knowledge gates.
 
 ## The four files
 
@@ -278,6 +279,65 @@ Outputs land in `my_game/out/`: `<npc>.yarn`, `<npc>_bark_<trigger>.yarn`,
 Setting this right on the first draft is 80% of voice consistency.
 `gen_npcs` picks appropriately from role keywords, but you can always
 override by hand in the YAML.
+
+## Character depth — relationships and knowledge gates (v0.8.0)
+
+Two optional fields on every NPC sheet unlock cross-cast awareness
+and gated reveals:
+
+```yaml
+npcs:
+  - id: mira_vesser
+    # ... standard fields ...
+
+    relationships:
+      - npc_id: gereth_blackstone
+        opinion: "protective, guilty"
+        reason: >
+          She sold the mine lease to the dwarven expedition; Gereth
+          surviving is a daily reminder.
+      - npc_id: kess_the_knife
+        opinion: "sees through her, lets her stay anyway"
+        reason: "Whoever Kess works for, their coin still spends here."
+
+    knowledge:
+      - id: sold_mine_lease
+        fact: >
+          Mira signed the lease over to the Grindholt dwarves. The
+          original document is in the strongbox under the bar.
+        gate: >
+          Reveals only if the player has already mentioned the
+          expedition AND offered coin or shown a Moon Court token.
+        reveal_lines:
+          - "Aye. The paper's mine. Was."
+          - "I signed it over, friend. That's the last honest thing I'll say about the deep."
+        deflect_lines:
+          - "The deep keeps its own paperwork."
+          - "Expedition's business. Not mine."
+
+      - id: broken_seal
+        fact: >
+          Mira broke the original sealing ward on the lower mine
+          herself, without understanding what it was.
+        gate: "Never reveals directly. Players must infer."
+        deflect_lines:
+          - "Some questions aren't drink-sized."
+```
+
+**What the fields do**
+
+- **`relationships`** — the LLM references other NPCs with the declared
+  opinion + reason instead of inventing stances. Ground the reason in
+  world-bible detail so the model has less room to drift into generic
+  fantasy priors ("dwarves are blacksmiths").
+- **`knowledge`** — structured facts each NPC possesses. `gate` is
+  free-text describing when the fact can be revealed; `reveal_lines`
+  and `deflect_lines` are tone exemplars (not quoted verbatim) that
+  steer the model's register on each side of the gate.
+
+Works on Gemini 2.5-flash: Gereth's trauma gate opens only when the
+player names a parallel loss first; Mira's locket gate opens
+incrementally as the player offers coin + mentions the expedition.
 
 ## Common mistakes
 

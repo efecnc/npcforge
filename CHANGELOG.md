@@ -4,6 +4,91 @@ All notable changes to npcforge land here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [SemVer](https://semver.org/).
 
+## [0.8.0] — 2026-04-18
+
+Character depth — the first half of the veteran-designer review's
+Witcher/RDR2-tier dynamics. Two structured fields on every `NpcSheet`:
+`relationships` (what each NPC thinks of the others) and `knowledge`
+(structured facts with optional reveal gates). Both flow into every
+downstream generator's respondent prompt.
+
+### Added
+
+- **`Relationship`** schema — `{npc_id, opinion, reason}`. Declares one
+  NPC's stance toward another cast member with a grounded reason the
+  LLM can reference. Rendered in the character-sheet block as
+  `- <target>: <opinion> — <reason>`.
+- **`KnowledgeItem`** schema — `{id, fact, gate, reveal_lines,
+  deflect_lines}`. Each gated fact carries tone exemplars for both
+  sides of the gate. The respondent prompt rule-set got two new rules:
+  reveal only when the gate is clearly met, otherwise deflect using
+  the sample deflection tone.
+- Demo updates: Mira now declares relationships with all four other
+  Rusted Lantern NPCs plus two gated knowledge items (`sold_mine_lease`
+  gated on coin + expedition mention; `broken_seal` never-direct-reveal).
+  Gereth declares cross-cast relationships plus `not_found_locket`
+  gated on trauma-exchange (confess_vulnerability + player naming a
+  loss first).
+
+### Changed
+
+- `render_character_sheet` grows two new blocks when the NPC has
+  relationships or knowledge; otherwise the output is unchanged.
+- `build_npc_respondent_prompt` gains rules 7 and 8 covering
+  relationship usage and knowledge-gate behaviour.
+- NpcSheet gains `relationships: list[Relationship]` and
+  `knowledge: list[KnowledgeItem]` fields (both default empty, so
+  every existing cast keeps working).
+
+### Tests — 143 passing (up from 133)
+
+- `Relationship` / `KnowledgeItem` default shapes.
+- YAML round-trip of the demo: Mira has 4 relationships + 2 gated
+  knowledge items; Gereth has relationships back toward Mira.
+- `render_character_sheet` includes + omits relationships/knowledge
+  sections based on presence.
+- Respondent prompt mentions relationships and gates.
+- Free-form tmp YAML round-trip covering the new fields.
+
+### Verified end-to-end on Gemini 2.5-flash
+
+Build on Mira + Gereth at `--turns 3`, then played four branches:
+
+- **Gereth's `confess_vulnerability` with player's parallel loss** →
+  gate met → Gereth reveals in his own fragmented voice:
+  *"The dark takes its toll, doesn't it? Twelve, one. Hmm-hmm-hmm-hmm.
+  This locket... it was there. With the others. A cost, yes."*
+- **Mira's `ask_about_locket` without coin or faction token** → gate
+  not met → she deflects in deflect-line tone: *"Whispers always fly.
+  Never much truth to half of them."* / *"Old wives' tales. Something
+  about luck. Or doom."*
+- **Mira's `bribe_for_info` with silver + expedition named** → gate
+  partially met → she reveals a step further: *"A silver buys some
+  talk. They went into old deep for mithril. That's what they
+  claimed."*
+- **Mira's `ask_about_npc_other` asking about Gereth** → her declared
+  relationship ("protective, guilty") colours the answer; LLM noted
+  Gereth sticks to old ways and would be "good with metal." (Some
+  fantasy-dwarf-stereotype leakage — a known prompt-strength
+  limitation; v0.8.1 will tighten the world-bible anchor.)
+
+### Known limitation
+
+Relationship content occasionally pulls from the LLM's generic prior
+(fantasy-dwarf = blacksmith) when the world-bible entry for the target
+NPC is thin on what they *do*. Tightening the respondent prompt to
+anchor in the world-bible role is a v0.8.1 item.
+
+### Not in v0.8.0 (deliberately)
+
+- `state_evolution:` block (NPC voice shifts at quest beats)
+- Multi-character scenes (`group_chatter_pair`)
+- Structured gate matching (`{variable: value}` tied to state layer)
+
+All three are v0.8.1 / v0.8.2 work.
+
+---
+
 ## [0.7.1+unity-upm] — 2026-04-18
 
 Unity UPM package — installable from the Package Manager. Supplement to

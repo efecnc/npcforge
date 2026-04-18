@@ -36,10 +36,12 @@ from .schemas import (
     BarkLine,
     BarksConfig,
     BarkTrigger,
+    KnowledgeItem,
     NpcBarkConfig,
     NpcSheet,
     NpcStub,
     PlayerIntent,
+    Relationship,
     VocabularyCeiling,
     load_barks_config,
     load_intents,
@@ -166,7 +168,7 @@ from .yarn import (
     yarn_safe_title,
 )
 
-__version__ = "0.7.1"
+__version__ = "0.8.0"
 
 __all__ = [
     # Version
@@ -175,6 +177,8 @@ __all__ = [
     "NpcSheet",
     "NpcStub",
     "PlayerIntent",
+    "Relationship",
+    "KnowledgeItem",
     "VocabularyCeiling",
     "BarkLine",
     "BarkTrigger",

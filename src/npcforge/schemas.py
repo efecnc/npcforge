@@ -23,6 +23,73 @@ VocabularyCeiling = Literal[
 ]
 
 
+class Relationship(BaseModel):
+    """One NPC's stance toward another NPC in the cast (v0.8.0).
+
+    Injected into respondent prompts so generated dialogue can reference
+    other cast members with a stable opinion and reason, instead of
+    inventing relationships on the fly.
+    """
+
+    npc_id: str = Field(
+        ..., description="Target NPC's id (must match a character in the same cast)."
+    )
+    opinion: str = Field(
+        ...,
+        description=(
+            "Free-text stance: 'trusts completely', 'wary ally', 'old rival', "
+            "'protective of', 'nominally polite, privately contemptuous', etc."
+        ),
+    )
+    reason: str = Field(
+        default="",
+        description=(
+            "Short sentence-length explanation the NPC could plausibly think "
+            "but would not volunteer. Grounds the opinion in something "
+            "concrete from the world."
+        ),
+    )
+
+
+class KnowledgeItem(BaseModel):
+    """One structured fact an NPC possesses, with a gate controlling reveal (v0.8.0).
+
+    Writers declare *what* the NPC knows, *when* they'd reveal it, and
+    *how* they deflect if the gate is not met. The respondent prompt
+    surfaces ungated facts as "things the NPC knows but will not state
+    directly" and gated facts as conditional reveals.
+
+    ``gate`` is free-text for now — a later release will add structured
+    `{variable: value}` matching tied to the state layer. For v0.8.0
+    writers describe the condition in prose and the LLM honours it.
+    """
+
+    id: str = Field(..., description="Short identifier for this fact (lower_snake_case).")
+    fact: str = Field(..., description="The thing the NPC knows.")
+    gate: str = Field(
+        default="",
+        description=(
+            "When the NPC will reveal this fact. Empty = never reveals "
+            "directly. Examples: 'after the player offers coin', 'only if "
+            "player mentions the Moon Court', 'never'."
+        ),
+    )
+    reveal_lines: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Two or three sample lines the NPC might say when the gate is "
+            "met. Tone exemplars; the generator does not quote them verbatim."
+        ),
+    )
+    deflect_lines: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Two or three sample deflection lines when the gate is not met. "
+            "Tone exemplars; the generator does not quote them verbatim."
+        ),
+    )
+
+
 class NpcSheet(BaseModel):
     """A single NPC entry from ``characters.yaml``.
 
@@ -61,6 +128,14 @@ class NpcSheet(BaseModel):
     # NPC's prompt. Empty = no state reactions beyond implicit defaults
     # (e.g. the time-of-day greeting generator uses time_of_day regardless).
     reacts_to: list[str] = Field(default_factory=list)
+
+    # Character depth (v0.8.0). Relationships declare this NPC's stance
+    # toward other cast members; knowledge declares structured facts the
+    # NPC possesses with optional gates controlling when they're revealed.
+    # Both are injected into respondent prompts so generated dialogue can
+    # reference them consistently.
+    relationships: list[Relationship] = Field(default_factory=list)
+    knowledge: list[KnowledgeItem] = Field(default_factory=list)
 
 
 class NpcStub(BaseModel):

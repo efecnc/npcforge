@@ -61,25 +61,63 @@ def _voice_ceiling_block(npc: NpcSheet) -> str:
     return "VOICE CONSTRAINTS (hard rules):\n" + "\n\n".join(parts)
 
 
+def _render_relationships(npc: NpcSheet) -> str:
+    if not npc.relationships:
+        return ""
+    lines = ["Relationships with other characters:"]
+    for r in npc.relationships:
+        tail = f" — {r.reason.strip()}" if r.reason else ""
+        lines.append(f"- {r.npc_id}: {r.opinion.strip()}{tail}")
+    return "\n".join(lines)
+
+
+def _render_knowledge(npc: NpcSheet) -> str:
+    if not npc.knowledge:
+        return ""
+    out: list[str] = ["Knowledge (structured reveals):"]
+    for k in npc.knowledge:
+        out.append(f"- {k.id}: {k.fact.strip()}")
+        if k.gate:
+            out.append(f"    Gate: {k.gate.strip()}")
+        if k.reveal_lines:
+            samples = "; ".join(f'"{s.strip()}"' for s in k.reveal_lines if s.strip())
+            if samples:
+                out.append(f"    Sample reveal lines (tone only): {samples}")
+        if k.deflect_lines:
+            samples = "; ".join(f'"{s.strip()}"' for s in k.deflect_lines if s.strip())
+            if samples:
+                out.append(f"    Sample deflection lines (tone only): {samples}")
+    return "\n".join(out)
+
+
 def render_character_sheet(npc: NpcSheet) -> str:
     """Flatten an :class:`NpcSheet` into a bible-style text block.
 
     The result is concatenated with the world bible and passed to the
-    afterimage document provider as the NPC's grounding context.
+    afterimage document provider as the NPC's grounding context. v0.8+
+    surfaces relationships and structured knowledge when present.
     """
     quirks = "\n".join(f"- {q}" for q in npc.speech_quirks) or "(none)"
     motivations = "\n".join(f"- {m}" for m in npc.motivations) or "(none)"
     samples = "\n".join(f'- "{s}"' for s in npc.sample_lines) or "(none)"
-    return (
-        f"## Character Sheet: {npc.name}\n\n"
-        f"Role: {npc.role}\n\n"
-        f"Voice: {npc.voice.strip()}\n\n"
-        f"Background:\n{npc.background.strip() or '(none)'}\n\n"
-        f"Motivations:\n{motivations}\n\n"
-        f"Secret (never disclose directly):\n{npc.secret or '(none)'}\n\n"
-        f"Speech quirks:\n{quirks}\n\n"
-        f"Sample lines (for tone only):\n{samples}\n"
-    )
+
+    sections = [
+        f"## Character Sheet: {npc.name}",
+        f"Role: {npc.role}",
+        f"Voice: {npc.voice.strip()}",
+        f"Background:\n{npc.background.strip() or '(none)'}",
+        f"Motivations:\n{motivations}",
+        f"Secret (never disclose directly):\n{npc.secret or '(none)'}",
+        f"Speech quirks:\n{quirks}",
+        f"Sample lines (for tone only):\n{samples}",
+    ]
+    relationships = _render_relationships(npc)
+    if relationships:
+        sections.append(relationships)
+    knowledge = _render_knowledge(npc)
+    if knowledge:
+        sections.append(knowledge)
+    return "\n\n".join(sections) + "\n"
 
 
 _BASE_RULES = (
@@ -92,6 +130,13 @@ _BASE_RULES = (
     "5. Your motivations and secret may color your answers, but you do not disclose the secret directly.\n"
     "   Players must infer it.\n"
     "6. Match the player's energy — friendly, hostile, evasive — but keep your core voice fixed.\n"
+    "7. If the sheet declares relationships with other characters, your lines may reference those\n"
+    "   NPCs with the stated opinion when the topic arises. Do not invent relationships that are\n"
+    "   not on the sheet.\n"
+    "8. If the sheet declares structured knowledge with a gate, reveal the fact only when the\n"
+    "   gate is clearly met by the player's approach. Otherwise deflect in character using the\n"
+    "   tone of the sample deflection lines. Facts without a gate are background you never\n"
+    "   volunteer directly.\n"
 )
 
 

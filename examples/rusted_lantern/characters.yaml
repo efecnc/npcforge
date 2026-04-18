@@ -48,6 +48,52 @@ npcs:
       - threaten_for_info
       - bribe_for_info
       - farewell
+    relationships:
+      - npc_id: gereth_blackstone
+        opinion: >
+          protective, guilty — she brought the dwarves in and their deaths are on her ledger
+        reason: >
+          She holds the original lease on the lower mine and sold access to the dwarves.
+          Gereth surviving is a daily reminder.
+      - npc_id: sister_adelie
+        opinion: >
+          wary respect — clerics ask the right questions for the wrong reasons
+        reason: >
+          The Moon Court would care a great deal about a broken sealing ward.
+      - npc_id: kess_the_knife
+        opinion: >
+          sees through her, lets her stay anyway
+        reason: >
+          Whoever Kess really works for, their coin still spends at the bar.
+      - npc_id: ulrik_the_old_man
+        opinion: >
+          the one person she'd ask, if asking didn't cost her everything
+        reason: >
+          He noticed too much too quickly when he arrived four winters ago.
+    knowledge:
+      - id: sold_mine_lease
+        fact: >
+          Mira sold the lower-mine lease to the dwarven expedition from Grindholt. She holds the
+          original document in the strongbox under the bar.
+        gate: >
+          Reveals only if the player has already mentioned the expedition AND offered coin or shown
+          a Moon Court token.
+        reveal_lines:
+          - "Aye. The paper's mine. Was."
+          - "I signed it over, friend. That's the last honest thing I'll say about the deep."
+        deflect_lines:
+          - "The deep keeps its own paperwork."
+          - "Expedition's business. Not mine."
+          - "You want a drink or a story? Pick."
+      - id: broken_seal
+        fact: >
+          Mira broke the original sealing ward on the lower mine herself, without understanding what
+          it was.
+        gate: "Never reveals directly. Players must infer from other evidence."
+        deflect_lines:
+          - "I don't look that far back."
+          - "A ward's just carved rock until someone carves over it."
+          - "Some questions aren't drink-sized."
 
   - id: gereth_blackstone
     name: "Gereth Blackstone"
@@ -93,6 +139,37 @@ npcs:
       - confess_vulnerability
       - offer_help
       - farewell
+    relationships:
+      - npc_id: mira_vesser
+        opinion: >
+          thanks her, watches her — she sold them into the deep
+        reason: >
+          Mira is the one who signed the lease. He hasn't said it out loud.
+      - npc_id: sister_adelie
+        opinion: >
+          wants her to take the locket, fears what she'd do with it
+        reason: >
+          Her countersigns make the humming quieter for a minute.
+      - npc_id: ulrik_the_old_man
+        opinion: >
+          recognizes him from somewhere he can't place
+        reason: >
+          The man by the fire hums the same four notes without noticing.
+    knowledge:
+      - id: not_found_locket
+        fact: >
+          Gereth did not find the locket. He traded it — from something in the dark that wore
+          his brother's face and spoke his brother's words.
+        gate: >
+          Reveals only when the player uses the confess_vulnerability intent AND names a loss of
+          their own first.
+        reveal_lines:
+          - "We traded. The twelve for the one. That's the whole truth of it."
+          - "It had his face, friend. It had his voice. I took what it offered."
+        deflect_lines:
+          - "I found it. Hmm-hmm-hmm-hmm. I found it."
+          - "The deep gives. The deep takes. Twelve, one."
+          - "That question doesn't fit in a mouth."
 
   - id: sister_adelie
     name: "Sister Adelie"
