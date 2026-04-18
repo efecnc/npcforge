@@ -446,6 +446,160 @@ async def _cmd_mcp(args: argparse.Namespace) -> int:
 
 
 # ---------------------------------------------------------------------------
+# v0.9.0 — social graph + memory commands
+# ---------------------------------------------------------------------------
+
+
+async def _cmd_gen_scene(args: argparse.Namespace) -> int:
+    """Generate one multi-NPC scene and write it to out/scene_<id>.yarn."""
+    from .memory import MemoryStore
+    from .pipeline import generate_scene, write_scene_yarn
+    from .scenes import Scene
+    from .schemas import (
+        load_factions,
+        load_npcs,
+        validate_npc_factions,
+    )
+
+    demo_dir: Path = args.demo_dir
+    npcs = load_npcs(demo_dir / "characters.yaml")
+    factions = load_factions(demo_dir / "factions.yaml")
+    validate_npc_factions(npcs, factions)
+
+    memory_path = demo_dir / "memory.json"
+    store = MemoryStore.load(memory_path) if memory_path.exists() else None
+
+    scene = Scene(
+        id=args.id,
+        location=args.location,
+        participants=_split_csv(args.npcs),
+        setup=args.setup,
+        player_present=not args.no_player,
+        max_lines=args.lines,
+    )
+
+    api_key = _resolve_api_key(args.provider, args.api_key_env)
+    dialogue, warnings = await generate_scene(
+        scene=scene,
+        cast=npcs,
+        factions=factions,
+        memory_store=store,
+        api_key=api_key,
+        model_name=args.model,
+        model_provider_name=args.provider,
+        temperature=args.temperature,
+    )
+    for w in warnings:
+        print(f"warn: {w}", file=sys.stderr)
+    if dialogue is None:
+        print("Scene generation failed — see warnings above.", file=sys.stderr)
+        return 1
+
+    out_dir = args.out or (demo_dir / "out")
+    path = write_scene_yarn(
+        scene, dialogue, npcs, out_dir=out_dir, end_node=args.end_node,
+    )
+    print(f"scene written: {path}")
+    print(f"  main lines: {len(dialogue.main)}")
+    print(f"  player choices: {len(dialogue.choices)}")
+    return 0
+
+
+async def _cmd_list_factions(args: argparse.Namespace) -> int:
+    """List factions from ``factions.yaml`` with membership counts."""
+    from .schemas import load_factions, load_npcs
+
+    demo_dir: Path = args.demo_dir
+    factions = load_factions(demo_dir / "factions.yaml")
+    npcs = load_npcs(demo_dir / "characters.yaml")
+    if not factions.factions:
+        print(f"No factions.yaml at {demo_dir / 'factions.yaml'}.")
+        return 0
+
+    counts: dict[str, int] = {f.id: 0 for f in factions.factions}
+    for n in npcs:
+        if n.faction_id and n.faction_id in counts:
+            counts[n.faction_id] += 1
+        if n.secondary_faction_id and n.secondary_faction_id in counts:
+            counts[n.secondary_faction_id] += 1
+
+    if args.json:
+        print(json.dumps({
+            "factions": [
+                {
+                    **f.model_dump(),
+                    "member_count": counts.get(f.id, 0),
+                }
+                for f in factions.factions
+            ],
+        }, indent=2))
+        return 0
+
+    for f in factions.factions:
+        rivals = f", rivals: {', '.join(f.rivals)}" if f.rivals else ""
+        allies = f", allies: {', '.join(f.allies)}" if f.allies else ""
+        print(f"{f.id}  [{counts[f.id]} members]")
+        print(f"  {f.name}")
+        if f.description.strip():
+            print(f"    {f.description.strip()}")
+        if allies or rivals:
+            print(f"   {allies}{rivals}")
+    return 0
+
+
+async def _cmd_memory_show(args: argparse.Namespace) -> int:
+    """Print what npcforge remembers — full store or filtered by NPC."""
+    from .memory import MemoryStore, summarize_for_npc
+    from .schemas import load_npcs
+
+    demo_dir: Path = args.demo_dir
+    path = demo_dir / "memory.json"
+    store = MemoryStore.load(path)
+    print(f"memory store: {path} (current_turn={store.current_turn}, "
+          f"{len(store.events)} events)")
+
+    if args.npc:
+        npcs = {n.id: n for n in load_npcs(demo_dir / "characters.yaml")}
+        if args.npc not in npcs:
+            print(f"Unknown npc id: {args.npc}", file=sys.stderr)
+            return 1
+        block = summarize_for_npc(npcs[args.npc], store, max_lines=args.max)
+        print(block or "(no events for this NPC)")
+        return 0
+
+    if args.json:
+        print(store.to_json())
+        return 0
+
+    for e in sorted(store.events, key=lambda x: x.turn, reverse=True)[:args.max]:
+        faction = f"[{e.faction_id}] " if e.faction_id else ""
+        print(f"turn {e.turn:>4}  {e.salience:<8}  {faction}{e.npc_id}  "
+              f"{e.event_type}  — {e.summary}")
+    return 0
+
+
+async def _cmd_memory_record(args: argparse.Namespace) -> int:
+    """Record one event — useful for scripting demos + tests."""
+    from .memory import MemoryStore
+
+    demo_dir: Path = args.demo_dir
+    path = demo_dir / "memory.json"
+    store = MemoryStore.load(path)
+    if args.advance > 0:
+        store.advance_turn(args.advance)
+    event = store.record(
+        npc_id=args.npc,
+        event_type=args.type,
+        summary=args.summary,
+        salience=args.salience,
+        faction_id=args.faction or "",
+    )
+    store.save(path)
+    print(f"recorded event at turn {event.turn}: {event.event_type} / {event.npc_id}")
+    return 0
+
+
+# ---------------------------------------------------------------------------
 # Parser construction
 # ---------------------------------------------------------------------------
 
@@ -626,6 +780,89 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p_rg.add_argument("--dry-run", action="store_true")
     _add_llm_flags(p_rg)
     p_rg.set_defaults(func=_cmd_gen_repeat_greet)
+
+    # ---- gen scene (v0.9.0) ----
+    p_sc = p_gen_sub.add_parser(
+        "scene",
+        help=(
+            "Generate one multi-NPC scene — two or more cast members "
+            "trade lines with optional player-interjection branches. "
+            "Output lands at out/scene_<id>.yarn."
+        ),
+    )
+    p_sc.add_argument("--demo-dir", type=Path, required=True)
+    p_sc.add_argument("--id", required=True,
+                      help="Unique scene id (lower_snake_case).")
+    p_sc.add_argument("--location", required=True,
+                      help="Short phrase: 'rusted lantern common room'.")
+    p_sc.add_argument("--npcs", required=True,
+                      help="Comma-separated NPC ids (2+).")
+    p_sc.add_argument("--setup", required=True,
+                      help="One-sentence situational beat.")
+    p_sc.add_argument("--no-player", action="store_true",
+                      help="Generate a pure NPC-to-NPC scene (no interjections).")
+    p_sc.add_argument("--lines", type=int, default=8,
+                      help="Target main-line count (4-14). Default 8.")
+    p_sc.add_argument("--end-node", default=None,
+                      help="Yarn node to jump to after the scene.")
+    p_sc.add_argument("--out", type=Path, default=None)
+    p_sc.add_argument("--temperature", type=float, default=0.9)
+    _add_llm_flags(p_sc)
+    p_sc.set_defaults(func=_cmd_gen_scene)
+
+    # ---- list-factions (v0.9.0) ----
+    p_lf = subs.add_parser(
+        "list-factions",
+        help=(
+            "List factions from factions.yaml with NPC membership counts."
+        ),
+    )
+    p_lf.add_argument("--demo-dir", type=Path, required=True)
+    p_lf.add_argument("--json", action="store_true")
+    p_lf.set_defaults(func=_cmd_list_factions)
+
+    # ---- memory (v0.9.0) ----
+    p_mem = subs.add_parser(
+        "memory",
+        help="Inspect / edit the per-project memory store (memory.json).",
+    )
+    p_mem_sub = p_mem.add_subparsers(dest="memory_command", required=True)
+
+    p_ms = p_mem_sub.add_parser(
+        "show",
+        help=(
+            "Show stored events. With --npc <id>, render the memory block "
+            "that would be injected into that NPC's prompt."
+        ),
+    )
+    p_ms.add_argument("--demo-dir", type=Path, required=True)
+    p_ms.add_argument("--npc", default=None)
+    p_ms.add_argument("--max", type=int, default=20,
+                      help="Limit on events rendered.")
+    p_ms.add_argument("--json", action="store_true")
+    p_ms.set_defaults(func=_cmd_memory_show)
+
+    p_mr = p_mem_sub.add_parser(
+        "record",
+        help=(
+            "Record one event — typically the runtime does this, but useful "
+            "for scripting demos + tests."
+        ),
+    )
+    p_mr.add_argument("--demo-dir", type=Path, required=True)
+    p_mr.add_argument("--npc", required=True, help="NPC id the event is about.")
+    p_mr.add_argument("--type", required=True,
+                      help="Event tag: 'player_lied', 'gift_given', etc.")
+    p_mr.add_argument("--summary", required=True,
+                      help="One-sentence description from the NPC's POV.")
+    p_mr.add_argument("--salience",
+                      choices=["trivial", "notable", "pivotal"],
+                      default="notable")
+    p_mr.add_argument("--faction", default=None,
+                      help="Optional faction tag — event is shared with every member.")
+    p_mr.add_argument("--advance", type=int, default=0,
+                      help="Advance turn counter before recording (default 0).")
+    p_mr.set_defaults(func=_cmd_memory_record)
 
     # ---- resolve (nested) ----
     p_res = subs.add_parser(

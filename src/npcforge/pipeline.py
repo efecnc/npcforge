@@ -60,15 +60,24 @@ from .prompts import (
     render_character_sheet,
     render_player_intent,
 )
+from .scenes import (
+    Scene,
+    SceneDialogue,
+    build_scene_system_prompt,
+    render_scene_yarn,
+    validate_scene_output,
+)
 from .schemas import (
     BarkLine,
     BarksConfig,
     BarkTrigger,
+    FactionsConfig,
     NpcBarkConfig,
     NpcSheet,
     PlayerIntent,
     resolve_intents_for_npc,
 )
+from .memory import MemoryStore
 from .state import ProjectVariable, yarn_declare_block
 from .voice_score import score_voice_consistency
 from .yarn import (
@@ -606,3 +615,84 @@ async def run_all(
             f"elapsed: {manifest.elapsed_seconds}s)"
         )
     return manifest
+
+
+# ---------------------------------------------------------------------------
+# Multi-NPC scene generation (v0.9.0)
+# ---------------------------------------------------------------------------
+
+
+_SCENE_USER_PROMPT = (
+    "Produce the scripted exchange as structured output matching the "
+    "SceneDialogue schema. Alternate speakers naturally. Keep each line "
+    "first-person and in the character's voice. Honour the rules in the "
+    "system prompt."
+)
+
+
+async def generate_scene(
+    *,
+    scene: Scene,
+    cast: list[NpcSheet],
+    factions: FactionsConfig | None,
+    memory_store: MemoryStore | None,
+    api_key: str,
+    model_name: str | None,
+    model_provider_name: str,
+    temperature: float = 0.9,
+) -> tuple[SceneDialogue | None, list[str]]:
+    """Generate one multi-NPC scene in a single structured LLM call.
+
+    Returns ``(dialogue, warnings)``. ``dialogue`` is ``None`` on
+    failure; ``warnings`` contains human-readable notes about any
+    speaker-id mismatches or unusable interjection choices.
+    """
+    system_prompt = build_scene_system_prompt(
+        scene,
+        cast=cast,
+        factions=factions,
+        memory_store=memory_store,
+    )
+    effective_model = model_name or _AFTERIMAGE_DEFAULT_MODEL
+    llm = LLMFactory.create(
+        provider=model_provider_name,
+        model_name=effective_model,
+        api_key=api_key,
+        system_instruction=system_prompt,
+    )
+    try:
+        response = await llm.agenerate_structured(
+            prompt=_SCENE_USER_PROMPT,
+            schema=SceneDialogue,
+            temperature=temperature,
+        )
+    except Exception as exc:
+        logger.warning("scene generation failed for %s: %s", scene.id, exc)
+        return None, [f"generation failed: {exc}"]
+
+    parsed = getattr(response, "parsed", None)
+    if not isinstance(parsed, SceneDialogue):
+        try:
+            parsed = SceneDialogue.model_validate_json(response.text)
+        except Exception as exc:
+            logger.warning("scene JSON parse failed for %s: %s", scene.id, exc)
+            return None, [f"JSON parse failed: {exc}"]
+
+    warnings = validate_scene_output(scene, parsed)
+    return parsed, warnings
+
+
+def write_scene_yarn(
+    scene: Scene,
+    dialogue: SceneDialogue,
+    cast: list[NpcSheet],
+    *,
+    out_dir: Path,
+    end_node: str | None = None,
+) -> Path:
+    """Render + write a scene's Yarn file. Returns the path written."""
+    yarn = render_scene_yarn(scene, dialogue, cast, end_node=end_node)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    path = out_dir / f"scene_{scene.id}.yarn"
+    path.write_text(yarn, encoding="utf-8")
+    return path
