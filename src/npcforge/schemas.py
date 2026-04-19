@@ -171,6 +171,77 @@ class Relationship(BaseModel):
     )
 
 
+VoiceLensKind = Literal["state", "audience", "cultural"]
+
+
+class VoiceLens(BaseModel):
+    """One reusable voice-modifier (v0.14.0 — cultural/linguistic depth).
+
+    Unlike arc stages (which track the character's inner life across
+    a campaign), voice lenses track the *situation*. Gereth-with-a-
+    Silent-Order-sister-in-the-room speaks differently from Gereth-
+    alone. Mira-speaking-to-a-Guild-inspector speaks differently from
+    Mira-with-her-regulars. Tipsy / furious / exhausted are lenses
+    too. All of them are explicit gameplay state, not inferred —
+    the runtime decides when to activate each.
+
+    Lenses compose additively on the base voice, the same way arc
+    stages do: the 'tipsy' lens relaxes the vocabulary ceiling, the
+    'with_inspector_present' lens adds clipped register; both apply
+    at once if both are active. Each lens specifies its own
+    extra_forbidden_words and extra_accent_markers — the prompt layer
+    unions them with the base sheet.
+
+    Three kinds:
+    - ``state`` — temporary physiological/emotional state (tipsy, furious,
+      exhausted, grieving). Typically session-scoped.
+    - ``audience`` — who else is in the room (with_guild_present,
+      speaking_to_intimate, outside_the_lantern).
+    - ``cultural`` — inherited register from background/region
+      (grindholt_formal, moon_court_lilt). Typically always-on for
+      NPCs whose culture runs deep in their voice.
+    """
+
+    id: str = Field(..., description="Lower_snake_case lens id, unique per NPC.")
+    label: str = Field(
+        ...,
+        description=(
+            "Short writer-facing name: 'tipsy', 'with inspector present', "
+            "'grindholt formal'. Shown in Editor tooling."
+        ),
+    )
+    kind: VoiceLensKind = Field(..., description="state | audience | cultural.")
+    cadence_shift: str = Field(
+        ...,
+        description=(
+            "One-sentence instruction: what this lens does to the voice. "
+            "'Sentences loosen; contractions return; the four-note hum "
+            "becomes a four-note MUTTER.' The LLM applies this cumulatively "
+            "with other active lenses."
+        ),
+    )
+    extra_forbidden_words: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Additional forbidden words layered on top of the base "
+            "ceiling while this lens is active. Useful for cultural "
+            "lenses ('no modern slang') or audience lenses ('no first "
+            "names of dead kin')."
+        ),
+    )
+    extra_accent_markers: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Additional accent / speech markers the lens introduces. "
+            "Unioned with the base sheet's accent_markers at prompt time."
+        ),
+    )
+    description: str = Field(
+        default="",
+        description="Writer note — why this lens exists.",
+    )
+
+
 class TriggerSpec(BaseModel):
     """Structured condition that gates an arc stage (v0.10.0).
 
@@ -438,6 +509,13 @@ class NpcSheet(BaseModel):
     # the respondent prompt so generated dialogue reflects the shift.
     state_evolution: list[StateEvolution] = Field(default_factory=list)
 
+    # Voice lenses (v0.14.0 — cultural/linguistic depth). Each entry is
+    # a reusable voice-modifier the runtime can activate per-scene:
+    # 'tipsy', 'with_inspector_present', 'grindholt_formal'. Lenses
+    # compose additively on the base voice. Empty list = single
+    # baseline register.
+    voice_lenses: list[VoiceLens] = Field(default_factory=list)
+
     # Observer opt-in (v0.13.0 — player modeling). When True, this NPC's
     # respondent prompt gets a summarised PlayerProfile block so the LLM
     # can reference the player's conversational pattern (aggressive,
@@ -661,6 +739,35 @@ def load_factions(path: Path) -> FactionsConfig:
                     f"Known ids: {sorted(known)}"
                 )
     return cfg
+
+
+def validate_npc_voice_lenses(npcs: list[NpcSheet]) -> None:
+    """Fail loudly on duplicate lens ids within a single NPC's lens list."""
+    for npc in npcs:
+        seen: set[str] = set()
+        for lens in npc.voice_lenses:
+            if lens.id in seen:
+                raise ValueError(
+                    f"NPC '{npc.id}': duplicate voice_lens id '{lens.id}'"
+                )
+            seen.add(lens.id)
+
+
+def resolve_active_lenses(
+    npc: NpcSheet, active_lens_ids: list[str] | set[str]
+) -> list[VoiceLens]:
+    """Return the subset of the NPC's declared lenses that match the
+    runtime-supplied active ids, preserving declaration order.
+
+    Unknown ids (not on this NPC) are silently ignored — the runtime
+    is allowed to broadcast a lens id to everyone; only NPCs who
+    declare it react. Cultural lenses typically stay always-active for
+    the NPC that owns them; callers should include those ids too.
+    """
+    if not npc.voice_lenses:
+        return []
+    active = set(active_lens_ids)
+    return [l for l in npc.voice_lenses if l.id in active]
 
 
 def validate_npc_arcs(npcs: list[NpcSheet]) -> None:

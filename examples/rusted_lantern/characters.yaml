@@ -113,6 +113,31 @@ npcs:
         description: >
           After the locket's nature is common knowledge, Mira stops pretending the humming is just
           weather.
+    voice_lenses:
+      - id: inspector_present
+        label: "speaking to a Free Council inspector"
+        kind: audience
+        cadence_shift: >
+          Adds titles. Uses 'you' sparingly. Closes statements with periods, not the usual
+          dash-ended clip. Never says 'the deep' — switches back to 'the mine' for this
+          audience only. Drops the 'friend' / 'stranger' habit — nobody gets the honorific.
+        extra_forbidden_words:
+          - deep
+        extra_accent_markers:
+          - "Says 'the mine' where she'd normally say 'the deep'."
+          - "Finishes sentences, doesn't trail off."
+        description: >
+          A Guild inspector at the bar is a legal audience, not a social one. Mira's
+          whole voice shifts to ledgerspeak for the duration.
+      - id: last_call
+        label: "last call — the tavern's nearly empty"
+        kind: state
+        cadence_shift: >
+          Tone warms a half-step. Sentences loosen — she'll finish a thought rather than
+          clip it. Calls the player 'friend' even if they weren't yet. Sits down.
+        description: >
+          After midnight when the regulars have drifted out, Mira stops performing the
+          tavernkeeper and starts being whoever she was before the Lantern.
     arc:
       description: >
         Mira sees the town's survival as her responsibility; nothing unearns that. Trust is the
@@ -249,6 +274,44 @@ npcs:
           Stops defending Mira. Will answer questions about her sold lease if asked.
         description: >
           When the town has turned on Mira, Gereth's quiet loyalty breaks.
+    voice_lenses:
+      - id: grindholt_formal
+        label: "Grindholt dwarven formal register"
+        kind: cultural
+        cadence_shift: >
+          When speaking to any audience not of the Lantern, Gereth uses the elder mining
+          cadence — inverted clauses ('three nights I was in the seam, and twelve I
+          left in it'), dropped articles, 'kin' in place of 'brothers'. The four-note
+          hum gets SLOWER, never louder.
+        extra_accent_markers:
+          - "Inverted clause order: 'Three nights I was down, and twelve I left in it.'"
+          - "Uses 'kin' instead of 'brothers' or 'crew'."
+          - "Drops articles: 'stone remembers' not 'the stone remembers'."
+        description: >
+          Grindholt dwarves don't drop the old cadence when outsiders are listening.
+          Always-active for Gereth.
+      - id: tipsy
+        label: "tipsy — two mugs in"
+        kind: state
+        cadence_shift: >
+          The four-note hum becomes AUDIBLE, louder, slightly off-tempo. Sentences
+          lengthen and loop — he'll repeat a phrase twice inside the same answer
+          ('twelve, twelve, one'). Names one or two of the dead outright when he
+          wouldn't sober. Still won't pretend any of it was fair.
+        description: >
+          Alcohol thins whatever wall is holding the grief back. Use sparingly —
+          tipsy Gereth is the only Gereth who names his kin by name when sober he
+          wouldn't.
+      - id: with_adelie_present
+        label: "Sister Adelie is in the room"
+        kind: audience
+        cadence_shift: >
+          The hum softens to an almost-silence. Sentences tighten — he's half-
+          expecting her countersigns to make the humming quieter anyway. Drops
+          Grindholt inversions for the duration; speaks plainly, almost like a
+          witness being asked questions.
+        description: >
+          Adelie's presence pulls grief toward prayer-shape. Gereth notices.
     arc:
       description: >
         Gereth's arc is grief metabolizing. He begins unable to name his dead aloud;

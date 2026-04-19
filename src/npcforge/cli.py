@@ -578,6 +578,40 @@ async def _cmd_memory_show(args: argparse.Namespace) -> int:
     return 0
 
 
+async def _cmd_voice_show(args: argparse.Namespace) -> int:
+    """Show an NPC's voice lenses and which would be active."""
+    from .schemas import (
+        load_npcs, resolve_active_lenses, validate_npc_voice_lenses,
+    )
+
+    demo_dir: Path = args.demo_dir
+    npcs = {n.id: n for n in load_npcs(demo_dir / "characters.yaml")}
+    validate_npc_voice_lenses(list(npcs.values()))
+    if args.npc not in npcs:
+        print(f"Unknown npc id: {args.npc}", file=sys.stderr)
+        return 1
+    npc = npcs[args.npc]
+    if not npc.voice_lenses:
+        print(f"{npc.id} has no voice lenses declared.")
+        return 0
+
+    active = set(_split_csv(args.active)) if args.active else set()
+    active_resolved = {l.id for l in resolve_active_lenses(npc, active)}
+
+    print(f"{npc.id}: {len(npc.voice_lenses)} lenses")
+    for l in npc.voice_lenses:
+        marker = "★" if l.id in active_resolved else " "
+        print(f"  {marker} [{l.kind:8}] {l.label} ({l.id})")
+        print(f"      cadence: {l.cadence_shift.strip()}")
+        if l.extra_forbidden_words:
+            print(f"      extra forbidden: {', '.join(l.extra_forbidden_words)}")
+        if l.extra_accent_markers:
+            print(f"      extra accent markers:")
+            for m in l.extra_accent_markers:
+                print(f"        - {m}")
+    return 0
+
+
 async def _cmd_player_show(args: argparse.Namespace) -> int:
     """Print the player profile. Top axes first, weights rounded."""
     from .player_profile import PlayerProfile
@@ -765,6 +799,12 @@ async def _cmd_improv(args: argparse.Namespace) -> int:
         player_profile_block=player_profile_block,
     )
     _ = system_prompt  # kept for diagnostic; improv_query rebuilds internally
+    from .schemas import resolve_active_lenses
+    active_lenses = (
+        resolve_active_lenses(npc, _split_csv(args.lenses))
+        if args.lenses else []
+    )
+
     reply = await improv_query(
         npc=npc,
         query=args.query,
@@ -777,6 +817,7 @@ async def _cmd_improv(args: argparse.Namespace) -> int:
         top_k_lore=args.top_k_lore,
         temperature=args.temperature,
         player_profile_block=player_profile_block,
+        active_lenses=active_lenses,
     )
     if reply is None:
         print("improv failed — see log warnings.", file=sys.stderr)
@@ -1286,6 +1327,28 @@ def build_arg_parser() -> argparse.ArgumentParser:
                       help="Advance turn counter before recording (default 0).")
     p_mr.set_defaults(func=_cmd_memory_record)
 
+    # ---- voice (v0.14.0) ----
+    p_v = subs.add_parser(
+        "voice",
+        help="Inspect an NPC's voice lenses and preview active compositions.",
+    )
+    p_v_sub = p_v.add_subparsers(dest="voice_command", required=True)
+
+    p_v_show = p_v_sub.add_parser(
+        "show",
+        help=(
+            "List an NPC's voice lenses; pass --active to mark which "
+            "would be on in a given scene."
+        ),
+    )
+    p_v_show.add_argument("--demo-dir", type=Path, required=True)
+    p_v_show.add_argument("--npc", required=True)
+    p_v_show.add_argument(
+        "--active", default=None,
+        help="Comma-separated lens ids the runtime would have active.",
+    )
+    p_v_show.set_defaults(func=_cmd_voice_show)
+
     # ---- player (v0.13.0) ----
     p_pl = subs.add_parser(
         "player",
@@ -1361,6 +1424,14 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p_imp.add_argument("--top-k-lore", type=int, default=3,
                        help="Number of lore chunks to retrieve (default 3).")
     p_imp.add_argument("--temperature", type=float, default=0.8)
+    p_imp.add_argument(
+        "--lenses", default=None,
+        help=(
+            "Comma-separated voice lens ids to activate for this query: "
+            "'tipsy,grindholt_formal'. Ids that don't resolve on the "
+            "NPC are silently ignored."
+        ),
+    )
     _add_llm_flags(p_imp)
     p_imp.set_defaults(func=_cmd_improv)
 

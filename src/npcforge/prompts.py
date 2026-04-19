@@ -14,6 +14,7 @@ from .schemas import (
     NpcSheet,
     PlayerIntent,
     VocabularyCeiling,
+    VoiceLens,
 )
 from .arcs import ActiveStage
 
@@ -141,6 +142,45 @@ def _render_faction_affiliation(
         lines.extend(render_one("Primary", npc.faction_id))
     if npc.secondary_faction_id:
         lines.extend(render_one("Secondary", npc.secondary_faction_id))
+    return "\n".join(lines)
+
+
+def _render_voice_lenses(lenses: list[VoiceLens]) -> str:
+    """Render active voice lenses as a cumulative modifier stack.
+
+    Unioned extra_forbidden_words and extra_accent_markers surface as a
+    single block at the bottom so the LLM sees one consolidated rule
+    set instead of per-lens rule fragments.
+    """
+    if not lenses:
+        return ""
+    lines = [
+        "Active voice lenses (situational modifiers; apply every "
+        "cadence_shift cumulatively — they compose with your base voice "
+        "and with each other, they do not replace anything):"
+    ]
+    for l in lenses:
+        lines.append(f"- {l.kind}: {l.label} ({l.id})")
+        lines.append(f"    Cadence shift: {l.cadence_shift.strip()}")
+        if l.description.strip():
+            lines.append(f"    Note: {l.description.strip()}")
+
+    # Consolidated extra rules at the bottom so the LLM doesn't
+    # have to re-read the lens list to honour them.
+    extra_forbidden: list[str] = []
+    extra_accent: list[str] = []
+    for l in lenses:
+        extra_forbidden.extend(w for w in l.extra_forbidden_words if w not in extra_forbidden)
+        extra_accent.extend(m for m in l.extra_accent_markers if m not in extra_accent)
+    if extra_forbidden:
+        lines.append(
+            "    Extra forbidden words (from active lenses): "
+            + ", ".join(f'"{w}"' for w in extra_forbidden)
+        )
+    if extra_accent:
+        lines.append("    Extra accent markers (from active lenses):")
+        for m in extra_accent:
+            lines.append(f"      - {m}")
     return "\n".join(lines)
 
 
@@ -301,6 +341,12 @@ _BASE_RULES = (
     "    only when it fits your line. Never list traits, never quote weight numbers, never\n"
     "    perform the observation ('I've been watching you'). Let the recognition leak into\n"
     "    a single line at most: 'You come in here the same way every time, friend.'\n"
+    "14. If an 'Active voice lenses' block lists situational modifiers, apply every listed\n"
+    "    cadence shift cumulatively. Lenses compose with the base voice AND with each\n"
+    "    other — a 'tipsy' + 'with_inspector_present' stack produces loosened-but-clipped\n"
+    "    register, not one OR the other. Union the extra forbidden words with the base\n"
+    "    ceiling; honour the extra accent markers the same way you honour the base ones.\n"
+    "    Never narrate the lens ('drunkenly:') — let it surface in cadence.\n"
 )
 
 
@@ -310,6 +356,7 @@ def build_npc_respondent_prompt(
     memory_summary: str = "",
     arc_stages: list[ActiveStage] | None = None,
     player_profile_block: str = "",
+    active_lenses: list[VoiceLens] | None = None,
 ) -> str:
     """System prompt for the Respondent (NPC) side of a walk-up dialog.
 
@@ -338,6 +385,9 @@ def build_npc_respondent_prompt(
         blocks.append(arc_block)
     if player_profile_block.strip() and npc.observes_player:
         blocks.append(player_profile_block.strip())
+    lens_block = _render_voice_lenses(active_lenses or [])
+    if lens_block:
+        blocks.append(lens_block)
     return "\n\n".join(blocks) + "\n"
 
 

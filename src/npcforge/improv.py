@@ -37,7 +37,7 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 from .memory import MemoryStore, summarize_for_npc
-from .schemas import FactionsConfig, NpcSheet
+from .schemas import FactionsConfig, NpcSheet, VoiceLens
 
 logger = logging.getLogger(__name__)
 
@@ -173,6 +173,7 @@ def build_improv_system_prompt(
     factions: Optional[FactionsConfig] = None,
     memory_store: Optional[MemoryStore] = None,
     player_profile_block: str = "",
+    active_lenses: Optional[list[VoiceLens]] = None,
 ) -> str:
     """System prompt for one improvised reply.
 
@@ -230,6 +231,11 @@ def build_improv_system_prompt(
         blocks.append(mem_block)
     if player_profile_block.strip() and npc.observes_player:
         blocks.append(player_profile_block.strip())
+    if active_lenses:
+        from .prompts import _render_voice_lenses  # avoid circular at import-time
+        lens_block = _render_voice_lenses(active_lenses)
+        if lens_block:
+            blocks.append(lens_block)
     return "\n\n".join(blocks) + "\n"
 
 
@@ -291,6 +297,7 @@ async def improv_query(
     top_k_lore: int = 3,
     temperature: float = 0.8,
     player_profile_block: str = "",
+    active_lenses: Optional[list[VoiceLens]] = None,
 ) -> ImprovReply | None:
     """Run one improv call. Returns None on failure (callers fall back).
 
@@ -307,6 +314,7 @@ async def improv_query(
         factions=factions,
         memory_store=memory_store,
         player_profile_block=player_profile_block,
+        active_lenses=active_lenses,
     )
 
     # Imported here to avoid dragging the afterimage providers into
