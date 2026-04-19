@@ -171,6 +171,99 @@ class Relationship(BaseModel):
     )
 
 
+class TrajectoryWaypoint(BaseModel):
+    """One named beat on an NPC's relationship-with-player curve (v0.17.0).
+
+    Waypoints are ordered by ``min_score`` (ascending). The highest
+    waypoint whose ``min_score`` is <= the NPC's accumulated score
+    toward the player is the NPC's *current* waypoint. Each NPC can
+    declare their own waypoint names — most casts reuse stranger →
+    tolerated → trusted → confidant → intimate, but nothing forces it
+    (Kess could name his 'suspicious → useful → partner').
+    """
+
+    id: str = Field(..., description="Lower_snake_case waypoint id, unique per NPC.")
+    label: str = Field(
+        ...,
+        description=(
+            "Short writer-facing name: 'stranger', 'tolerated', "
+            "'confidant'. Shown in CLI + editor tooling."
+        ),
+    )
+    min_score: float = Field(
+        ...,
+        description=(
+            "Score threshold at which this waypoint activates. The "
+            "lowest waypoint typically has min_score = 0 (or negative "
+            "for 'distrusted' beats). Waypoints are evaluated in "
+            "ascending order; the highest passed one wins."
+        ),
+    )
+    description: str = Field(
+        default="",
+        description="One-sentence writer note — what this level means.",
+    )
+    voice_shift: str = Field(
+        default="",
+        description=(
+            "Optional register-shift instruction for the generator when "
+            "this waypoint is active. Composes with active voice lenses "
+            "(see v0.14.0) rather than replacing them."
+        ),
+    )
+    unlocks_knowledge: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Knowledge item ids that become freely reveal-able while "
+            "this waypoint is active, overriding any gate text on the "
+            "knowledge item itself."
+        ),
+    )
+
+
+class RelationshipTrajectory(BaseModel):
+    """Per-NPC relationship-with-player curve (v0.17.0).
+
+    Unlike faction standing (which groups NPCs) or character arcs
+    (which track the NPC's inner life), a trajectory is 1:1 between
+    one NPC and the player. Every NPC can have a different shape —
+    slow-build, fast-flip, easy-up-hard-down, ratchet-only.
+    """
+
+    waypoints: list[TrajectoryWaypoint] = Field(
+        ...,
+        min_length=1,
+        description="At least one waypoint; usually 3-5.",
+    )
+    event_deltas: dict[str, float] = Field(
+        default_factory=dict,
+        description=(
+            "Per event_type → score delta. Overrides / extends the "
+            "module's default table. Positive values move the score "
+            "toward higher waypoints; negative values push back."
+        ),
+    )
+    decay_per_turn: float = Field(
+        default=0.0,
+        ge=0.0,
+        description=(
+            "Score reduction per turn elapsed since each event. 0 = no "
+            "decay (default). Higher values model NPCs whose goodwill "
+            "fades without contact (Mira might decay 0.02; Ulrik 0.0)."
+        ),
+    )
+    description: str = Field(
+        default="",
+        description="High-level writer note about this NPC's shape.",
+    )
+
+    def waypoint_by_id(self, wp_id: str) -> TrajectoryWaypoint | None:
+        for w in self.waypoints:
+            if w.id == wp_id:
+                return w
+        return None
+
+
 EthicalAxis = Literal[
     "honor_bound", "pragmatic", "self_serving", "zealot", "communal",
 ]
@@ -548,6 +641,13 @@ class NpcSheet(BaseModel):
     # NPC undergoes when a trigger condition becomes true. Injected into
     # the respondent prompt so generated dialogue reflects the shift.
     state_evolution: list[StateEvolution] = Field(default_factory=list)
+
+    # Relationship trajectory (v0.17.0 — per-NPC curve of named
+    # waypoints the NPC passes through as they build / lose trust with
+    # the player). Distinct from faction standing (per-faction) and
+    # character arcs (NPC's inner life). Empty = no trajectory; the
+    # NPC behaves the same regardless of history.
+    trajectory: RelationshipTrajectory | None = None
 
     # Ethical profile (v0.16.0 — moral profile + reactions). Optional
     # per-NPC stance on honor_bound / pragmatic / self_serving / zealot /

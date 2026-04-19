@@ -578,6 +578,105 @@ async def _cmd_memory_show(args: argparse.Namespace) -> int:
     return 0
 
 
+async def _cmd_trajectory_show(args: argparse.Namespace) -> int:
+    """Show an NPC's current relationship-trajectory waypoint."""
+    from .memory import MemoryStore
+    from .schemas import load_npcs
+    from .trajectory import evaluate_trajectory, summarize_trajectory
+
+    demo_dir: Path = args.demo_dir
+    npcs = {n.id: n for n in load_npcs(demo_dir / "characters.yaml")}
+    if args.npc not in npcs:
+        print(f"Unknown npc id: {args.npc}", file=sys.stderr)
+        return 1
+    npc = npcs[args.npc]
+    if npc.trajectory is None:
+        print(f"{npc.id} has no trajectory declared.")
+        return 0
+
+    store = MemoryStore.load(demo_dir / "memory.json")
+    reading = evaluate_trajectory(npc, store)
+    if reading is None:
+        print(f"{npc.id}: (no trajectory)")
+        return 0
+
+    if args.json:
+        print(json.dumps({
+            "npc_id": npc.id,
+            "score": reading.score,
+            "current": (
+                reading.current.model_dump() if reading.current else None
+            ),
+            "next": (
+                reading.next_waypoint.model_dump()
+                if reading.next_waypoint else None
+            ),
+            "distance_to_next": reading.distance_to_next,
+            "top_events": [
+                {"event_type": t, "summary": s, "delta": d}
+                for t, s, d in reading.top_events
+            ],
+            "waypoints": [w.model_dump() for w in npc.trajectory.waypoints],
+        }, indent=2))
+        return 0
+
+    print(f"{npc.id}: score {reading.score:+.3f}")
+    print(f"  waypoints:")
+    sorted_wps = sorted(npc.trajectory.waypoints, key=lambda w: w.min_score)
+    for w in sorted_wps:
+        marker = "★" if reading.current and w.id == reading.current.id else " "
+        print(f"    {marker} [{w.min_score:+.2f}] {w.label} ({w.id})")
+    if reading.current is None:
+        print(f"  current: (below lowest — score {reading.score:+.3f} "
+              f"< min {sorted_wps[0].min_score:+.2f})")
+    else:
+        print(f"  current: {reading.current.label}")
+    if reading.next_waypoint:
+        print(f"  next: {reading.next_waypoint.label} "
+              f"(needs +{reading.distance_to_next:.2f})")
+    if reading.top_events:
+        print(f"  top-weighted events:")
+        for e, s, d in reading.top_events:
+            print(f"    {d:+.3f}  {e} — {s.strip()}")
+    return 0
+
+
+async def _cmd_trajectory_simulate(args: argparse.Namespace) -> int:
+    """Preview where an NPC would land given synthetic events."""
+    from .memory import MemoryStore
+    from .schemas import load_npcs
+    from .trajectory import evaluate_trajectory
+
+    demo_dir: Path = args.demo_dir
+    npcs = {n.id: n for n in load_npcs(demo_dir / "characters.yaml")}
+    if args.npc not in npcs:
+        print(f"Unknown npc id: {args.npc}", file=sys.stderr)
+        return 1
+    npc = npcs[args.npc]
+    if npc.trajectory is None:
+        print(f"{npc.id} has no trajectory declared.")
+        return 0
+
+    store = MemoryStore()
+    turn = 0
+    for event_type in _split_csv(args.events or ""):
+        turn += 1
+        store.record(
+            npc_id=npc.id, event_type=event_type,
+            summary=f"synthetic {event_type}",
+            salience="notable", turn=turn,
+        )
+    store.current_turn = turn
+    reading = evaluate_trajectory(npc, store)
+    print(f"simulated {npc.id} with events: {args.events}")
+    print(f"  score: {reading.score:+.3f}")
+    print(f"  current: {reading.current.label if reading.current else '(below lowest)'}")
+    if reading.next_waypoint:
+        print(f"  next: {reading.next_waypoint.label} "
+              f"(needs +{reading.distance_to_next:.2f})")
+    return 0
+
+
 async def _cmd_ethics_judge(args: argparse.Namespace) -> int:
     """Preview the NPC's ethical reading of the player against the
     current memory store. Read-only — writes nothing."""
@@ -1013,6 +1112,12 @@ async def _cmd_improv(args: argparse.Namespace) -> int:
         reading = evaluate_player_against_npc(npc, store)
         ethical_reading_block = summarize_ethical_reading(npc, reading)
 
+    from .trajectory import evaluate_trajectory, summarize_trajectory
+    trajectory_block = ""
+    if store is not None and npc.trajectory is not None:
+        t_reading = evaluate_trajectory(npc, store)
+        trajectory_block = summarize_trajectory(npc, t_reading)
+
     reply = await improv_query(
         npc=npc,
         query=args.query,
@@ -1027,6 +1132,7 @@ async def _cmd_improv(args: argparse.Namespace) -> int:
         player_profile_block=player_profile_block,
         active_lenses=active_lenses,
         ethical_reading_block=ethical_reading_block,
+        trajectory_block=trajectory_block,
     )
     if reply is None:
         print("improv failed — see log warnings.", file=sys.stderr)
@@ -1535,6 +1641,40 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p_mr.add_argument("--advance", type=int, default=0,
                       help="Advance turn counter before recording (default 0).")
     p_mr.set_defaults(func=_cmd_memory_record)
+
+    # ---- trajectory (v0.17.0) ----
+    p_t = subs.add_parser(
+        "trajectory",
+        help=(
+            "Inspect / simulate an NPC's relationship trajectory with "
+            "the player — current waypoint, score, distance to next."
+        ),
+    )
+    p_t_sub = p_t.add_subparsers(dest="trajectory_command", required=True)
+
+    p_t_show = p_t_sub.add_parser(
+        "show",
+        help="Print the NPC's trajectory + current waypoint against memory.json.",
+    )
+    p_t_show.add_argument("--demo-dir", type=Path, required=True)
+    p_t_show.add_argument("--npc", required=True)
+    p_t_show.add_argument("--json", action="store_true")
+    p_t_show.set_defaults(func=_cmd_trajectory_show)
+
+    p_t_sim = p_t_sub.add_parser(
+        "simulate",
+        help=(
+            "Preview where the NPC would land given a sequence of "
+            "hypothetical event_types — useful for tuning thresholds."
+        ),
+    )
+    p_t_sim.add_argument("--demo-dir", type=Path, required=True)
+    p_t_sim.add_argument("--npc", required=True)
+    p_t_sim.add_argument(
+        "--events", required=True,
+        help="Comma-separated event_types: 'gift_given,secret_shared,player_lied'.",
+    )
+    p_t_sim.set_defaults(func=_cmd_trajectory_simulate)
 
     # ---- ethics (v0.16.0) ----
     p_e = subs.add_parser(

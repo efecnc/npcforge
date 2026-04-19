@@ -175,6 +175,7 @@ def build_improv_system_prompt(
     player_profile_block: str = "",
     active_lenses: Optional[list[VoiceLens]] = None,
     ethical_reading_block: str = "",
+    trajectory_block: str = "",
 ) -> str:
     """System prompt for one improvised reply.
 
@@ -239,6 +240,8 @@ def build_improv_system_prompt(
             blocks.append(lens_block)
     if ethical_reading_block.strip():
         blocks.append(ethical_reading_block.strip())
+    if trajectory_block.strip():
+        blocks.append(trajectory_block.strip())
     return "\n\n".join(blocks) + "\n"
 
 
@@ -302,6 +305,7 @@ async def improv_query(
     player_profile_block: str = "",
     active_lenses: Optional[list[VoiceLens]] = None,
     ethical_reading_block: str = "",
+    trajectory_block: str = "",
 ) -> ImprovReply | None:
     """Run one improv call. Returns None on failure (callers fall back).
 
@@ -320,6 +324,7 @@ async def improv_query(
         player_profile_block=player_profile_block,
         active_lenses=active_lenses,
         ethical_reading_block=ethical_reading_block,
+        trajectory_block=trajectory_block,
     )
 
     # Imported here to avoid dragging the afterimage providers into

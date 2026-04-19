@@ -353,6 +353,12 @@ _BASE_RULES = (
     "    that fed it, never lecture or moralise. A withdrawn register, a slower greeting,\n"
     "    a closed-off posture conveyed in word choice — that's what a quiet observer\n"
     "    does when they've seen enough. Do not recite your ethical axes to the player.\n"
+    "16. If a 'Relationship trajectory' block names your current waypoint with this\n"
+    "    player, let it shape warmth, depth of disclosure, and willingness to meet the\n"
+    "    player's eyes. Never say the waypoint name aloud; never narrate the progression\n"
+    "    ('we've grown closer' is out). A stranger-waypoint greeting is terse and\n"
+    "    boundaried; a confidant-waypoint greeting assumes shared history without naming\n"
+    "    it. Knowledge ids listed under the waypoint's unlocks override their own gates.\n"
 )
 
 
@@ -364,6 +370,7 @@ def build_npc_respondent_prompt(
     player_profile_block: str = "",
     active_lenses: list[VoiceLens] | None = None,
     ethical_reading_block: str = "",
+    trajectory_block: str = "",
 ) -> str:
     """System prompt for the Respondent (NPC) side of a walk-up dialog.
 
@@ -397,6 +404,8 @@ def build_npc_respondent_prompt(
         blocks.append(lens_block)
     if ethical_reading_block.strip():
         blocks.append(ethical_reading_block.strip())
+    if trajectory_block.strip():
+        blocks.append(trajectory_block.strip())
     return "\n\n".join(blocks) + "\n"
 
 

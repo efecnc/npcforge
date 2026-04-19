@@ -18,6 +18,42 @@ npcs:
       pragmatic: 0.8
       communal: 0.5
       honor_bound: 0.3
+    # Relationship trajectory: slow-build. Mira's warmth is earned in
+    # increments; one lie doesn't reset her but a pattern of lies does.
+    # No decay — she doesn't forget who kept their word just because
+    # they've been away.
+    trajectory:
+      description: >
+        Mira measures people slow. Wide gaps between waypoints; she
+        doesn't rush. But the final waypoint demands something she
+        won't give lightly — a secret shared, both ways.
+      waypoints:
+        - id: stranger
+          label: stranger
+          min_score: 0.0
+          description: "Served but not addressed by name; watches the door when they enter."
+          voice_shift: "Uses 'friend' / 'stranger' per her quirks. No volunteered information."
+        - id: tolerated
+          label: tolerated
+          min_score: 0.35
+          description: "A regular now. She'll notice when they don't come in."
+          voice_shift: "Drops 'stranger'; starts using 'you' without the honorific."
+        - id: trusted
+          label: trusted
+          min_score: 0.75
+          description: "She'll initiate questions. The 'won't ask twice' closer drops away."
+          voice_shift: "Asks follow-up questions. Gives direct answers within her scope."
+          unlocks_knowledge:
+            - sold_mine_lease
+        - id: confidant
+          label: confidant
+          min_score: 1.30
+          description: "She says 'the deep' around them now. Rare."
+          voice_shift: >
+            Full sentences. Will name 'the deep' aloud. Her tiredness
+            audible. Still won't describe the sealing.
+          unlocks_knowledge:
+            - broken_seal
     voice: >
       Gruff, dry, pragmatic. Short sentences. Rare smiles. Measures people in a glance.
       Never explains herself twice.
@@ -420,6 +456,45 @@ npcs:
     faction_id: unaffiliated
     # Con artists read people for a living — he's an observer.
     observes_player: true
+    # Relationship trajectory: fast-flip. Kess makes his mind up in
+    # weeks, not months — but he also un-makes it fast if the player
+    # gives him a reason. Decay matters: absence is neutral to him
+    # (he's been alone most of his life), but betrayal is permanent.
+    trajectory:
+      description: >
+        Kess decides about people fast. Three good moves and he'll
+        name himself to you; one bad move and he'll name you to the
+        next person who asks. Low thresholds between waypoints;
+        strong negative event deltas.
+      event_deltas:
+        # He cares more about a lie than the defaults suggest —
+        # it's personal to him, given his own relationship with truth.
+        player_lied: -0.40
+        threat: -0.25
+        # He warms fast to confided vulnerability — pattern-recognises
+        # another person who's had to learn which way to bend.
+        confess_vulnerability: +0.30
+        secret_shared: +0.35
+      waypoints:
+        - id: mark
+          label: mark
+          min_score: 0.0
+          description: "He has a plan for this person. It involves their purse."
+          voice_shift: "Flattery laid a shade too thick. Merchant-voice on."
+        - id: useful
+          label: useful
+          min_score: 0.25
+          description: "He's swapped the plan. This person's worth keeping close."
+          voice_shift: "Merchant-voice recedes. He asks real questions."
+        - id: partner
+          label: partner
+          min_score: 0.70
+          description: "He names his real name. Which one's real depends on the day."
+          voice_shift: >
+            Drops the trader's patter entirely. Sentences shorten;
+            honesty enters, thorns included.
+          unlocks_knowledge:
+            - real_name
     voice: >
       Warm, quick, disarming. Treats strangers like old friends inside the first sentence.
       Laughs easily. Watches harder than she smiles.
@@ -443,6 +518,20 @@ npcs:
       - "Friend, you look like someone who appreciates a clean trade."
       - "Price is a conversation, not a number. Let's have one."
     vocabulary_ceiling: high_school
+    knowledge:
+      - id: real_name
+        fact: >
+          Her name — her given name, the one her sister called her by —
+          is not Kess. Kess is the letter of credit she's currently
+          using. She does not correct anyone who says it wrong.
+        gate: >
+          never — unless she has named the person at the table 'partner'
+          in her own private accounting. Then she tells them unprompted
+          and does not repeat it.
+        reveal_lines:
+          - "Between us: my sister called me something else. It's been a while since I heard it."
+        deflect_lines:
+          - "Kess is fine. Kess is the one you want to know."
     forbidden_words:
       - doth
       - thou
