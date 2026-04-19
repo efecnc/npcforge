@@ -169,9 +169,44 @@ class LineBank(BaseModel):
     def to_json(self, indent: int = 2) -> str:
         return self.model_dump_json(indent=indent)
 
+    def to_unity_json(self, indent: int = 2) -> str:
+        """Emit a JsonUtility-friendly layout for the Unity runtime.
+
+        Unity's built-in deserialiser can't handle ``dict<string, X>``.
+        We reshape ``slots`` and ``variants`` into lists of keyed structs
+        so ``NpcForgeLineBank`` can round-trip via ``JsonUtility.FromJson``.
+        The native ``to_json`` output stays dict-shaped for Python-side
+        tooling.
+        """
+        payload = {
+            "schema_version": self.schema_version,
+            "npc_id": self.npc_id,
+            "slot_entries": [
+                {"key": sid, "slot": slot.model_dump()}
+                for sid, slot in self.slots.items()
+            ],
+            "variant_entries": [
+                {
+                    "key": sid,
+                    "list": [v.model_dump() for v in vs],
+                }
+                for sid, vs in self.variants.items()
+            ],
+        }
+        return json.dumps(payload, indent=indent, ensure_ascii=False)
+
     def save(self, path: Path) -> None:
+        """Write both the native and Unity-friendly JSON files.
+
+        ``path`` gets the native (dict-shaped) payload; a sibling file
+        with the ``.unity.json`` suffix gets the list-shaped payload.
+        The Unity runtime reads the ``.unity.json`` file; the npcforge
+        CLI + Editor read the native one.
+        """
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(self.to_json(), encoding="utf-8")
+        unity_path = path.with_suffix(".unity.json")
+        unity_path.write_text(self.to_unity_json(), encoding="utf-8")
 
     @classmethod
     def load(cls, path: Path) -> "LineBank":

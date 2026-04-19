@@ -2,6 +2,55 @@
 
 Versions follow the Unity package, not the npcforge Python package.
 
+## [1.3.0] — 2026-04-19
+
+Disposition-curated line banks in the runtime — ambient dialogue
+without an LLM call in the hot path. Matches Python's v0.11.0
+release.
+
+### Added — Runtime
+
+- **`NpcForgeLineBank`** — MonoBehaviour that loads a pre-generated
+  bank JSON (Python's ``*.unity.json`` companion file) and picks
+  context-matched variants per turn. Ranking mirrors Python's
+  ``select_line`` exactly: more specific tag matches beat generic
+  fallbacks, salience_boost breaks equal-specificity ties, an LRU
+  cache (configurable ``lruSize``) avoids repeats.
+- Context projection (``NpcForgeLineContext`` struct) — closed
+  vocabulary ``{ disposition_tier, arc_stage, mood,
+  recent_event_type, time_of_day, faction_present }`` mirroring
+  Python's dimensions.
+- ``ImportBankJson(string)`` accepts the Python side's
+  ``LineBank.to_unity_json()`` output so one bank definition drives
+  both runtimes without duplicated authoring.
+- ``onLinePicked(slotId, text)`` UnityEvent for analytics / UI hooks.
+
+### Verified
+
+- 59 / 59 EditMode tests pass in Unity 6000.4.3f1 — 49 prior plus
+  10 new covering JSON import, missing-slot fallback, generic-
+  fallback matching, specificity ranking, salience tie-break, LRU
+  avoidance, event firing, tag-match predicate edge cases.
+- Python-side 229 tests pass; the JSON shape shared between engines
+  is exercised by both suites.
+
+### Upgrading from 1.2.0
+
+Remove + re-add from the Package Manager git URL. Wiring for a new
+NPC:
+
+1. Generate a bank with ``npcforge gen lines --npc X --slot-id Y
+   --axes disposition_tier=... time_of_day=...``. Python writes
+   both the native and ``*.unity.json`` files.
+2. Drop the ``*.unity.json`` file into ``Assets/`` (or anywhere
+   under ``Application.persistentDataPath``).
+3. Drop ``NpcForgeLineBank`` on the NPC GameObject and assign the
+   TextAsset reference. Optionally assign ``NpcForgeMemoryStore`` /
+   ``NpcForgeFactionStanding`` / ``NpcForgeArcTracker`` to source
+   the context in gameplay code.
+
+---
+
 ## [1.2.0] — 2026-04-19
 
 Campaign-scale character arcs in the runtime, matching Python's
