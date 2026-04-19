@@ -578,6 +578,55 @@ async def _cmd_memory_show(args: argparse.Namespace) -> int:
     return 0
 
 
+async def _cmd_improv(args: argparse.Namespace) -> int:
+    """One-shot improv call — ask an NPC something off-script."""
+    from .improv import improv_query
+    from .memory import MemoryStore
+    from .schemas import (
+        load_factions,
+        load_npcs,
+        load_world_bible,
+        validate_npc_factions,
+    )
+
+    demo_dir: Path = args.demo_dir
+    npcs = {n.id: n for n in load_npcs(demo_dir / "characters.yaml")}
+    factions = load_factions(demo_dir / "factions.yaml")
+    validate_npc_factions(list(npcs.values()), factions)
+    if args.npc not in npcs:
+        print(f"Unknown npc id: {args.npc}", file=sys.stderr)
+        return 1
+    npc = npcs[args.npc]
+    world_bible = load_world_bible(demo_dir / "lore")
+
+    store = MemoryStore.load(demo_dir / "memory.json")
+    if store.events == [] and (demo_dir / "memory.json").exists() is False:
+        store = None  # fully absent vs. empty-on-disk
+
+    key = _resolve_api_key(args.provider, args.api_key_env)
+    reply = await improv_query(
+        npc=npc,
+        query=args.query,
+        world_bible=world_bible,
+        factions=factions,
+        memory_store=store,
+        api_key=key,
+        model_name=args.model,
+        model_provider_name=args.provider,
+        top_k_lore=args.top_k_lore,
+        temperature=args.temperature,
+    )
+    if reply is None:
+        print("improv failed — see log warnings.", file=sys.stderr)
+        return 1
+    print(f"{npc.name}: {reply.text}")
+    if reply.used_gate_id:
+        print(f"  (revealed gated knowledge: {reply.used_gate_id})")
+    if reply.declined_reason:
+        print(f"  (declined: {reply.declined_reason})")
+    return 0
+
+
 async def _cmd_gen_lines(args: argparse.Namespace) -> int:
     """Generate a disposition-curated line bank for one NPC + slot."""
     from .line_bank import LineBank, LineSlot, bank_coverage_report
@@ -1074,6 +1123,24 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p_mr.add_argument("--advance", type=int, default=0,
                       help="Advance turn counter before recording (default 0).")
     p_mr.set_defaults(func=_cmd_memory_record)
+
+    # ---- improv (v0.12.0) ----
+    p_imp = subs.add_parser(
+        "improv",
+        help=(
+            "Ask an NPC an off-script question. Lore-retrieval-augmented, "
+            "single-turn, structured output. Uses one LLM call per query."
+        ),
+    )
+    p_imp.add_argument("--demo-dir", type=Path, required=True)
+    p_imp.add_argument("--npc", required=True)
+    p_imp.add_argument("--query", required=True,
+                       help="The player's question.")
+    p_imp.add_argument("--top-k-lore", type=int, default=3,
+                       help="Number of lore chunks to retrieve (default 3).")
+    p_imp.add_argument("--temperature", type=float, default=0.8)
+    _add_llm_flags(p_imp)
+    p_imp.set_defaults(func=_cmd_improv)
 
     # ---- gen lines (v0.11.0) ----
     p_gl = p_gen_sub.add_parser(
