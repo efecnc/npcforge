@@ -2,6 +2,57 @@
 
 Versions follow the Unity package, not the npcforge Python package.
 
+## [1.2.0] — 2026-04-19
+
+Campaign-scale character arcs in the runtime, matching Python's
+v0.10.0 release. NPCs now evolve across the whole campaign, not
+just within a single scene, driven by a structured evaluator over
+the v0.9 MemoryStore + FactionStanding components.
+
+### Added — Runtime
+
+- **`NpcForgeArcTracker`** — per-NPC MonoBehaviour that holds an
+  ordered list of `NpcForgeArcStage`s and computes which ones are
+  currently active given the memory store and faction standings.
+  - `ActiveStages()` returns the cumulative stack (stage N active
+    implies stages 0..N-1 too) so callers can compose voice shifts
+    for presentation logic.
+  - `NewlyLatchableStages()` returns stages whose trigger is newly
+    satisfied; `CommitLatches()` persists those back into the
+    memory store as `arc_latched` events and fires `onStageLatched`.
+  - `ImportArcJson(string)` accepts the Python side's
+    `NpcArc.model_dump_json()` so one source of truth can drive
+    both sides.
+- **`NpcForgeTriggerSpec`** — serialised mirror of Python's
+  `TriggerSpec`: `min_pivotal_events`, `min_total_events`,
+  `required_event_types`, `min_standing` / `max_standing` per
+  faction, `custom_condition` (narrative gate the runtime ignores
+  and the LLM applies).
+- **`NpcForgeArcStage`** / **`NpcForgeArcSpec`** — data containers
+  with JSON layouts compatible with the Python schemas.
+
+### Verified
+
+- 49 / 49 EditMode tests pass in Unity 6000.4.3f1 — 39 prior plus
+  10 new covering baseline activation, min_total_events triggers,
+  faction-shared event folding, standing floors, latch persistence
+  + event firing, latch records excluded from counting, always-
+  active baseline skipped by NewlyLatchable, JSON import.
+- Python-side 211 tests pass; the JSON shape shared between
+  engines is exercised by both suites.
+
+### Upgrading from 1.1.0
+
+Remove + re-add from the Package Manager git URL. The new tracker
+component is additive; existing memory and faction-standing
+components are untouched. Typical wiring: drop one
+`NpcForgeArcTracker` per major NPC, assign its `NpcForgeMemoryStore`
+and (if any stage gates on faction) `NpcForgeFactionStanding`
+references, and either author stages in the Inspector or paste the
+JSON from `npcforge arc show --npc X --json`.
+
+---
+
 ## [1.1.0] — 2026-04-18
 
 Social graph foundation in the runtime, matching the v0.9.0 Python
