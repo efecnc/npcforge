@@ -2,6 +2,58 @@
 
 Versions follow the Unity package, not the npcforge Python package.
 
+## [1.7.0] — 2026-04-19
+
+Runtime unseen-character registry, matching Python v0.15.0. Tracks
+mentioned-but-never-met NPCs across sessions so when the player
+finally encounters one, the offline `npcforge unseen materialize`
+CLI can generate a sheet consistent with every recorded mention.
+
+### Added — Runtime
+
+- **`NpcForgeUnseenRegistry`** — MonoBehaviour holding
+  `NpcForgeUnseenCharacter[]` slots with declared-up-front
+  canonical ids and accumulating `NpcForgeMentionRecord` entries.
+  - `Declare(canonicalId, hint, role)` — idempotent slot creation
+  - `RecordMention(canonicalId, sourceNpcId, context, turn, scene?)` —
+    appends; throws if slot not declared (typos fail loud)
+  - `StillUnseen(canonicalId)` / `MarkMaterialised(canonicalId, newNpcId)` —
+    slot lifecycle
+  - `onSlotDeclared` / `onMentionRecorded` UnityEvents
+- **Byte-compatible JSON with Python** — Unity emits Python's
+  dict-keyed `{"characters": {...}}` shape by hand and reads it back
+  with a small regex-based parser (same pattern NpcForgePlayerProfile
+  uses). One registry file feeds both runtimes.
+
+### Verified
+
+- 105 / 105 EditMode tests pass in Unity 6000.4.3f1 — 95 prior plus
+  10 new covering declare idempotency, record-requires-declare,
+  event firing, still-unseen lifecycle, full save/load round-trip,
+  reading a Python-emitted file, missing-file no-op, escaped-quote
+  tolerance in the parser.
+- Python 296 tests still pass; the JSON shape round-trips cleanly
+  between the two runtimes.
+
+### Upgrading from 1.6.0
+
+Remove + re-add from the Package Manager git URL. Typical wiring:
+
+1. Drop `NpcForgeUnseenRegistry` on a persistent GameObject.
+2. At game start, call `Declare("borin_of_grindholt", "Borin",
+   "dwarven foreman")` for each character your writers know they'll
+   introduce by name later.
+3. When scripted dialogue or improv replies mention them, call
+   `RecordMention(canonicalId, sourceNpcId, context, turn)` so the
+   slot accumulates canon.
+4. When it's time to materialise — after player encounters the
+   character — run `npcforge unseen materialize --id <id> --commit`
+   on the Python side (reads the same JSON Unity wrote).
+5. Back in Unity, call `MarkMaterialised(canonicalId, newNpcId)` to
+   stop accumulating mentions against a now-realised slot.
+
+---
+
 ## [1.6.0] — 2026-04-19
 
 Runtime voice lens tracking, matching Python v0.14.0. An NPC's voice
