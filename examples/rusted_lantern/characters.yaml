@@ -337,6 +337,8 @@ npcs:
     # Kess is drifting; no faction claims him. Standing-shifts with him
     # won't ripple outward, which is exactly the story his arc needs.
     faction_id: unaffiliated
+    # Con artists read people for a living — he's an observer.
+    observes_player: true
     voice: >
       Warm, quick, disarming. Treats strangers like old friends inside the first sentence.
       Laughs easily. Watches harder than she smiles.
@@ -383,6 +385,8 @@ npcs:
     name: "Ulrik"
     role: "Old man reading star-maps by the fire"
     faction_id: lantern_regulars
+    # Ulrik sees people the way he reads star-maps. Observer role.
+    observes_player: true
     voice: >
       Slow, patient, answers questions with questions. Drops into sudden precision
       when the conversation stops being small.

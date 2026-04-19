@@ -438,6 +438,21 @@ class NpcSheet(BaseModel):
     # the respondent prompt so generated dialogue reflects the shift.
     state_evolution: list[StateEvolution] = Field(default_factory=list)
 
+    # Observer opt-in (v0.13.0 — player modeling). When True, this NPC's
+    # respondent prompt gets a summarised PlayerProfile block so the LLM
+    # can reference the player's conversational pattern (aggressive,
+    # patient, deceptive, etc.) when it fits. Off by default — only
+    # pick 1-3 observers per cast; more dilutes the effect.
+    observes_player: bool = Field(
+        default=False,
+        description=(
+            "If True, the respondent prompt receives a 'Player pattern' "
+            "block derived from the PlayerProfile. Turn on only for the "
+            "socially-observant members of the cast — the ones whose "
+            "story role is noticing people."
+        ),
+    )
+
     # Campaign-scale character arc (v0.10.0). Optional ordered path of
     # stages the NPC moves through based on structured triggers against
     # the memory store + faction standings. Composes with (does not

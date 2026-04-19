@@ -578,6 +578,72 @@ async def _cmd_memory_show(args: argparse.Namespace) -> int:
     return 0
 
 
+async def _cmd_player_show(args: argparse.Namespace) -> int:
+    """Print the player profile. Top axes first, weights rounded."""
+    from .player_profile import PlayerProfile
+
+    demo_dir: Path = args.demo_dir
+    path = demo_dir / "player_profile.json"
+    profile = PlayerProfile.load(path)
+    if args.json:
+        print(profile.to_json())
+        return 0
+    print(f"player profile: {path} (updated_at_turn={profile.updated_at_turn})")
+    if not profile.axes:
+        print("  (no observations yet)")
+        return 0
+    for axis, weight in sorted(profile.axes.items(), key=lambda kv: kv[1], reverse=True):
+        bar = "█" * int(weight * 20)
+        print(f"  {axis:<14}  {weight:0.2f}  {bar}")
+    return 0
+
+
+async def _cmd_player_rebuild(args: argparse.Namespace) -> int:
+    """Regenerate the profile from scratch against the memory store."""
+    from .memory import MemoryStore
+    from .player_profile import rebuild_from_store
+
+    demo_dir: Path = args.demo_dir
+    store = MemoryStore.load(demo_dir / "memory.json")
+    profile = rebuild_from_store(
+        store.events,
+        decay_rate=args.decay_rate,
+    )
+    profile.updated_at_turn = store.current_turn
+    path = demo_dir / "player_profile.json"
+    profile.save(path)
+    print(f"player profile rebuilt from {len(store.events)} events → {path}")
+    if profile.axes:
+        for axis, weight in sorted(
+            profile.axes.items(), key=lambda kv: kv[1], reverse=True
+        ):
+            print(f"  {axis:<14}  {weight:0.2f}")
+    return 0
+
+
+async def _cmd_player_update(args: argparse.Namespace) -> int:
+    """Apply one event to the profile. Useful for scripting demos."""
+    from .player_profile import DEFAULT_AXIS_DELTAS, PlayerProfile, apply_event
+
+    demo_dir: Path = args.demo_dir
+    path = demo_dir / "player_profile.json"
+    profile = PlayerProfile.load(path)
+    if args.event_type not in DEFAULT_AXIS_DELTAS:
+        print(
+            f"warn: event_type '{args.event_type}' has no default axis delta — "
+            f"profile unchanged. Known types: "
+            f"{sorted(DEFAULT_AXIS_DELTAS)}",
+            file=sys.stderr,
+        )
+        return 1
+    apply_event(profile, args.event_type)
+    profile.save(path)
+    print(f"applied {args.event_type}. axes now:")
+    for axis, weight in sorted(profile.axes.items(), key=lambda kv: kv[1], reverse=True):
+        print(f"  {axis:<14}  {weight:0.2f}")
+    return 0
+
+
 async def _cmd_export_improv_context(args: argparse.Namespace) -> int:
     """Emit a JSON context bundle one NPC needs for improv at runtime.
 
@@ -656,8 +722,9 @@ async def _cmd_export_improv_context(args: argparse.Namespace) -> int:
 
 async def _cmd_improv(args: argparse.Namespace) -> int:
     """One-shot improv call — ask an NPC something off-script."""
-    from .improv import improv_query
+    from .improv import build_improv_system_prompt, improv_query, retrieve_lore_chunks
     from .memory import MemoryStore
+    from .player_profile import PlayerProfile, summarize_for_observer
     from .schemas import (
         load_factions,
         load_npcs,
@@ -679,18 +746,37 @@ async def _cmd_improv(args: argparse.Namespace) -> int:
     if store.events == [] and (demo_dir / "memory.json").exists() is False:
         store = None  # fully absent vs. empty-on-disk
 
-    key = _resolve_api_key(args.provider, args.api_key_env)
+    profile_path = demo_dir / "player_profile.json"
+    profile = PlayerProfile.load(profile_path)
+    player_profile_block = (
+        summarize_for_observer(profile) if profile.axes else ""
+    )
+
+    # Retrieve + compose + call. Done with improv_query helper, but we
+    # override the system prompt so the observer block can thread through.
+    chunks = retrieve_lore_chunks(args.query, world_bible, top_k=args.top_k_lore)
+    # When profile block is non-empty AND npc is an observer, use the
+    # full builder so the block lands correctly.
+    system_prompt = build_improv_system_prompt(
+        npc,
+        lore_chunks=chunks,
+        factions=factions,
+        memory_store=store,
+        player_profile_block=player_profile_block,
+    )
+    _ = system_prompt  # kept for diagnostic; improv_query rebuilds internally
     reply = await improv_query(
         npc=npc,
         query=args.query,
         world_bible=world_bible,
         factions=factions,
         memory_store=store,
-        api_key=key,
+        api_key=_resolve_api_key(args.provider, args.api_key_env),
         model_name=args.model,
         model_provider_name=args.provider,
         top_k_lore=args.top_k_lore,
         temperature=args.temperature,
+        player_profile_block=player_profile_block,
     )
     if reply is None:
         print("improv failed — see log warnings.", file=sys.stderr)
@@ -1199,6 +1285,44 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p_mr.add_argument("--advance", type=int, default=0,
                       help="Advance turn counter before recording (default 0).")
     p_mr.set_defaults(func=_cmd_memory_record)
+
+    # ---- player (v0.13.0) ----
+    p_pl = subs.add_parser(
+        "player",
+        help=(
+            "Inspect / update / rebuild the player behavioural profile "
+            "(player_profile.json). Observer NPCs receive this block."
+        ),
+    )
+    p_pl_sub = p_pl.add_subparsers(dest="player_command", required=True)
+
+    p_pl_show = p_pl_sub.add_parser("show",
+        help="Print the current profile with axis bars.")
+    p_pl_show.add_argument("--demo-dir", type=Path, required=True)
+    p_pl_show.add_argument("--json", action="store_true")
+    p_pl_show.set_defaults(func=_cmd_player_show)
+
+    p_pl_rebuild = p_pl_sub.add_parser(
+        "rebuild",
+        help=(
+            "Regenerate the profile from scratch against the memory "
+            "store's event_types — useful when writers change the "
+            "axis-delta map mid-campaign."
+        ),
+    )
+    p_pl_rebuild.add_argument("--demo-dir", type=Path, required=True)
+    p_pl_rebuild.add_argument(
+        "--decay-rate", type=float, default=0.0,
+        help="Per-event decay in [0, 1]. 0 = no decay (default).",
+    )
+    p_pl_rebuild.set_defaults(func=_cmd_player_rebuild)
+
+    p_pl_up = p_pl_sub.add_parser("update",
+        help="Apply one event (by event_type) to the profile.")
+    p_pl_up.add_argument("--demo-dir", type=Path, required=True)
+    p_pl_up.add_argument("--event-type", required=True,
+        help="e.g. 'threat', 'gift_given', 'player_lied'.")
+    p_pl_up.set_defaults(func=_cmd_player_update)
 
     # ---- export (v0.12.0) ----
     p_exp = subs.add_parser(

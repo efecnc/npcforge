@@ -296,6 +296,11 @@ _BASE_RULES = (
     "    reveal-able if the player's question calls for it). Narrative conditions described\n"
     "    in prose may further gate a stage: apply the shift only when the scene's context\n"
     "    clearly matches. Do not narrate the shift — let it show in word choice and register.\n"
+    "13. If a 'Player pattern' block is provided, it describes the player's observed\n"
+    "    conversational behaviour across prior scenes. Reference the pattern sparingly and\n"
+    "    only when it fits your line. Never list traits, never quote weight numbers, never\n"
+    "    perform the observation ('I've been watching you'). Let the recognition leak into\n"
+    "    a single line at most: 'You come in here the same way every time, friend.'\n"
 )
 
 
@@ -304,6 +309,7 @@ def build_npc_respondent_prompt(
     factions: FactionsConfig | None = None,
     memory_summary: str = "",
     arc_stages: list[ActiveStage] | None = None,
+    player_profile_block: str = "",
 ) -> str:
     """System prompt for the Respondent (NPC) side of a walk-up dialog.
 
@@ -330,6 +336,8 @@ def build_npc_respondent_prompt(
     arc_block = _render_arc_stages(arc_stages or [])
     if arc_block:
         blocks.append(arc_block)
+    if player_profile_block.strip() and npc.observes_player:
+        blocks.append(player_profile_block.strip())
     return "\n\n".join(blocks) + "\n"
 
 

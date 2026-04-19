@@ -1,0 +1,8 @@
+{
+  "schema_version": "1",
+  "updated_at_turn": 0,
+  "axes": {
+    "aggressive": 0.55,
+    "curious": 0.15000000000000002
+  }
+}
