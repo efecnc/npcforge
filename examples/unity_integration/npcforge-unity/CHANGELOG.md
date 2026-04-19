@@ -2,6 +2,61 @@
 
 Versions follow the Unity package, not the npcforge Python package.
 
+## [1.8.0] — 2026-04-19
+
+Runtime ethical reader, matching Python v0.16.0. Each NPC can carry
+a hidden ethical profile (honor_bound / pragmatic / self_serving /
+zealot / communal); the reader judges the player's accumulated
+memory events through THAT NPC's values and produces the prompt
+block observer NPCs use to shift tone without narrating the
+judgment.
+
+### Added — Runtime
+
+- **`NpcForgeEthicalProfile`** — serialised weight vector over the
+  five axes (sliders in the Inspector), matching Python's schema.
+- **`NpcForgeEthicsReader`** — per-NPC MonoBehaviour. Reads from
+  `NpcForgeMemoryStore` (direct + faction-shared events), weights
+  each event's axis-delta by this NPC's stance, returns an
+  `NpcForgeEthicalReading` (score, per-axis contributions,
+  top-weighted events).
+- **`DefaultEventJudgements`** — static per-event-type × per-axis
+  delta table mirroring Python's `DEFAULT_EVENT_JUDGEMENTS` line-
+  for-line (16 event types: hostile, honorable, transactional,
+  curious, theatrical).
+- **`SummarizeReading()`** — produces the prompt block with
+  verdict (net approving / disapproving / mixed), dominant axes,
+  top events, and the same closing guard clause Python emits ("no
+  lectures, no moralising, no listing of transgressions").
+
+### Verified
+
+- 116 / 116 EditMode tests pass in Unity 6000.4.3f1 — 105 prior plus
+  11 new (profile weight + dominant axes, evaluator: empty-store
+  no-op, zealot-vs-pragmatic divergence, honor-bound approval,
+  faction folding, unknown-event silence, top-events abs-sort,
+  summariser empty + populated, verdict threshold classification).
+- Python 314 tests still pass; the judgement table values match on
+  both sides for every event type covered.
+
+### Upgrading from 1.7.0
+
+Remove + re-add from the Package Manager git URL. Typical wiring:
+
+1. Drop `NpcForgeEthicsReader` on each NPC GameObject that should
+   judge the player.
+2. Set the profile axis sliders in the Inspector (or leave at 0
+   for NPCs with no ethical stance — the reader returns an empty
+   block for those).
+3. Wire the `memoryStore` reference to the NPC's
+   `NpcForgeMemoryStore` + set `npcId` + faction ids.
+4. Before a scripted dialogue or improv request, call
+   `reader.SummarizeReading()` and splice the result into the
+   prompt context alongside `SummarizeForObserver` (from the
+   player profile).
+
+---
+
 ## [1.7.0] — 2026-04-19
 
 Runtime unseen-character registry, matching Python v0.15.0. Tracks
