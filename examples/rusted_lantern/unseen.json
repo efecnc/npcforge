@@ -1,0 +1,31 @@
+{
+  "schema_version": "1",
+  "characters": {
+    "borin_of_grindholt": {
+      "canonical_id": "borin_of_grindholt",
+      "display_name_hint": "Borin",
+      "role_hint": "dwarven foreman of the seam",
+      "mention_records": [
+        {
+          "source_npc_id": "gereth_blackstone",
+          "context": "Borin was the foreman of the seam. He took the last drink before the twelve of us went down.",
+          "turn": 3,
+          "scene_context": "scene_common_room"
+        },
+        {
+          "source_npc_id": "gereth_blackstone",
+          "context": "Borin sang the fourth verse of the long songs. He always sang it wrong.",
+          "turn": 5,
+          "scene_context": ""
+        },
+        {
+          "source_npc_id": "mira_vesser",
+          "context": "Borin still owed the Lantern two coppers when the cave-in took him.",
+          "turn": 8,
+          "scene_context": ""
+        }
+      ],
+      "materialized_as": ""
+    }
+  }
+}

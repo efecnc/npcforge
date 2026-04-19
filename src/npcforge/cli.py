@@ -578,6 +578,151 @@ async def _cmd_memory_show(args: argparse.Namespace) -> int:
     return 0
 
 
+async def _cmd_unseen_list(args: argparse.Namespace) -> int:
+    from .unseen import UnseenRegistry
+    demo_dir: Path = args.demo_dir
+    path = demo_dir / "unseen.json"
+    reg = UnseenRegistry.load(path)
+    if not reg.characters:
+        print(f"no unseen slots declared at {path}")
+        return 0
+    if args.json:
+        print(reg.to_json())
+        return 0
+    print(f"unseen registry: {path} ({len(reg.characters)} slots)")
+    for cid, u in reg.characters.items():
+        status = "materialized" if u.materialized_as else "unseen"
+        print(f"  {cid}  [{status}]  {u.display_name_hint or '(no name hint)'}"
+              + (f" → {u.materialized_as}" if u.materialized_as else ""))
+        print(f"    role_hint: {u.role_hint or '(none)'}")
+        print(f"    mentions: {len(u.mention_records)}")
+    return 0
+
+
+async def _cmd_unseen_show(args: argparse.Namespace) -> int:
+    from .unseen import UnseenRegistry, summarize_canon
+    demo_dir: Path = args.demo_dir
+    reg = UnseenRegistry.load(demo_dir / "unseen.json")
+    if args.id not in reg.characters:
+        print(f"unknown unseen id: {args.id}", file=sys.stderr)
+        return 1
+    u = reg.characters[args.id]
+    print(f"canonical_id: {u.canonical_id}")
+    print(f"display_name_hint: {u.display_name_hint or '(none)'}")
+    print(f"role_hint: {u.role_hint or '(none)'}")
+    print(f"materialized_as: {u.materialized_as or '(still unseen)'}")
+    print()
+    canon = summarize_canon(u)
+    if canon:
+        print(canon)
+    else:
+        print("(no mentions accumulated yet)")
+    return 0
+
+
+async def _cmd_unseen_declare(args: argparse.Namespace) -> int:
+    from .unseen import UnseenRegistry
+    demo_dir: Path = args.demo_dir
+    path = demo_dir / "unseen.json"
+    reg = UnseenRegistry.load(path)
+    existed = args.id in reg.characters
+    reg.declare(args.id, display_name_hint=args.name or "",
+                role_hint=args.role or "")
+    reg.save(path)
+    print(f"{'updated' if existed else 'declared'}: {args.id}")
+    return 0
+
+
+async def _cmd_unseen_record(args: argparse.Namespace) -> int:
+    from .unseen import UnseenRegistry
+    demo_dir: Path = args.demo_dir
+    path = demo_dir / "unseen.json"
+    reg = UnseenRegistry.load(path)
+    if args.id not in reg.characters:
+        print(f"unknown unseen id '{args.id}'. Declare it first with "
+              f"`npcforge unseen declare`.", file=sys.stderr)
+        return 1
+    reg.record_mention(
+        args.id,
+        source_npc_id=args.source,
+        context=args.context,
+        turn=args.turn,
+        scene_context=args.scene or "",
+    )
+    reg.save(path)
+    print(f"recorded mention of '{args.id}' from {args.source}")
+    return 0
+
+
+async def _cmd_unseen_materialize(args: argparse.Namespace) -> int:
+    """Generate a full NpcSheet for an unseen slot. Writes YAML preview
+    to stdout unless --commit (then appends to characters.yaml)."""
+    import yaml as _yaml
+    from .schemas import (
+        load_factions, load_npcs, load_world_bible, validate_npc_factions,
+    )
+    from .unseen import UnseenRegistry, materialize
+
+    demo_dir: Path = args.demo_dir
+    reg = UnseenRegistry.load(demo_dir / "unseen.json")
+    if args.id not in reg.characters:
+        print(f"unknown unseen id: {args.id}", file=sys.stderr)
+        return 1
+    unseen = reg.characters[args.id]
+
+    existing = load_npcs(demo_dir / "characters.yaml")
+    factions = load_factions(demo_dir / "factions.yaml")
+    validate_npc_factions(existing, factions)
+    world_bible = load_world_bible(demo_dir / "lore")
+
+    key = _resolve_api_key(args.provider, args.api_key_env)
+    sheet = await materialize(
+        unseen=unseen,
+        world_bible=world_bible,
+        existing_cast=existing,
+        factions=factions,
+        api_key=key,
+        model_name=args.model,
+        model_provider_name=args.provider,
+        temperature=args.temperature,
+        override_id=args.new_id or "",
+    )
+    if sheet is None:
+        print("materialisation failed — see log warnings.", file=sys.stderr)
+        return 1
+
+    # Emit the sheet as YAML for the writer to review.
+    dumped = sheet.model_dump(exclude_none=True, exclude_defaults=True)
+    yaml_text = _yaml.safe_dump([dumped], sort_keys=False,
+                                 default_flow_style=False, width=88)
+    print(yaml_text)
+
+    if args.commit:
+        chars_path = demo_dir / "characters.yaml"
+        chars_text = chars_path.read_text(encoding="utf-8")
+        # Append the new entry under the npcs: list. We look for the
+        # last `  - id:` entry and insert after its block by appending
+        # to the file with '  - id: ...' shape.
+        appendable = _yaml.safe_dump([dumped], sort_keys=False,
+                                      default_flow_style=False, width=88)
+        # YAML safe_dump renders with `- id: foo` at col 0; indent by 2.
+        indented = "\n".join(
+            ("  " + line) if line.strip() else line
+            for line in appendable.splitlines()
+        ) + "\n"
+        if not chars_text.endswith("\n"):
+            chars_text += "\n"
+        chars_path.write_text(chars_text + indented, encoding="utf-8")
+        reg.characters[args.id].materialized_as = sheet.id
+        reg.save(demo_dir / "unseen.json")
+        print(f"committed: appended to {chars_path} and marked "
+              f"'{args.id}' as materialized_as={sheet.id}")
+    else:
+        print("(dry-run — pass --commit to append to characters.yaml + "
+              "mark the slot materialised)")
+    return 0
+
+
 async def _cmd_voice_show(args: argparse.Namespace) -> int:
     """Show an NPC's voice lenses and which would be active."""
     from .schemas import (
@@ -1326,6 +1471,77 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p_mr.add_argument("--advance", type=int, default=0,
                       help="Advance turn counter before recording (default 0).")
     p_mr.set_defaults(func=_cmd_memory_record)
+
+    # ---- unseen (v0.15.0) ----
+    p_u = subs.add_parser(
+        "unseen",
+        help=(
+            "Manage unseen-character slots — mentioned-but-never-met "
+            "NPCs whose canon accumulates until the player encounters "
+            "them, at which point materialise a full sheet from canon."
+        ),
+    )
+    p_u_sub = p_u.add_subparsers(dest="unseen_command", required=True)
+
+    p_u_list = p_u_sub.add_parser("list", help="List every unseen slot.")
+    p_u_list.add_argument("--demo-dir", type=Path, required=True)
+    p_u_list.add_argument("--json", action="store_true")
+    p_u_list.set_defaults(func=_cmd_unseen_list)
+
+    p_u_show = p_u_sub.add_parser(
+        "show",
+        help="Show one slot's accumulated canon block.",
+    )
+    p_u_show.add_argument("--demo-dir", type=Path, required=True)
+    p_u_show.add_argument("--id", required=True)
+    p_u_show.set_defaults(func=_cmd_unseen_show)
+
+    p_u_decl = p_u_sub.add_parser(
+        "declare",
+        help=(
+            "Create (or update) an unseen-character slot. Idempotent — "
+            "running twice doesn't reset accumulated mentions."
+        ),
+    )
+    p_u_decl.add_argument("--demo-dir", type=Path, required=True)
+    p_u_decl.add_argument("--id", required=True,
+        help="Lower_snake_case stable id (becomes the NPC id on materialise).")
+    p_u_decl.add_argument("--name", default=None, help="Display name hint.")
+    p_u_decl.add_argument("--role", default=None, help="Role hint (one phrase).")
+    p_u_decl.set_defaults(func=_cmd_unseen_declare)
+
+    p_u_rec = p_u_sub.add_parser(
+        "record",
+        help="Record a mention against a declared slot.",
+    )
+    p_u_rec.add_argument("--demo-dir", type=Path, required=True)
+    p_u_rec.add_argument("--id", required=True, help="Unseen canonical id.")
+    p_u_rec.add_argument("--source", required=True,
+        help="NPC id who spoke the mention.")
+    p_u_rec.add_argument("--context", required=True,
+        help="One-sentence canon paraphrase.")
+    p_u_rec.add_argument("--turn", type=int, default=0)
+    p_u_rec.add_argument("--scene", default=None,
+        help="Optional scene-context tag.")
+    p_u_rec.set_defaults(func=_cmd_unseen_record)
+
+    p_u_mat = p_u_sub.add_parser(
+        "materialize",
+        help=(
+            "Generate a full NpcSheet from the accumulated canon. "
+            "Prints YAML; pass --commit to append to characters.yaml + "
+            "flag the slot materialised."
+        ),
+    )
+    p_u_mat.add_argument("--demo-dir", type=Path, required=True)
+    p_u_mat.add_argument("--id", required=True)
+    p_u_mat.add_argument("--new-id", default=None,
+        help="Override the resulting NPC id (defaults to canonical_id).")
+    p_u_mat.add_argument("--commit", action="store_true",
+        help="Append to characters.yaml + mark the slot materialised.")
+    p_u_mat.add_argument("--temperature", type=float, default=0.85)
+    _add_llm_flags(p_u_mat)
+    p_u_mat.set_defaults(func=_cmd_unseen_materialize)
 
     # ---- voice (v0.14.0) ----
     p_v = subs.add_parser(
