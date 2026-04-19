@@ -2,6 +2,60 @@
 
 Versions follow the Unity package, not the npcforge Python package.
 
+## [1.4.0] — 2026-04-19
+
+Lore-consistent improvisation runtime, matching Python v0.12.0. When
+the player asks an NPC something that wasn't pre-scripted, the client
+retrieves relevant lore paragraphs, composes a prompt, and hands it
+to a user-supplied LLM delegate. Model-agnostic by design — npcforge
+never ships a specific provider SDK; you bring your own.
+
+### Added — Runtime
+
+- **`NpcForgeImprovClient`** — MonoBehaviour that loads a JSON
+  context bundle produced by `npcforge export improv-context`,
+  performs local IDF-weighted retrieval, and coordinates with a
+  user-supplied `NpcForgeImprovLlmDelegate` to get the actual reply.
+- **Built-in retrieval** — port of Python's `retrieve_lore_chunks`
+  with the same stopword list, same IDF scoring, same fallback-
+  to-first-K behaviour. Query-to-output produces the same top-K
+  for the same input on both sides.
+- **`ComposeSystemPrompt(query)`** — exposes the fully-composed
+  prompt without issuing an LLM call. Useful for debugging,
+  prompt-budget tuning, and testing.
+- **Structured-reply parsing** — `NpcForgeImprovReply` (text,
+  used_gate_id, declined_reason) with tolerance for fenced code
+  blocks some models wrap JSON in.
+- **`onReplyReceived` / `onError` UnityEvents** for wiring dialogue
+  UI without polling.
+
+### Verified
+
+- 73 / 73 EditMode tests pass in Unity 6000.4.3f1 — 59 prior plus
+  14 new covering retrieval port (split, tokens, IDF preference,
+  novel-query fallback, stopword-only fallback), prompt
+  composition, reply parsing (raw JSON, fenced, empty/invalid),
+  and delegate-flow error paths.
+- Python 248 tests pass; the retrieval algorithm is live-verified
+  on both sides with the Rusted Lantern lore bundle.
+
+### Upgrading from 1.3.0
+
+Remove + re-add from the Package Manager git URL. To use improv:
+
+1. Run `npcforge export improv-context --demo-dir <proj> --npc X`
+   to write `<npc>_improv_context.json`.
+2. Drop the JSON into `Assets/` as a TextAsset.
+3. Add `NpcForgeImprovClient` to the NPC GameObject and assign the
+   TextAsset.
+4. In game code, call `SetLlmDelegate((systemPrompt, query, ct) =>
+   yourLlmCall(...))` once at startup — delegate returns the raw
+   JSON `ImprovReply`.
+5. Call `RequestImprov("player question")` when an off-script
+   question needs a reply; listen on `onReplyReceived`.
+
+---
+
 ## [1.3.0] — 2026-04-19
 
 Disposition-curated line banks in the runtime — ambient dialogue

@@ -578,6 +578,82 @@ async def _cmd_memory_show(args: argparse.Namespace) -> int:
     return 0
 
 
+async def _cmd_export_improv_context(args: argparse.Namespace) -> int:
+    """Emit a JSON context bundle one NPC needs for improv at runtime.
+
+    The Unity-side NpcForgeImprovClient reads this file, does retrieval
+    against the lore bundle locally, and hands the composed prompt to
+    a user-supplied LLM delegate. Keeping the character sheet rendering
+    on the Python side means the Unity runtime doesn't need to port
+    NpcSheet / Faction / KnowledgeItem rendering.
+    """
+    from .improv import build_improv_system_prompt
+    from .schemas import (
+        load_factions,
+        load_npcs,
+        load_world_bible,
+        validate_npc_factions,
+    )
+    from .prompts import render_character_sheet
+
+    demo_dir: Path = args.demo_dir
+    npcs = {n.id: n for n in load_npcs(demo_dir / "characters.yaml")}
+    factions = load_factions(demo_dir / "factions.yaml")
+    validate_npc_factions(list(npcs.values()), factions)
+    if args.npc not in npcs:
+        print(f"Unknown npc id: {args.npc}", file=sys.stderr)
+        return 1
+    npc = npcs[args.npc]
+    world_bible = load_world_bible(demo_dir / "lore")
+
+    # Pre-render the character-sheet-only part of the system prompt
+    # (everything BUT the per-query lore snippets, which Unity retrieves
+    # per-query). Callers on Unity will concatenate this with the
+    # retrieved lore snippets + rules block at runtime.
+    character_sheet_block = render_character_sheet(npc, factions=factions)
+
+    # The rules block is invariant across queries — produced once by
+    # building an improv prompt with no lore and stripping the sheet
+    # + snippets sections. We just inline the canonical rules text.
+    rules_block = (
+        "You are answering a question that wasn't pre-scripted for this "
+        "character. Produce ONE short in-character reply. Constraints:\n"
+        "1. Stay fully in character. First-person dialogue only. No "
+        "narration, no stage directions.\n"
+        "2. Ground every factual claim in the lore snippets above OR in "
+        "your character sheet. If the question lands outside both, "
+        "deflect in-character — do not invent.\n"
+        "3. Your 'Knowledge' block lists facts you possess. Honour gates: "
+        "reveal only when the player's question clearly satisfies the "
+        "gate, otherwise deflect using the tone of the sample "
+        "deflection lines.\n"
+        "4. One to three short sentences. At most 60 words.\n"
+        "5. Honour your vocabulary ceiling, forbidden words, and speech "
+        "quirks. Apply any active arc-stage voice shifts.\n"
+        "6. Do not quote the lore snippets verbatim or cite their [source] "
+        "tags. Translate any facts you use into your own voice."
+    )
+
+    context = {
+        "schema_version": "1",
+        "npc_id": npc.id,
+        "npc_name": npc.name,
+        "character_sheet_block": character_sheet_block,
+        "world_bible": world_bible,
+        "rules_block": rules_block,
+    }
+    out_path = args.out or (demo_dir / "out" / f"{npc.id}_improv_context.json")
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(
+        json.dumps(context, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    print(f"improv context written: {out_path}")
+    print(f"  character sheet: {len(character_sheet_block)} chars")
+    print(f"  world bible: {len(world_bible)} chars")
+    return 0
+
+
 async def _cmd_improv(args: argparse.Namespace) -> int:
     """One-shot improv call — ask an NPC something off-script."""
     from .improv import improv_query
@@ -1123,6 +1199,28 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p_mr.add_argument("--advance", type=int, default=0,
                       help="Advance turn counter before recording (default 0).")
     p_mr.set_defaults(func=_cmd_memory_record)
+
+    # ---- export (v0.12.0) ----
+    p_exp = subs.add_parser(
+        "export",
+        help="Emit derived data bundles for runtime integration.",
+    )
+    p_exp_sub = p_exp.add_subparsers(dest="export_command", required=True)
+
+    p_exp_ic = p_exp_sub.add_parser(
+        "improv-context",
+        help=(
+            "Write a JSON bundle one NPC needs at runtime for "
+            "lore-consistent improvisation (character sheet block + "
+            "world bible + rules). The Unity NpcForgeImprovClient reads "
+            "this, does retrieval locally, and hands the prompt to a "
+            "user-supplied LLM delegate."
+        ),
+    )
+    p_exp_ic.add_argument("--demo-dir", type=Path, required=True)
+    p_exp_ic.add_argument("--npc", required=True)
+    p_exp_ic.add_argument("--out", type=Path, default=None)
+    p_exp_ic.set_defaults(func=_cmd_export_improv_context)
 
     # ---- improv (v0.12.0) ----
     p_imp = subs.add_parser(
