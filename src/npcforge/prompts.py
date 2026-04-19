@@ -347,6 +347,12 @@ _BASE_RULES = (
     "    register, not one OR the other. Union the extra forbidden words with the base\n"
     "    ceiling; honour the extra accent markers the same way you honour the base ones.\n"
     "    Never narrate the lens ('drunkenly:') — let it surface in cadence.\n"
+    "15. If an 'Ethical reading' block describes your private judgement of the player,\n"
+    "    let the VERDICT shape tone — warmer if net approving, cooler if net\n"
+    "    disapproving, uneven if mixed. Never narrate the reading, never list the events\n"
+    "    that fed it, never lecture or moralise. A withdrawn register, a slower greeting,\n"
+    "    a closed-off posture conveyed in word choice — that's what a quiet observer\n"
+    "    does when they've seen enough. Do not recite your ethical axes to the player.\n"
 )
 
 
@@ -357,6 +363,7 @@ def build_npc_respondent_prompt(
     arc_stages: list[ActiveStage] | None = None,
     player_profile_block: str = "",
     active_lenses: list[VoiceLens] | None = None,
+    ethical_reading_block: str = "",
 ) -> str:
     """System prompt for the Respondent (NPC) side of a walk-up dialog.
 
@@ -388,6 +395,8 @@ def build_npc_respondent_prompt(
     lens_block = _render_voice_lenses(active_lenses or [])
     if lens_block:
         blocks.append(lens_block)
+    if ethical_reading_block.strip():
+        blocks.append(ethical_reading_block.strip())
     return "\n\n".join(blocks) + "\n"
 
 

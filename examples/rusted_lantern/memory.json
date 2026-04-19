@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "1",
+  "currentTurn": 8,
+  "events": [
+    {
+      "turn": 2,
+      "npc_id": "mira_vesser",
+      "event_type": "player_lied",
+      "summary": "The player denied knowing Kess, then named him one breath later.",
+      "salience": "pivotal",
+      "faction_id": ""
+    },
+    {
+      "turn": 5,
+      "npc_id": "sister_adelie",
+      "event_type": "player_lied",
+      "summary": "The player told her that they'd never been to the deep, while carrying copper dust on their cuff.",
+      "salience": "pivotal",
+      "faction_id": ""
+    },
+    {
+      "turn": 6,
+      "npc_id": "mira_vesser",
+      "event_type": "threaten_for_info",
+      "summary": "The player leaned close and asked where Kess sleeps, quietly.",
+      "salience": "notable",
+      "faction_id": ""
+    },
+    {
+      "turn": 8,
+      "npc_id": "ulrik_the_old_man",
+      "event_type": "secret_shared",
+      "summary": "The player told you, unprompted, that they'd settled a stranger's debt anonymously.",
+      "salience": "notable",
+      "faction_id": "lantern_regulars"
+    }
+  ]
+}

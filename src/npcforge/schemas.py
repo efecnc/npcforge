@@ -171,6 +171,46 @@ class Relationship(BaseModel):
     )
 
 
+EthicalAxis = Literal[
+    "honor_bound", "pragmatic", "self_serving", "zealot", "communal",
+]
+
+
+class EthicalProfile(BaseModel):
+    """NPC's stance along the five ethical axes (v0.16.0).
+
+    Values in [0, 1]; they do NOT need to sum to 1. A character can
+    score strongly on multiple axes (honor_bound AND communal).
+    Missing / zero axis = neutral — this character has no view on
+    actions judged through that axis.
+
+    The axes are intentionally coarse. Designers who want finer-grained
+    ethics can supply a custom judgement table to
+    :func:`npcforge.ethics.evaluate_player_against_npc`.
+    """
+
+    honor_bound: float = Field(default=0.0, ge=0.0, le=1.0)
+    pragmatic: float = Field(default=0.0, ge=0.0, le=1.0)
+    self_serving: float = Field(default=0.0, ge=0.0, le=1.0)
+    zealot: float = Field(default=0.0, ge=0.0, le=1.0)
+    communal: float = Field(default=0.0, ge=0.0, le=1.0)
+
+    def weight(self, axis: EthicalAxis) -> float:
+        return getattr(self, axis, 0.0)
+
+    def dominant_axes(
+        self, top_n: int = 2, min_weight: float = 0.4
+    ) -> list[str]:
+        """Axes at/above ``min_weight``, strongest first."""
+        scored = [
+            (a, getattr(self, a))
+            for a in ("honor_bound", "pragmatic", "self_serving",
+                      "zealot", "communal")
+        ]
+        scored.sort(key=lambda kv: kv[1], reverse=True)
+        return [a for a, w in scored if w >= min_weight][:top_n]
+
+
 VoiceLensKind = Literal["state", "audience", "cultural"]
 
 
@@ -508,6 +548,14 @@ class NpcSheet(BaseModel):
     # NPC undergoes when a trigger condition becomes true. Injected into
     # the respondent prompt so generated dialogue reflects the shift.
     state_evolution: list[StateEvolution] = Field(default_factory=list)
+
+    # Ethical profile (v0.16.0 — moral profile + reactions). Optional
+    # per-NPC stance on honor_bound / pragmatic / self_serving / zealot /
+    # communal axes. Used by ethics.evaluate_player_against_npc to
+    # judge the player's accumulated behaviour through this NPC's
+    # values. Forward reference — the type is declared in ethics.py to
+    # keep the schemas module light.
+    ethical_profile: EthicalProfile | None = None
 
     # Voice lenses (v0.14.0 — cultural/linguistic depth). Each entry is
     # a reusable voice-modifier the runtime can activate per-scene:

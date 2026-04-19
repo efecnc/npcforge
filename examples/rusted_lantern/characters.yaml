@@ -9,6 +9,15 @@ npcs:
     # She holds the original mine lease — Grindholt considers her an
     # ally but won't name her a member. The secondary slot captures this.
     secondary_faction_id: grindholt_miners
+    # Ethical stance: strongly pragmatic (she runs a bar; nothing is
+    # more important than the Lantern staying standing), moderately
+    # communal (her regulars ARE her ledger), slight honor_bound
+    # (keeps the mine contract). Not a zealot. Not self-serving — she
+    # would have left the town years ago if she were.
+    ethical_profile:
+      pragmatic: 0.8
+      communal: 0.5
+      honor_bound: 0.3
     voice: >
       Gruff, dry, pragmatic. Short sentences. Rare smiles. Measures people in a glance.
       Never explains herself twice.
@@ -353,6 +362,15 @@ npcs:
     name: "Sister Adelie"
     role: "Wandering cleric of the Moon Court"
     faction_id: silent_order
+    # Ethical stance: strongly zealot (she believes lies offend the
+    # dead; truth-telling is sacramental to her order), moderately
+    # honor_bound, some communal (tends the forgotten dead), no
+    # pragmatic tolerance for 'convenient' truths. This makes her
+    # the sharpest reader of player dishonesty in the cast.
+    ethical_profile:
+      zealot: 0.8
+      honor_bound: 0.6
+      communal: 0.3
     voice: >
       Formal and lilting, asks questions to steer conversation. Patient with fools,
       impatient with liars.
@@ -450,6 +468,13 @@ npcs:
     faction_id: lantern_regulars
     # Ulrik sees people the way he reads star-maps. Observer role.
     observes_player: true
+    # Ethical stance: strongly honor_bound (old man's code), some
+    # pragmatic (he's survived). Notably low on zealot — he doesn't
+    # moralise. His disapproval is COLD, not LOUD.
+    ethical_profile:
+      honor_bound: 0.7
+      pragmatic: 0.4
+      communal: 0.2
     voice: >
       Slow, patient, answers questions with questions. Drops into sudden precision
       when the conversation stops being small.

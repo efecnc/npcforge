@@ -174,6 +174,7 @@ def build_improv_system_prompt(
     memory_store: Optional[MemoryStore] = None,
     player_profile_block: str = "",
     active_lenses: Optional[list[VoiceLens]] = None,
+    ethical_reading_block: str = "",
 ) -> str:
     """System prompt for one improvised reply.
 
@@ -236,6 +237,8 @@ def build_improv_system_prompt(
         lens_block = _render_voice_lenses(active_lenses)
         if lens_block:
             blocks.append(lens_block)
+    if ethical_reading_block.strip():
+        blocks.append(ethical_reading_block.strip())
     return "\n\n".join(blocks) + "\n"
 
 
@@ -298,6 +301,7 @@ async def improv_query(
     temperature: float = 0.8,
     player_profile_block: str = "",
     active_lenses: Optional[list[VoiceLens]] = None,
+    ethical_reading_block: str = "",
 ) -> ImprovReply | None:
     """Run one improv call. Returns None on failure (callers fall back).
 
@@ -315,6 +319,7 @@ async def improv_query(
         memory_store=memory_store,
         player_profile_block=player_profile_block,
         active_lenses=active_lenses,
+        ethical_reading_block=ethical_reading_block,
     )
 
     # Imported here to avoid dragging the afterimage providers into

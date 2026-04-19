@@ -578,6 +578,63 @@ async def _cmd_memory_show(args: argparse.Namespace) -> int:
     return 0
 
 
+async def _cmd_ethics_judge(args: argparse.Namespace) -> int:
+    """Preview the NPC's ethical reading of the player against the
+    current memory store. Read-only — writes nothing."""
+    from .ethics import evaluate_player_against_npc, summarize_ethical_reading
+    from .memory import MemoryStore
+    from .schemas import load_npcs
+
+    demo_dir: Path = args.demo_dir
+    npcs = {n.id: n for n in load_npcs(demo_dir / "characters.yaml")}
+    if args.npc not in npcs:
+        print(f"Unknown npc id: {args.npc}", file=sys.stderr)
+        return 1
+    npc = npcs[args.npc]
+    if npc.ethical_profile is None:
+        print(f"{npc.id} has no ethical_profile declared.")
+        return 0
+
+    store = MemoryStore.load(demo_dir / "memory.json")
+    reading = evaluate_player_against_npc(npc, store)
+
+    if args.json:
+        print(json.dumps({
+            "npc_id": npc.id,
+            "profile": npc.ethical_profile.model_dump(),
+            "score": reading.score,
+            "by_axis": reading.by_axis,
+            "top_events": [
+                {"event_type": t, "summary": s, "delta": d}
+                for t, s, d in reading.top_events
+            ],
+        }, indent=2))
+        return 0
+
+    dominant = npc.ethical_profile.dominant_axes()
+    dom = ", ".join(dominant) if dominant else "(no dominant axis)"
+    verdict = (
+        "net approving" if reading.score > 0.1 else
+        "net disapproving" if reading.score < -0.1 else
+        "mixed"
+    )
+    print(f"{npc.id}: {verdict} (score {reading.score:+.3f})")
+    print(f"  dominant axes: {dom}")
+    if reading.by_axis:
+        print("  per-axis contribution:")
+        for axis, contrib in sorted(
+            reading.by_axis.items(), key=lambda kv: abs(kv[1]), reverse=True
+        ):
+            print(f"    {axis:<14}  {contrib:+.3f}")
+    if reading.top_events:
+        print("  top-weighted events:")
+        for event_type, summary, delta in reading.top_events:
+            print(f"    {delta:+.3f}  {event_type}  — {summary.strip()}")
+    print()
+    print(summarize_ethical_reading(npc, reading))
+    return 0
+
+
 async def _cmd_unseen_list(args: argparse.Namespace) -> int:
     from .unseen import UnseenRegistry
     demo_dir: Path = args.demo_dir
@@ -950,6 +1007,12 @@ async def _cmd_improv(args: argparse.Namespace) -> int:
         if args.lenses else []
     )
 
+    from .ethics import evaluate_player_against_npc, summarize_ethical_reading
+    ethical_reading_block = ""
+    if store is not None and npc.ethical_profile is not None:
+        reading = evaluate_player_against_npc(npc, store)
+        ethical_reading_block = summarize_ethical_reading(npc, reading)
+
     reply = await improv_query(
         npc=npc,
         query=args.query,
@@ -963,6 +1026,7 @@ async def _cmd_improv(args: argparse.Namespace) -> int:
         temperature=args.temperature,
         player_profile_block=player_profile_block,
         active_lenses=active_lenses,
+        ethical_reading_block=ethical_reading_block,
     )
     if reply is None:
         print("improv failed — see log warnings.", file=sys.stderr)
@@ -1471,6 +1535,26 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p_mr.add_argument("--advance", type=int, default=0,
                       help="Advance turn counter before recording (default 0).")
     p_mr.set_defaults(func=_cmd_memory_record)
+
+    # ---- ethics (v0.16.0) ----
+    p_e = subs.add_parser(
+        "ethics",
+        help=(
+            "Inspect the NPC's ethical reading of the player — how the "
+            "memory store's accumulated events land through that NPC's "
+            "own hidden moral profile."
+        ),
+    )
+    p_e_sub = p_e.add_subparsers(dest="ethics_command", required=True)
+
+    p_e_judge = p_e_sub.add_parser(
+        "judge",
+        help="Print the NPC's score + per-axis breakdown + top events.",
+    )
+    p_e_judge.add_argument("--demo-dir", type=Path, required=True)
+    p_e_judge.add_argument("--npc", required=True)
+    p_e_judge.add_argument("--json", action="store_true")
+    p_e_judge.set_defaults(func=_cmd_ethics_judge)
 
     # ---- unseen (v0.15.0) ----
     p_u = subs.add_parser(
