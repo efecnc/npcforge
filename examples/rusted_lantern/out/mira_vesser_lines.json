@@ -1,0 +1,195 @@
+{
+  "schema_version": "1",
+  "npc_id": "mira_vesser",
+  "slots": {
+    "greeting": {
+      "id": "greeting",
+      "description": "A one-line greeting when the player walks up to the bar.",
+      "default_text": "Mira nods without looking up."
+    }
+  },
+  "variants": {
+    "greeting": [
+      {
+        "text": "Morning. You're early. What's your business?",
+        "tags": [
+          {
+            "dimension": "disposition_tier",
+            "value": "wary"
+          },
+          {
+            "dimension": "time_of_day",
+            "value": "morning"
+          }
+        ],
+        "salience_boost": 0.0,
+        "source": "gemini-2.5-flash"
+      },
+      {
+        "text": "Morning. What's your business?",
+        "tags": [
+          {
+            "dimension": "disposition_tier",
+            "value": "wary"
+          },
+          {
+            "dimension": "time_of_day",
+            "value": "morning"
+          }
+        ],
+        "salience_boost": 0.0,
+        "source": "gemini-2.5-flash"
+      },
+      {
+        "text": "Dusk, what do you need?",
+        "tags": [
+          {
+            "dimension": "disposition_tier",
+            "value": "wary"
+          },
+          {
+            "dimension": "time_of_day",
+            "value": "dusk"
+          }
+        ],
+        "salience_boost": 0.0,
+        "source": "gemini-2.5-flash"
+      },
+      {
+        "text": "Something you need?",
+        "tags": [
+          {
+            "dimension": "disposition_tier",
+            "value": "wary"
+          },
+          {
+            "dimension": "time_of_day",
+            "value": "dusk"
+          }
+        ],
+        "salience_boost": 0.0,
+        "source": "gemini-2.5-flash"
+      },
+      {
+        "text": "Need something?",
+        "tags": [
+          {
+            "dimension": "disposition_tier",
+            "value": "neutral"
+          },
+          {
+            "dimension": "time_of_day",
+            "value": "morning"
+          }
+        ],
+        "salience_boost": 0.0,
+        "source": "gemini-2.5-flash"
+      },
+      {
+        "text": "Morning. What can I get for you?",
+        "tags": [
+          {
+            "dimension": "disposition_tier",
+            "value": "neutral"
+          },
+          {
+            "dimension": "time_of_day",
+            "value": "morning"
+          }
+        ],
+        "salience_boost": 0.0,
+        "source": "gemini-2.5-flash"
+      },
+      {
+        "text": "Find a spot if you're staying.",
+        "tags": [
+          {
+            "dimension": "disposition_tier",
+            "value": "neutral"
+          },
+          {
+            "dimension": "time_of_day",
+            "value": "dusk"
+          }
+        ],
+        "salience_boost": 0.0,
+        "source": "gemini-2.5-flash"
+      },
+      {
+        "text": "Bar's open. What do you need?",
+        "tags": [
+          {
+            "dimension": "disposition_tier",
+            "value": "neutral"
+          },
+          {
+            "dimension": "time_of_day",
+            "value": "dusk"
+          }
+        ],
+        "salience_boost": 0.0,
+        "source": "gemini-2.5-flash"
+      },
+      {
+        "text": "Morning. Pour you usual?",
+        "tags": [
+          {
+            "dimension": "disposition_tier",
+            "value": "trusted"
+          },
+          {
+            "dimension": "time_of_day",
+            "value": "morning"
+          }
+        ],
+        "salience_boost": 0.0,
+        "source": "gemini-2.5-flash"
+      },
+      {
+        "text": "Morning. Pour yourself a mug.",
+        "tags": [
+          {
+            "dimension": "disposition_tier",
+            "value": "trusted"
+          },
+          {
+            "dimension": "time_of_day",
+            "value": "morning"
+          }
+        ],
+        "salience_boost": 0.0,
+        "source": "gemini-2.5-flash"
+      },
+      {
+        "text": "Another day done. What'll it be?",
+        "tags": [
+          {
+            "dimension": "disposition_tier",
+            "value": "trusted"
+          },
+          {
+            "dimension": "time_of_day",
+            "value": "dusk"
+          }
+        ],
+        "salience_boost": 0.0,
+        "source": "gemini-2.5-flash"
+      },
+      {
+        "text": "Dusk settling. Pour yourself a drink.",
+        "tags": [
+          {
+            "dimension": "disposition_tier",
+            "value": "trusted"
+          },
+          {
+            "dimension": "time_of_day",
+            "value": "dusk"
+          }
+        ],
+        "salience_boost": 0.0,
+        "source": "gemini-2.5-flash"
+      }
+    ]
+  }
+}

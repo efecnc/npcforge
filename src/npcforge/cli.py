@@ -578,6 +578,68 @@ async def _cmd_memory_show(args: argparse.Namespace) -> int:
     return 0
 
 
+async def _cmd_gen_lines(args: argparse.Namespace) -> int:
+    """Generate a disposition-curated line bank for one NPC + slot."""
+    from .line_bank import LineBank, LineSlot, bank_coverage_report
+    from .pipeline import generate_line_bank
+    from .schemas import load_factions, load_npcs, validate_npc_factions
+
+    demo_dir: Path = args.demo_dir
+    npcs = {n.id: n for n in load_npcs(demo_dir / "characters.yaml")}
+    factions = load_factions(demo_dir / "factions.yaml")
+    validate_npc_factions(list(npcs.values()), factions)
+    if args.npc not in npcs:
+        print(f"Unknown npc id: {args.npc}", file=sys.stderr)
+        return 1
+    npc = npcs[args.npc]
+
+    slot = LineSlot(
+        id=args.slot_id,
+        description=args.slot_description,
+        default_text=args.default_text or "",
+    )
+
+    axes: dict[str, list[str]] = {}
+    for spec in args.axes or []:
+        if "=" not in spec:
+            raise SystemExit(
+                f"Invalid axis spec '{spec}'. Use dim=v1,v2,v3 (e.g. "
+                f"disposition_tier=wary,trusted)."
+            )
+        dim, values = spec.split("=", 1)
+        axes[dim.strip()] = [v.strip() for v in values.split(",") if v.strip()]
+
+    bank_path = args.out or (demo_dir / "out" / f"{npc.id}_lines.json")
+    existing = LineBank.load(bank_path) if bank_path.exists() else None
+
+    key = _resolve_api_key(args.provider, args.api_key_env)
+    bank = await generate_line_bank(
+        npc=npc,
+        slot=slot,
+        axes=axes,
+        variants_per_combo=args.n,
+        factions=factions,
+        existing=existing,
+        api_key=key,
+        model_name=args.model,
+        model_provider_name=args.provider,
+        max_concurrency=args.concurrency,
+        temperature=args.temperature,
+    )
+    if args.dry_run:
+        print(f"(dry-run) would write {bank.variant_count(slot.id)} "
+              f"variants to {bank_path}")
+        return 0
+    bank.save(bank_path)
+    print(f"line bank written: {bank_path}")
+    for slot_id, counts in bank_coverage_report(bank).items():
+        total = counts.pop("_total")
+        print(f"  slot '{slot_id}': {total} variants")
+        for k, v in sorted(counts.items()):
+            print(f"    {k}: {v}")
+    return 0
+
+
 async def _cmd_arc_show(args: argparse.Namespace) -> int:
     """Display one NPC's arc and which stages are currently active."""
     from .arcs import evaluate_arc, newly_latched_stages
@@ -1012,6 +1074,42 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p_mr.add_argument("--advance", type=int, default=0,
                       help="Advance turn counter before recording (default 0).")
     p_mr.set_defaults(func=_cmd_memory_record)
+
+    # ---- gen lines (v0.11.0) ----
+    p_gl = p_gen_sub.add_parser(
+        "lines",
+        help=(
+            "Generate a disposition-curated line bank for one NPC + slot. "
+            "Produces N variants per tag combo, tagged for runtime "
+            "context-aware selection."
+        ),
+    )
+    p_gl.add_argument("--demo-dir", type=Path, required=True)
+    p_gl.add_argument("--npc", required=True)
+    p_gl.add_argument("--slot-id", required=True,
+                      help="Lower_snake_case slot id ('greeting', 'ack_gift').")
+    p_gl.add_argument("--slot-description", required=True,
+                      help="One-line description: 'A greeting when the player walks up.'")
+    p_gl.add_argument("--default-text", default=None,
+                      help="Fallback string if no variant matches at runtime.")
+    p_gl.add_argument(
+        "--axes",
+        nargs="*",
+        default=None,
+        help=(
+            "Dimension axes to vary: 'disposition_tier=wary,trusted' "
+            "'time_of_day=morning,dusk'. Omit an axis to leave it unvaried."
+        ),
+    )
+    p_gl.add_argument("--n", type=int, default=2,
+                      help="Variants per tag combo (default 2).")
+    p_gl.add_argument("--concurrency", type=int, default=4)
+    p_gl.add_argument("--temperature", type=float, default=0.95)
+    p_gl.add_argument("--out", type=Path, default=None,
+                      help="Override default output path (demo-dir/out/<npc>_lines.json).")
+    p_gl.add_argument("--dry-run", action="store_true")
+    _add_llm_flags(p_gl)
+    p_gl.set_defaults(func=_cmd_gen_lines)
 
     # ---- arc (v0.10.0) ----
     p_arc = subs.add_parser(

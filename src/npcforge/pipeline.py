@@ -696,3 +696,193 @@ def write_scene_yarn(
     path = out_dir / f"scene_{scene.id}.yarn"
     path.write_text(yarn, encoding="utf-8")
     return path
+
+
+# ---------------------------------------------------------------------------
+# Line-bank generation (v0.11.0 — disposition-curated line banks)
+# ---------------------------------------------------------------------------
+
+
+from .line_bank import (
+    LineBank,
+    LineSlot as _LineBankSlot,
+    LineTag,
+    LineVariant,
+    expand_tag_combos,
+)
+from .prompts import build_line_slot_prompt
+from pydantic import BaseModel as _PydanticBase, Field as _PydField
+
+
+class _LineOutput(_PydanticBase):
+    """Minimal structured-output schema for one line-bank variant.
+
+    afterimage's providers expose agenerate_structured but no plain
+    agenerate — so we wrap the line in a single-field schema. The
+    description leaks into the prompt, which helps the LLM stay on-task.
+    """
+
+    text: str = _PydField(
+        ...,
+        description=(
+            "One short in-character utterance for the slot and context. "
+            "Maximum 20 words. First-person dialogue only; no stage "
+            "directions, no parentheticals, no speaker prefix."
+        ),
+    )
+
+
+def _tag_description(tags: list[LineTag]) -> str:
+    """Render a tag list as the prose fragment the slot prompt expects."""
+    if not tags:
+        return ""
+    # Map dimension ids to the spelling the LLM sees (a bit more human).
+    human = {
+        "disposition_tier": "disposition",
+        "arc_stage": "arc stage",
+        "mood": "mood",
+        "recent_event_type": "recent event type",
+        "time_of_day": "time of day",
+        "faction_present": "faction present in scene",
+    }
+    parts = [f"{human.get(t.dimension, t.dimension)}: {t.value}" for t in tags]
+    return ". ".join(parts) + "."
+
+
+async def _generate_one_line_variant(
+    *,
+    npc: NpcSheet,
+    slot: _LineBankSlot,
+    tags: list[LineTag],
+    factions: FactionsConfig | None,
+    api_key: str,
+    model_name: str | None,
+    model_provider_name: str,
+    temperature: float,
+) -> LineVariant | None:
+    """Single LLM call for one line variant. Plain-text output — one line."""
+    system_prompt = build_line_slot_prompt(
+        npc,
+        slot_description=slot.description,
+        tag_description=_tag_description(tags),
+        factions=factions,
+    )
+    effective_model = model_name or _AFTERIMAGE_DEFAULT_MODEL
+    llm = LLMFactory.create(
+        provider=model_provider_name,
+        model_name=effective_model,
+        api_key=api_key,
+        system_instruction=system_prompt,
+    )
+    try:
+        response = await llm.agenerate_structured(
+            prompt=(
+                "Produce one utterance matching the slot + context. "
+                "Return JSON matching the schema — the text field holds "
+                "the line only, no quotes, no speaker prefix."
+            ),
+            schema=_LineOutput,
+            temperature=temperature,
+        )
+    except Exception as exc:
+        logger.warning(
+            "line-bank generation failed for %s/%s tags=%s: %s",
+            npc.id, slot.id, [(t.dimension, t.value) for t in tags], exc,
+        )
+        return None
+    parsed = getattr(response, "parsed", None)
+    if isinstance(parsed, _LineOutput):
+        text = (parsed.text or "").strip()
+    else:
+        try:
+            text = _LineOutput.model_validate_json(response.text).text.strip()
+        except Exception as exc:
+            logger.warning(
+                "line-bank JSON parse failed for %s/%s: %s",
+                npc.id, slot.id, exc,
+            )
+            return None
+    # Trim surrounding quotes / speaker prefixes the LLM sometimes adds
+    # despite instructions. Never strip contents — just peel obvious wrappers.
+    if text.startswith('"') and text.endswith('"') and len(text) > 2:
+        text = text[1:-1].strip()
+    if text.lower().startswith(f"{npc.name.lower()}:"):
+        text = text.split(":", 1)[1].strip()
+    if not text:
+        return None
+    return LineVariant(
+        text=text,
+        tags=tags,
+        source=effective_model,
+    )
+
+
+async def generate_line_bank(
+    *,
+    npc: NpcSheet,
+    slot: _LineBankSlot,
+    axes: dict[str, list[str]],
+    variants_per_combo: int,
+    factions: FactionsConfig | None,
+    existing: LineBank | None,
+    api_key: str,
+    model_name: str | None,
+    model_provider_name: str,
+    max_concurrency: int = 4,
+    temperature: float = 0.95,
+) -> LineBank:
+    """Generate ``variants_per_combo`` lines for each axis combination.
+
+    ``axes`` maps a dimension id ("disposition_tier", "time_of_day", …)
+    to the values to vary. Unspecified axes are not varied — useful to
+    keep combinatorics manageable. Writes into ``existing`` if supplied
+    (additive), otherwise creates a fresh bank for ``npc``.
+    """
+    combos = expand_tag_combos(
+        disposition_tiers=axes.get("disposition_tier"),
+        arc_stages=axes.get("arc_stage"),
+        moods=axes.get("mood"),
+        recent_event_types=axes.get("recent_event_type"),
+        times_of_day=axes.get("time_of_day"),
+        factions_present=axes.get("faction_present"),
+    )
+
+    bank = existing if existing is not None else LineBank(npc_id=npc.id)
+    if slot.id not in bank.slots:
+        bank.add_slot(slot)
+
+    semaphore = asyncio.Semaphore(max(max_concurrency, 1))
+
+    async def _one(combo_tags: list[LineTag]) -> list[LineVariant]:
+        async def _bounded_single() -> LineVariant | None:
+            async with semaphore:
+                return await _generate_one_line_variant(
+                    npc=npc,
+                    slot=slot,
+                    tags=combo_tags,
+                    factions=factions,
+                    api_key=api_key,
+                    model_name=model_name,
+                    model_provider_name=model_provider_name,
+                    temperature=temperature,
+                )
+        tasks = [_bounded_single() for _ in range(variants_per_combo)]
+        results = await asyncio.gather(*tasks)
+        # Dedup on lowercased text within this combo's slice.
+        seen: set[str] = set()
+        out: list[LineVariant] = []
+        for v in results:
+            if v is None:
+                continue
+            key = v.text.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append(v)
+        return out
+
+    per_combo = await asyncio.gather(*(_one(c) for c in combos))
+    for variants in per_combo:
+        for v in variants:
+            bank.variants.setdefault(slot.id, []).append(v)
+    return bank

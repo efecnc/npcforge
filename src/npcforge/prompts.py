@@ -445,6 +445,57 @@ def build_time_of_day_greeting_prompt(npc: NpcSheet, time_value: str) -> str:
     return "\n\n".join(blocks) + "\n"
 
 
+def build_line_slot_prompt(
+    npc: NpcSheet,
+    slot_description: str,
+    tag_description: str,
+    factions: FactionsConfig | None = None,
+) -> str:
+    """System prompt for line-bank variant generation (v0.11.0).
+
+    Unlike the full respondent prompt (conversational), this prompt
+    targets a single short utterance — one line, in character, tuned
+    for a specific gameplay slot and tag combo. Output is plain text
+    (not structured JSON) because the batch generator handles N calls
+    per combo and a single string is cheaper than a JSON schema.
+
+    ``tag_description`` is the human-readable spelling of the combo
+    the generator should honour — e.g. "disposition: trusted. mood:
+    grateful. time of day: dusk." The LLM gets the slot purpose and
+    the tag profile and returns one line that fits both.
+    """
+    head = (
+        f"You are {npc.name}, an NPC in a game world.\n"
+        f"Role: {npc.role}\n"
+        f"Voice: {npc.voice.strip()}\n\n"
+        f"SLOT: {slot_description.strip()}\n"
+        f"CONTEXT: {tag_description.strip() or '(none — produce a context-agnostic line)'}\n"
+    )
+    rules = (
+        "Produce ONE short utterance for this slot, in this context.\n"
+        "Constraints:\n"
+        "- One sentence, at most 20 words.\n"
+        "- First-person dialogue. No narration, no stage directions,\n"
+        "  no parentheticals.\n"
+        "- Stay fully in this specific character's voice. Honour the\n"
+        "  vocabulary ceiling, forbidden words, and speech quirks.\n"
+        "- Let the CONTEXT shape register, word choice, and warmth —\n"
+        "  but never narrate the shift ('warmly:', 'tiredly:' are\n"
+        "  forbidden).\n"
+        "- Do not repeat the slot description or any of the tag values\n"
+        "  verbatim. The line should sound like speech, not stage\n"
+        "  direction.\n"
+    )
+    faction_block = _render_faction_affiliation(npc, factions=factions)
+    ceiling = _voice_ceiling_block(npc)
+    blocks = [head, rules.rstrip()]
+    if faction_block:
+        blocks.append(faction_block)
+    if ceiling:
+        blocks.append(ceiling)
+    return "\n\n".join(blocks) + "\n"
+
+
 def render_player_intent(intent: PlayerIntent) -> str:
     """Flatten a :class:`PlayerIntent` into a Correspondent persona description."""
     return (
