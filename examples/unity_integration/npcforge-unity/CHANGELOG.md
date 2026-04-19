@@ -2,6 +2,62 @@
 
 Versions follow the Unity package, not the npcforge Python package.
 
+## [1.9.0] — 2026-04-19
+
+Runtime relationship trajectory, matching Python v0.17.0 — the
+**final roadmap item** for npcforge's NPC-personality stack. Each
+NPC carries a per-NPC score curve with named waypoints (stranger →
+tolerated → trusted → confidant → intimate, or whatever the writer
+names). Score moves with memory events; knowledge and register
+unlock per waypoint. Mira slow-builds; Kess fast-flips; each NPC
+authors their own shape.
+
+### Added — Runtime
+
+- **`NpcForgeRelationshipTrajectory`** — per-NPC MonoBehaviour
+  reading the shared memory store, accumulating scored deltas per
+  event_type, returning the current waypoint.
+- **`DefaultEventDeltas`** mirrors Python's `DEFAULT_EVENT_DELTAS`
+  across 16 event types.
+- Per-NPC `eventDeltas` list in the Inspector OVERRIDES the
+  defaults for that NPC (set `gift_given: 0` to make a particular
+  NPC immune to bribery; set `secret_shared: 0.5` to make another
+  warm faster on confidences).
+- `decayPerTurn` scales magnitudes down as memories age; clamped
+  so decay never flips an event's sign.
+- `onWaypointChanged(oldId, newId)` UnityEvent fires on transition
+  — wire to music, UI glyphs, portrait swaps.
+- `SummarizeForPrompt()` renders the block shape Python emits, with
+  the same `Never say the waypoint name aloud` guard clause.
+
+### Verified
+
+- 130 / 130 EditMode tests pass in Unity 6000.4.3f1 — 116 prior
+  plus 14 new covering empty-store baseline, gift-nudge accumulation,
+  threshold crossing + reversal, unknown-event no-op, per-NPC
+  override, decay magnitude reduction + sign clamp, faction
+  folding, top-events abs sort, waypoint-transition event firing
+  (including the initial `""` → `"stranger"` load), summary
+  empty-below-lowest case, and summary exposing unlocked knowledge.
+- Python 332 tests still pass; the score math matches on both
+  sides for the same input.
+
+### Upgrading from 1.8.0
+
+Remove + re-add from the Package Manager git URL. Typical wiring:
+
+1. Drop `NpcForgeRelationshipTrajectory` on the NPC GameObject.
+2. Configure `npcId`, `primaryFactionId`, and the shared
+   `memoryStore` reference.
+3. Author waypoints in the Inspector (or paste from the NPC's
+   characters.yaml `trajectory:` block).
+4. Optionally author `eventDeltas` overrides + a `decayPerTurn`.
+5. Call `Evaluate()` at scene transitions; hook `onWaypointChanged`
+   for side effects; splice `SummarizeForPrompt()` into improv
+   context.
+
+---
+
 ## [1.8.0] — 2026-04-19
 
 Runtime ethical reader, matching Python v0.16.0. Each NPC can carry
