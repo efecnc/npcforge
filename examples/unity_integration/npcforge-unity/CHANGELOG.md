@@ -2,6 +2,59 @@
 
 Versions follow the Unity package, not the npcforge Python package.
 
+## [1.6.0] — 2026-04-19
+
+Runtime voice lens tracking, matching Python v0.14.0. An NPC's voice
+isn't one register per character — it's a composition of the base
+voice plus however many situational modifiers are active
+(state / audience / cultural lenses). This component tracks which
+lenses are on and composes the prompt block the improv client
+splices into its system prompt.
+
+### Added — Runtime
+
+- **`NpcForgeVoiceLensTracker`** — per-NPC MonoBehaviour holding
+  `NpcForgeVoiceLensSpec[]` authored in the Inspector (or imported
+  from Python's characters.yaml via export tooling) plus a set of
+  currently-active lens ids.
+- **`ActivateLens` / `DeactivateLens` / `ToggleLens` /
+  `SetActiveLenses`** — activation API. Unknown ids are silent
+  no-ops; events fire only on genuine state changes.
+- **`onLensActivated` / `onLensDeactivated`** UnityEvents so UI,
+  audio routing (the music / SFX kind, not dialogue audio), and
+  analytics can hook transitions.
+- **`SummarizeActive()`** — renders the same block shape Python's
+  `_render_voice_lenses` produces, including deduplicated extra
+  forbidden words + accent markers across active lenses.
+
+### Verified
+
+- 95 / 95 EditMode tests pass in Unity 6000.4.3f1 — 86 prior plus
+  9 new covering unknown-lens no-op, idempotent activate/deactivate,
+  toggle flipping, SetActiveLenses replace semantics with
+  transition events, declaration-order iteration, summary empty
+  case, multi-lens render shape, and dedup of forbidden-words +
+  accent markers across overlapping lens declarations.
+
+### Upgrading from 1.5.0
+
+Remove + re-add from the Package Manager git URL. To use:
+
+1. Drop `NpcForgeVoiceLensTracker` on the NPC GameObject.
+2. Author lens specs in the Inspector or paste from
+   `characters.yaml` (one lens per list entry, matching the Python
+   VoiceLens shape: id, label, kind, cadence_shift,
+   extra_forbidden_words, extra_accent_markers).
+3. From gameplay code, call `ActivateLens("tipsy")` when the
+   character pours a third drink, `ActivateLens("inspector_present")`
+   when the inspector walks in, etc.
+4. Before calling `NpcForgeImprovClient.RequestImprov`, splice
+   `tracker.SummarizeActive()` into the prompt context (the
+   improv client already accepts a pre-composed system prompt via
+   `ComposeSystemPrompt` + delegate).
+
+---
+
 ## [1.5.0] — 2026-04-19
 
 Runtime player modeling, matching Python v0.13.0. Observer NPCs can
