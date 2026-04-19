@@ -2,6 +2,58 @@
 
 Versions follow the Unity package, not the npcforge Python package.
 
+## [1.5.0] — 2026-04-19
+
+Runtime player modeling, matching Python v0.13.0. Observer NPCs can
+now notice the player's conversational pattern across many
+encounters — aggressive / patient / deceptive / curious / theatrical /
+loyal — without an LLM call in the hot path.
+
+### Added — Runtime
+
+- **`NpcForgePlayerProfile`** — MonoBehaviour tracking per-axis
+  weights in [0, 1], persisted to
+  `Application.persistentDataPath/npcforge_player_profile.json` in a
+  layout byte-compatible with the Python side. Python and Unity can
+  read each other's file.
+- **`DefaultAxisDeltas`** — static map from event_type → axis deltas,
+  mirroring Python's DEFAULT_AXIS_DELTAS line-for-line. Customise in
+  both places.
+- `RegisterEvent(eventType, turn?)` applies deltas, clamps to [0, 1],
+  updates the monotonic turn stamp, fires `onAxisChanged(axis, value)`.
+- `SummarizeForObserver()` produces the same prose block Python's
+  observers receive — returns empty string when no trait crosses the
+  default 0.25 threshold, so early-campaign NPCs don't narrate
+  phantom patterns.
+- `TopTraits`, `BandFor` helpers for UI (status bars, glyphs).
+
+### Verified
+
+- 86 / 86 EditMode tests pass in Unity 6000.4.3f1 — 73 prior plus
+  13 new covering RegisterEvent math, clamp, unknown-event no-op,
+  monotonic turn, onAxisChanged firing count, TopTraits filtering
+  + ordering, BandFor thresholds, summariser (empty / above-
+  threshold / unknown-axis-fallback), Python dict-shape JSON parse,
+  save/load round-trip.
+- Python 270 tests pass; the axis-delta map is live-verified on
+  both sides against the same event_types.
+
+### Upgrading from 1.4.0
+
+Remove + re-add from the Package Manager git URL. To wire player
+modeling:
+
+1. Drop `NpcForgePlayerProfile` onto a persistent GameObject (same
+   bootstrap GO as the memory store).
+2. Whenever gameplay code calls
+   `NpcForgeMemoryStore.Record(..., eventType: "threat", ...)`,
+   also call `NpcForgePlayerProfile.RegisterEvent("threat")`.
+3. For observer NPCs, fetch
+   `profile.SummarizeForObserver()` and feed it into the improv
+   request prompt before calling `NpcForgeImprovClient.RequestImprov`.
+
+---
+
 ## [1.4.0] — 2026-04-19
 
 Lore-consistent improvisation runtime, matching Python v0.12.0. When
