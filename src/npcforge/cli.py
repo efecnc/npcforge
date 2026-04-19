@@ -578,6 +578,155 @@ async def _cmd_memory_show(args: argparse.Namespace) -> int:
     return 0
 
 
+async def _cmd_arc_show(args: argparse.Namespace) -> int:
+    """Display one NPC's arc and which stages are currently active."""
+    from .arcs import evaluate_arc, newly_latched_stages
+    from .memory import MemoryStore
+    from .schemas import (
+        load_factions,
+        load_npcs,
+        validate_npc_arcs,
+        validate_npc_factions,
+    )
+
+    demo_dir: Path = args.demo_dir
+    npcs = {n.id: n for n in load_npcs(demo_dir / "characters.yaml")}
+    factions = load_factions(demo_dir / "factions.yaml")
+    validate_npc_factions(list(npcs.values()), factions)
+    validate_npc_arcs(list(npcs.values()))
+
+    if args.npc not in npcs:
+        print(f"Unknown npc id: {args.npc}", file=sys.stderr)
+        return 1
+    npc = npcs[args.npc]
+    if npc.arc is None:
+        print(f"{npc.id} has no arc declared.")
+        return 0
+
+    store = MemoryStore.load(demo_dir / "memory.json")
+    standings = _parse_standing_arg(args.standing)
+    active = evaluate_arc(npc, store=store, standings=standings)
+    newly = newly_latched_stages(npc, store, standings=standings)
+
+    if args.json:
+        print(json.dumps({
+            "npc_id": npc.id,
+            "arc_description": npc.arc.description,
+            "stages": [s.model_dump() for s in npc.arc.stages],
+            "active": [
+                {"id": a.stage.id, "label": a.stage.label,
+                 "index": a.index, "latched": a.latched}
+                for a in active
+            ],
+            "newly_latchable": [a.stage.id for a in newly],
+        }, indent=2))
+        return 0
+
+    print(f"{npc.id}: {len(npc.arc.stages)} stages")
+    if npc.arc.description.strip():
+        print(f"  {npc.arc.description.strip()}")
+    active_ids = {a.stage.id for a in active}
+    for i, stage in enumerate(npc.arc.stages):
+        marker = "★" if stage.id in active_ids else " "
+        latched = next((a.latched for a in active if a.stage.id == stage.id), False)
+        tag = " [latched]" if latched else ""
+        print(f"  {marker} [{i}] {stage.label} ({stage.id}){tag}")
+        print(f"      voice: {stage.voice_shift.strip()}")
+        trig = stage.trigger
+        constraints: list[str] = []
+        if trig.min_total_events:
+            constraints.append(f"min_total_events={trig.min_total_events}")
+        if trig.min_pivotal_events:
+            constraints.append(f"min_pivotal_events={trig.min_pivotal_events}")
+        if trig.required_event_types:
+            constraints.append(
+                f"required_types={','.join(trig.required_event_types)}"
+            )
+        if trig.min_standing:
+            constraints.append(
+                "min_standing=" + ",".join(
+                    f"{k}>={v}" for k, v in trig.min_standing.items()
+                )
+            )
+        if trig.max_standing:
+            constraints.append(
+                "max_standing=" + ",".join(
+                    f"{k}<={v}" for k, v in trig.max_standing.items()
+                )
+            )
+        if constraints:
+            print("      trigger: " + "; ".join(constraints))
+        if trig.custom_condition.strip():
+            print(f"      narrative: {trig.custom_condition.strip()}")
+    if newly:
+        print(f"  Newly latchable this turn: {[a.stage.id for a in newly]}")
+    return 0
+
+
+async def _cmd_arc_simulate(args: argparse.Namespace) -> int:
+    """Preview which arc stages would be active given a hypothetical memory
+    state. Does not write anything."""
+    from .arcs import evaluate_arc
+    from .memory import MemoryStore
+    from .schemas import load_npcs, validate_npc_arcs
+
+    demo_dir: Path = args.demo_dir
+    npcs = {n.id: n for n in load_npcs(demo_dir / "characters.yaml")}
+    validate_npc_arcs(list(npcs.values()))
+    if args.npc not in npcs:
+        print(f"Unknown npc id: {args.npc}", file=sys.stderr)
+        return 1
+    npc = npcs[args.npc]
+    if npc.arc is None:
+        print(f"{npc.id} has no arc declared.")
+        return 0
+
+    store = MemoryStore()
+    for i in range(args.pivotal):
+        store.record(npc_id=npc.id, event_type="synthetic",
+                     summary=f"synthetic pivotal {i}",
+                     salience="pivotal", turn=i)
+    offset = args.pivotal
+    for i in range(args.notable):
+        store.record(npc_id=npc.id, event_type="synthetic",
+                     summary=f"synthetic notable {i}",
+                     salience="notable", turn=offset + i)
+    for t in _split_csv(args.types):
+        store.record(npc_id=npc.id, event_type=t,
+                     summary=f"synthetic {t}",
+                     salience="pivotal", turn=offset + args.notable)
+    standings = _parse_standing_arg(args.standing)
+    active = evaluate_arc(npc, store=store, standings=standings)
+    print(f"Simulated for {npc.id} with {args.pivotal} pivotal + "
+          f"{args.notable} notable events")
+    if standings:
+        pairs = ", ".join(f"{k}={v}" for k, v in standings.items())
+        print(f"  standings: {pairs}")
+    print(f"  active stages: {[a.stage.id for a in active]}")
+    return 0
+
+
+def _parse_standing_arg(raw: str | None) -> dict[str, float]:
+    """Parse '--standing lantern_regulars=20,miners=-5' into a dict."""
+    if not raw:
+        return {}
+    out: dict[str, float] = {}
+    for pair in raw.split(","):
+        pair = pair.strip()
+        if not pair:
+            continue
+        if "=" not in pair:
+            raise SystemExit(
+                f"Invalid --standing entry '{pair}'. Use faction_id=value."
+            )
+        key, value = pair.split("=", 1)
+        try:
+            out[key.strip()] = float(value.strip())
+        except ValueError:
+            raise SystemExit(f"--standing value must be numeric: {value!r}")
+    return out
+
+
 async def _cmd_memory_record(args: argparse.Namespace) -> int:
     """Record one event — useful for scripting demos + tests."""
     from .memory import MemoryStore
@@ -863,6 +1012,60 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p_mr.add_argument("--advance", type=int, default=0,
                       help="Advance turn counter before recording (default 0).")
     p_mr.set_defaults(func=_cmd_memory_record)
+
+    # ---- arc (v0.10.0) ----
+    p_arc = subs.add_parser(
+        "arc",
+        help="Inspect / simulate campaign-scale character arcs.",
+    )
+    p_arc_sub = p_arc.add_subparsers(dest="arc_command", required=True)
+
+    p_arc_show = p_arc_sub.add_parser(
+        "show",
+        help=(
+            "Show an NPC's declared arc and which stages are currently "
+            "active given the project's memory.json + provided standings."
+        ),
+    )
+    p_arc_show.add_argument("--demo-dir", type=Path, required=True)
+    p_arc_show.add_argument("--npc", required=True)
+    p_arc_show.add_argument(
+        "--standing",
+        default=None,
+        help=(
+            "Faction standings: 'lantern_regulars=20,miners=-5'. Only "
+            "relevant for arcs that gate on standing."
+        ),
+    )
+    p_arc_show.add_argument("--json", action="store_true")
+    p_arc_show.set_defaults(func=_cmd_arc_show)
+
+    p_arc_sim = p_arc_sub.add_parser(
+        "simulate",
+        help=(
+            "Preview which arc stages would be active given a synthetic "
+            "memory state + standings. Writes nothing — read-only."
+        ),
+    )
+    p_arc_sim.add_argument("--demo-dir", type=Path, required=True)
+    p_arc_sim.add_argument("--npc", required=True)
+    p_arc_sim.add_argument("--pivotal", type=int, default=0,
+                           help="Synthetic pivotal events to inject.")
+    p_arc_sim.add_argument("--notable", type=int, default=0,
+                           help="Synthetic notable events to inject.")
+    p_arc_sim.add_argument(
+        "--types", default=None,
+        help=(
+            "Comma-separated event_type tags to inject as pivotal events — "
+            "useful for triggers that require specific event types "
+            "(e.g. 'secret_shared,gift_given')."
+        ),
+    )
+    p_arc_sim.add_argument(
+        "--standing", default=None,
+        help="Faction standings: 'lantern_regulars=20,miners=-5'.",
+    )
+    p_arc_sim.set_defaults(func=_cmd_arc_simulate)
 
     # ---- resolve (nested) ----
     p_res = subs.add_parser(

@@ -171,6 +171,150 @@ class Relationship(BaseModel):
     )
 
 
+class TriggerSpec(BaseModel):
+    """Structured condition that gates an arc stage (v0.10.0).
+
+    Unlike the free-text ``trigger`` field on :class:`StateEvolution`, a
+    TriggerSpec is evaluated by :mod:`npcforge.arcs` against the runtime
+    memory store + faction-standing state. The fields are ANDed: every
+    specified constraint must hold for the stage to activate. An empty
+    TriggerSpec (no fields set) always activates — useful for a stage
+    that represents the NPC's baseline voice.
+
+    This structured form lets the generator *and* the runtime agree on
+    which stages are active without either side having to interpret
+    prose. The free-text escape hatch stays on StateEvolution for cases
+    that need it (e.g. "active after the player has witnessed Gereth
+    weep in private" — too narrative to encode structurally).
+    """
+
+    min_pivotal_events: int = Field(
+        default=0,
+        ge=0,
+        description=(
+            "Minimum number of pivotal memory events involving this NPC "
+            "(or tagged with their faction) that must exist. 0 disables "
+            "this check."
+        ),
+    )
+    min_total_events: int = Field(
+        default=0,
+        ge=0,
+        description=(
+            "Minimum number of memory events of any salience. Useful for "
+            "soft 'the player has hung around long enough' stages."
+        ),
+    )
+    required_event_types: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Event-type tags that must each appear in this NPC's memory "
+            "at least once: ['gift_given', 'secret_shared']. Folded with "
+            "faction-shared events the same way summarize_for_npc is."
+        ),
+    )
+    min_standing: dict[str, float] = Field(
+        default_factory=dict,
+        description=(
+            "Per-faction player-standing floors: {'miners': 20, "
+            "'lantern_regulars': -10}. Evaluated against the runtime "
+            "faction-standing store."
+        ),
+    )
+    max_standing: dict[str, float] = Field(
+        default_factory=dict,
+        description=(
+            "Per-faction player-standing ceilings: useful for stages "
+            "gated on 'player has not turned on the Lantern'."
+        ),
+    )
+    custom_condition: str = Field(
+        default="",
+        description=(
+            "Free-text narrative condition for cases too shaped to encode "
+            "structurally. Surfaced to the LLM alongside the rest of the "
+            "trigger so the generator can apply it; the runtime ignores "
+            "this field when deciding if the stage is active."
+        ),
+    )
+
+
+class ArcStage(BaseModel):
+    """One named beat in a character arc (v0.10.0).
+
+    Stages are ordered within the arc's ``stages`` list — each stage's
+    trigger is evaluated in order, and activation is cumulative: reaching
+    stage 3 implicitly keeps stages 1 and 2 active too. Voice shifts
+    stack (each stage's shift stays in effect once reached).
+
+    Stages are *latched*: once the trigger fires, the stage stays active
+    for the rest of the campaign even if the conditions later become
+    false. This is what makes arcs feel like life history rather than a
+    state machine. The runtime records latch events in the memory store
+    with event_type='arc_latched'.
+    """
+
+    id: str = Field(..., description="Lower_snake_case stage id unique per NPC.")
+    label: str = Field(
+        ...,
+        description=(
+            "Short writer-facing name: 'stranger', 'tentative', 'confidante', "
+            "'cracking', 'naming_the_dead'. Shown in the Editor's arc viewer."
+        ),
+    )
+    voice_shift: str = Field(
+        ...,
+        description=(
+            "Concrete instruction to the generator when this stage is "
+            "active: 'full sentences now, no contractions dropped', "
+            "'hums the fourth verse audibly even around strangers'."
+        ),
+    )
+    trigger: TriggerSpec = Field(
+        default_factory=TriggerSpec,
+        description=(
+            "Structured activation condition. Empty = active from the "
+            "start (typical for the first stage of an arc)."
+        ),
+    )
+    unlocks_knowledge: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Knowledge item ids (see NpcSheet.knowledge) this stage "
+            "unlocks. The generator treats these as having an always-true "
+            "gate while this stage is active, regardless of the knowledge "
+            "item's own gate field."
+        ),
+    )
+    description: str = Field(
+        default="",
+        description="Writer note — why does the NPC shift like this?",
+    )
+
+
+class NpcArc(BaseModel):
+    """Ordered character arc for one NPC (v0.10.0).
+
+    A writer specifies the ordered path the NPC takes across the campaign.
+    Stages later in the list typically have stricter triggers so they
+    fire only after the player has invested time / made choices with
+    this specific NPC.
+
+    The arc is optional — NPCs without one keep the v0.9 behaviour
+    (respondent prompt built purely from character sheet + memory).
+    """
+
+    stages: list[ArcStage] = Field(
+        ...,
+        min_length=1,
+        description="At least one stage (usually the baseline).",
+    )
+    description: str = Field(
+        default="",
+        description="High-level sentence: what this NPC's arc is about.",
+    )
+
+
 class StateEvolution(BaseModel):
     """One voice shift this NPC undergoes when a world condition becomes true (v0.8.1).
 
@@ -293,6 +437,12 @@ class NpcSheet(BaseModel):
     # NPC undergoes when a trigger condition becomes true. Injected into
     # the respondent prompt so generated dialogue reflects the shift.
     state_evolution: list[StateEvolution] = Field(default_factory=list)
+
+    # Campaign-scale character arc (v0.10.0). Optional ordered path of
+    # stages the NPC moves through based on structured triggers against
+    # the memory store + faction standings. Composes with (does not
+    # replace) the legacy state_evolution free-text list.
+    arc: NpcArc | None = None
 
     # Faction membership (v0.9.0 — social graph). Most NPCs belong to
     # exactly one faction; allow a second slot for dual loyalties (a
@@ -496,6 +646,55 @@ def load_factions(path: Path) -> FactionsConfig:
                     f"Known ids: {sorted(known)}"
                 )
     return cfg
+
+
+def validate_npc_arcs(npcs: list[NpcSheet]) -> None:
+    """Fail loudly on arc schema problems we can catch statically.
+
+    Checks: (1) stage ids are unique per NPC, (2) unlocks_knowledge
+    references resolve against that NPC's knowledge list, (3) stages
+    with no trigger constraints are only allowed as the first stage
+    (an always-active "baseline" stage in the middle of an arc would
+    make later stages redundant).
+    """
+    for npc in npcs:
+        if npc.arc is None:
+            continue
+        seen: set[str] = set()
+        known_knowledge = {k.id for k in npc.knowledge}
+        for i, stage in enumerate(npc.arc.stages):
+            if stage.id in seen:
+                raise ValueError(
+                    f"NPC '{npc.id}': duplicate arc stage id '{stage.id}'"
+                )
+            seen.add(stage.id)
+
+            missing = [
+                ref for ref in stage.unlocks_knowledge
+                if ref not in known_knowledge
+            ]
+            if missing:
+                raise ValueError(
+                    f"NPC '{npc.id}': arc stage '{stage.id}' unlocks "
+                    f"unknown knowledge ids {missing}. Known: "
+                    f"{sorted(known_knowledge)}"
+                )
+
+            is_always_active = (
+                stage.trigger.min_pivotal_events == 0
+                and stage.trigger.min_total_events == 0
+                and not stage.trigger.required_event_types
+                and not stage.trigger.min_standing
+                and not stage.trigger.max_standing
+                and not stage.trigger.custom_condition.strip()
+            )
+            if is_always_active and i > 0:
+                raise ValueError(
+                    f"NPC '{npc.id}': arc stage '{stage.id}' at position "
+                    f"{i} has an empty trigger but isn't the first stage. "
+                    "Only the baseline (index 0) may be unconditionally "
+                    "active — later stages need a trigger."
+                )
 
 
 def validate_npc_factions(

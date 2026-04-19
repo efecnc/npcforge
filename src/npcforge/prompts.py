@@ -15,6 +15,7 @@ from .schemas import (
     PlayerIntent,
     VocabularyCeiling,
 )
+from .arcs import ActiveStage
 
 
 _CEILING_DESCRIPTIONS: dict[VocabularyCeiling, str] = {
@@ -143,6 +144,41 @@ def _render_faction_affiliation(
     return "\n".join(lines)
 
 
+def _render_arc_stages(
+    stages: list[ActiveStage],
+) -> str:
+    """Render active arc stages as a cumulative voice-shift stack.
+
+    Stages are listed in the order they were declared. Each stage
+    contributes its ``voice_shift`` as a modifier that *stacks* on top
+    of earlier stages — later shifts don't replace earlier ones, they
+    compose. The block also surfaces each stage's
+    ``custom_condition`` (when non-empty) so the LLM can apply
+    narrative conditions the runtime can't evaluate structurally.
+    """
+    if not stages:
+        return ""
+    lines = [
+        "Character arc — currently-active stages (cumulative; each voice "
+        "shift applies in addition to earlier ones):"
+    ]
+    for s in stages:
+        tag = " [latched]" if s.latched else ""
+        lines.append(f"- Stage {s.index}: {s.stage.label} ({s.stage.id}){tag}")
+        lines.append(f"    Voice shift: {s.stage.voice_shift.strip()}")
+        if s.stage.unlocks_knowledge:
+            joined = ", ".join(s.stage.unlocks_knowledge)
+            lines.append(
+                f"    Unlocked knowledge ids (treat gate as satisfied): {joined}"
+            )
+        if s.stage.trigger.custom_condition.strip():
+            lines.append(
+                "    Narrative condition: "
+                + s.stage.trigger.custom_condition.strip()
+            )
+    return "\n".join(lines)
+
+
 def _render_state_evolution(npc: NpcSheet) -> str:
     if not npc.state_evolution:
         return ""
@@ -178,6 +214,7 @@ def render_character_sheet(
     npc: NpcSheet,
     cast: list[NpcSheet] | None = None,
     factions: FactionsConfig | None = None,
+    arc_stages: list[ActiveStage] | None = None,
 ) -> str:
     """Flatten an :class:`NpcSheet` into a bible-style text block.
 
@@ -218,6 +255,9 @@ def render_character_sheet(
     state_evolution = _render_state_evolution(npc)
     if state_evolution:
         sections.append(state_evolution)
+    arc_block = _render_arc_stages(arc_stages or [])
+    if arc_block:
+        sections.append(arc_block)
     return "\n\n".join(sections) + "\n"
 
 
@@ -250,6 +290,12 @@ _BASE_RULES = (
     "    between you and this specific player in prior scenes. Reference them naturally when\n"
     "    they're relevant to what the player is saying now. Do not list them. Do not mention\n"
     "    turn numbers or event_type tags — those are bookkeeping, not dialogue.\n"
+    "12. If a 'Character arc' block lists active stages, apply EVERY listed voice shift\n"
+    "    cumulatively. Later stages compose with earlier ones — they do not replace them.\n"
+    "    Unlocked knowledge ids override their own gate field (treat the fact as freely\n"
+    "    reveal-able if the player's question calls for it). Narrative conditions described\n"
+    "    in prose may further gate a stage: apply the shift only when the scene's context\n"
+    "    clearly matches. Do not narrate the shift — let it show in word choice and register.\n"
 )
 
 
@@ -257,6 +303,7 @@ def build_npc_respondent_prompt(
     npc: NpcSheet,
     factions: FactionsConfig | None = None,
     memory_summary: str = "",
+    arc_stages: list[ActiveStage] | None = None,
 ) -> str:
     """System prompt for the Respondent (NPC) side of a walk-up dialog.
 
@@ -280,6 +327,9 @@ def build_npc_respondent_prompt(
         blocks.append(ceiling)
     if memory_summary.strip():
         blocks.append(memory_summary.strip())
+    arc_block = _render_arc_stages(arc_stages or [])
+    if arc_block:
+        blocks.append(arc_block)
     return "\n\n".join(blocks) + "\n"
 
 

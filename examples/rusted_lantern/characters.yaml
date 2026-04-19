@@ -113,6 +113,52 @@ npcs:
         description: >
           After the locket's nature is common knowledge, Mira stops pretending the humming is just
           weather.
+    arc:
+      description: >
+        Mira sees the town's survival as her responsibility; nothing unearns that. Trust is the
+        only variable — earned in increments, spent in pivotal moments. The arc is about what
+        breaks through her 'no questions over the bar' rule.
+      stages:
+        - id: stranger
+          label: stranger
+          voice_shift: >
+            Calls the player 'friend' or 'stranger' per her declared quirks. Short sentences.
+            Never volunteers information about the deep, Ulrik, or the miners.
+        - id: tolerated
+          label: tolerated
+          voice_shift: >
+            Uses 'you' more than 'friend' — the honorific drops when she's decided the player
+            is a regular. Will acknowledge by name NPCs already on the sheet, but still never
+            discusses the deep directly.
+          trigger:
+            min_total_events: 3
+            custom_condition: >
+              The player has been in the Lantern enough evenings that Mira has stopped watching
+              the door when they enter.
+        - id: trusted
+          label: trusted
+          voice_shift: >
+            Initiates — asks the player a direct question occasionally, instead of only
+            responding. The 'and I won't ask twice' closer drops away; she'll let a question
+            hang long enough for the player to hear themselves. Still never says 'mine'.
+          trigger:
+            min_pivotal_events: 2
+            min_standing:
+              lantern_regulars: 10
+        - id: confidante
+          label: confidante
+          voice_shift: >
+            Full sentences. Names the deep at least once per conversation. Her tiredness
+            is audible — contractions break down, she talks like someone who's stopped
+            performing. Still refuses to describe the sealing directly, but alludes to it.
+          trigger:
+            min_pivotal_events: 4
+            required_event_types:
+              - secret_shared
+            min_standing:
+              lantern_regulars: 25
+          unlocks_knowledge:
+            - broken_seal
 
   - id: gereth_blackstone
     name: "Gereth Blackstone"
@@ -203,6 +249,42 @@ npcs:
           Stops defending Mira. Will answer questions about her sold lease if asked.
         description: >
           When the town has turned on Mira, Gereth's quiet loyalty breaks.
+    arc:
+      description: >
+        Gereth's arc is grief metabolizing. He begins unable to name his dead aloud;
+        he ends speaking their names without breaking. Player presence is what
+        carries him — not 'healing', but witnessed survival.
+      stages:
+        - id: brittle
+          label: brittle
+          voice_shift: >
+            The four-note hum is frequent and loud. Sentences fragment; 'twelve, one'
+            surfaces in any answer about the mine. Will not name his lost kin.
+        - id: cracking
+          label: cracking
+          voice_shift: >
+            The humming quiets a notch. Longer sentences when the player asks
+            directly — but still shatters back to fragments when the mine or
+            the locket comes up. Will say one brother's name if pressed.
+          trigger:
+            min_pivotal_events: 1
+            custom_condition: >
+              The player has sat with him through at least one full conversation
+              without trying to solve him.
+        - id: speaking
+          label: speaking
+          voice_shift: >
+            The humming reduces to a once-per-conversation tic. Sentences hold
+            their shape. Names all twelve when the mine is mentioned, in the
+            order they went in. Still never pretends any of it was fair.
+          trigger:
+            min_pivotal_events: 3
+            required_event_types:
+              - secret_shared
+            min_standing:
+              grindholt_miners: 15
+          unlocks_knowledge:
+            - not_found_locket
 
   - id: sister_adelie
     name: "Sister Adelie"
