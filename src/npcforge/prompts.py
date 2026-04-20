@@ -12,6 +12,7 @@ from .schemas import (
     Faction,
     FactionsConfig,
     NpcSheet,
+    Personality,
     PlayerIntent,
     VocabularyCeiling,
     VoiceLens,
@@ -142,6 +143,72 @@ def _render_faction_affiliation(
         lines.extend(render_one("Primary", npc.faction_id))
     if npc.secondary_faction_id:
         lines.extend(render_one("Secondary", npc.secondary_faction_id))
+    return "\n".join(lines)
+
+
+_OCEAN_PROSE: dict[tuple[str, str], str] = {
+    ("openness", "high"): (
+        "entertains strange ideas and speculative claims; willing to "
+        "follow a line of thought wherever it goes"
+    ),
+    ("openness", "low"): (
+        "pragmatic and grounded; dismisses abstractions and 'what if' "
+        "lines of thought"
+    ),
+    ("conscientiousness", "high"): (
+        "precise in speech, plans ahead, rarely forgets a detail once "
+        "spoken; finishes sentences"
+    ),
+    ("conscientiousness", "low"): (
+        "impulsive, casual in speech, drops threads mid-sentence, does "
+        "not notice when a promise goes unkept"
+    ),
+    ("extraversion", "high"): (
+        "chatty; volunteers information without being asked; opens "
+        "follow-up questions; pace is energetic"
+    ),
+    ("extraversion", "low"): (
+        "terse; waits to be asked; closes conversations early; pace is "
+        "slow and spare"
+    ),
+    ("agreeableness", "high"): (
+        "warm toward the person in front of them; cooperative; softens "
+        "hard news with phrasing"
+    ),
+    ("agreeableness", "low"): (
+        "blunt; does not soften; confrontational when pressed; willing "
+        "to disagree directly"
+    ),
+    ("neuroticism", "high"): (
+        "emotionally reactive; anger, anxiety, and sadness surface "
+        "quickly and show in register"
+    ),
+    ("neuroticism", "low"): (
+        "even-keeled; slow to flinch; emotional shifts are small and "
+        "understated"
+    ),
+}
+
+
+def _render_personality(personality: Personality | None) -> str:
+    """Render OCEAN as a compact register-hint block.
+
+    Returns empty string when personality is None OR sits in the neutral
+    band on every axis — a bland NPC gets no extra prompt weight.
+    """
+    if personality is None:
+        return ""
+    dominant = personality.dominant_axes()
+    if not dominant:
+        return ""
+    lines = [
+        "Personality profile (OCEAN register hints — shape pacing, "
+        "warmth, volatility; compose with voice + lenses; never narrate):"
+    ]
+    for axis, direction in dominant:
+        prose = _OCEAN_PROSE.get((axis, direction), f"{direction} {axis}")
+        val = personality.axis(axis)
+        lines.append(f"- {axis} ({direction}, {val:.2f}): {prose}")
     return "\n".join(lines)
 
 
@@ -283,6 +350,9 @@ def render_character_sheet(
         f"Speech quirks:\n{quirks}",
         f"Sample lines (for tone only):\n{samples}",
     ]
+    personality_block = _render_personality(npc.personality)
+    if personality_block:
+        sections.append(personality_block)
     faction_block = _render_faction_affiliation(npc, factions=factions)
     if faction_block:
         sections.append(faction_block)
@@ -359,6 +429,12 @@ _BASE_RULES = (
     "    ('we've grown closer' is out). A stranger-waypoint greeting is terse and\n"
     "    boundaried; a confidant-waypoint greeting assumes shared history without naming\n"
     "    it. Knowledge ids listed under the waypoint's unlocks override their own gates.\n"
+    "17. If a 'Personality profile' block describes your OCEAN register hints, let them\n"
+    "    shape PACING and DELIVERY without replacing your voice. Low extraversion = terse,\n"
+    "    slow, fewer volunteered details. High neuroticism = emotions surface quickly.\n"
+    "    High conscientiousness = finished sentences, precise phrasing. These are base-\n"
+    "    temperament hints, composing with every other active block. Never narrate the\n"
+    "    hints, never list axes, never say 'as an extravert' — let them surface in rhythm.\n"
 )
 
 
@@ -387,7 +463,10 @@ def build_npc_respondent_prompt(
     )
     ceiling = _voice_ceiling_block(npc)
     faction_block = _render_faction_affiliation(npc, factions=factions)
+    personality_block = _render_personality(npc.personality)
     blocks = [head, _BASE_RULES.rstrip()]
+    if personality_block:
+        blocks.append(personality_block)
     if faction_block:
         blocks.append(faction_block)
     if ceiling:

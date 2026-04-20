@@ -171,6 +171,61 @@ class Relationship(BaseModel):
     )
 
 
+class Personality(BaseModel):
+    """Big-5 (OCEAN) personality vector for an NPC (v0.18.0).
+
+    Five floats in [0, 1] modelling the empirically-validated OCEAN
+    framework — the standard in academic NPC-AI research. Composes
+    orthogonally with :class:`EthicalProfile` (OCEAN = *how this person
+    is*, ethics = *what they value*) and with :class:`RelationshipTrajectory`
+    (OCEAN = stable baseline, trajectory = per-player dynamic).
+
+    The axes shape the prompt as register hints rather than hard rules:
+    - **openness**: curiosity toward new ideas, abstractions, strange
+      claims. High = entertains speculation; low = pragmatic, grounded.
+    - **conscientiousness**: orderliness, discipline, completing what
+      was started. High = precise, plans ahead; low = impulsive, casual.
+    - **extraversion**: social energy. High = chatty, volunteers,
+      opens follow-ups; low = terse, waits, closes early.
+    - **agreeableness**: warmth toward others. High = cooperative,
+      gentle; low = blunt, confrontational.
+    - **neuroticism**: emotional reactivity. High = quick to feel
+      anger / anxiety / sadness; low = even-keeled, slow to flinch.
+
+    Default of 0.5 on every axis is deliberately bland — writers pick
+    distinctive profiles (Mira: low-O, med-C, low-E, med-A, low-N).
+    """
+
+    openness: float = Field(default=0.5, ge=0.0, le=1.0)
+    conscientiousness: float = Field(default=0.5, ge=0.0, le=1.0)
+    extraversion: float = Field(default=0.5, ge=0.0, le=1.0)
+    agreeableness: float = Field(default=0.5, ge=0.0, le=1.0)
+    neuroticism: float = Field(default=0.5, ge=0.0, le=1.0)
+
+    def axis(self, name: str) -> float:
+        return getattr(self, name, 0.5)
+
+    def dominant_axes(
+        self, top_n: int = 2, band: float = 0.25
+    ) -> list[tuple[str, str]]:
+        """Axes that sit far from neutral (0.5), sorted by distance.
+
+        Returns ``[(axis_name, 'high'|'low'), ...]`` so the summariser
+        can produce "high extraversion, low neuroticism". ``band`` is
+        the neutral zone — axes with |value - 0.5| < band are skipped.
+        """
+        scored: list[tuple[str, str, float]] = []
+        for name in ("openness", "conscientiousness", "extraversion",
+                     "agreeableness", "neuroticism"):
+            v = getattr(self, name)
+            delta = v - 0.5
+            if abs(delta) < band:
+                continue
+            scored.append((name, "high" if delta > 0 else "low", abs(delta)))
+        scored.sort(key=lambda t: t[2], reverse=True)
+        return [(name, direction) for name, direction, _ in scored[:top_n]]
+
+
 class TrajectoryWaypoint(BaseModel):
     """One named beat on an NPC's relationship-with-player curve (v0.17.0).
 
@@ -641,6 +696,12 @@ class NpcSheet(BaseModel):
     # NPC undergoes when a trigger condition becomes true. Injected into
     # the respondent prompt so generated dialogue reflects the shift.
     state_evolution: list[StateEvolution] = Field(default_factory=list)
+
+    # Big-5 (OCEAN) personality (v0.18.0). Composes with voice,
+    # ethical_profile, and trajectory without replacing any of them.
+    # OCEAN captures HOW the NPC is wired (pacing, warmth, volatility);
+    # voice captures HOW they sound; ethics captures WHAT they value.
+    personality: Personality | None = None
 
     # Relationship trajectory (v0.17.0 — per-NPC curve of named
     # waypoints the NPC passes through as they build / lose trust with

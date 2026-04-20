@@ -5,6 +5,15 @@ npcs:
   - id: mira_vesser
     name: "Mira Vesser"
     role: "Tavernkeeper of the Rusted Lantern"
+    # OCEAN: grounded pragmatist, precise about the ledger, terse to
+    # strangers, communal but not soft, rarely rattled. Pacing cue
+    # comes from low-E (waits to be addressed) + low-N (even-keeled).
+    personality:
+      openness: 0.30
+      conscientiousness: 0.75
+      extraversion: 0.25
+      agreeableness: 0.45
+      neuroticism: 0.25
     faction_id: lantern_regulars
     # She holds the original mine lease — Grindholt considers her an
     # ally but won't name her a member. The secondary slot captures this.
@@ -233,6 +242,16 @@ npcs:
   - id: gereth_blackstone
     name: "Gereth Blackstone"
     role: "Dwarven miner, sole survivor of the cave-in"
+    # OCEAN: traumatised clansman. Low-O (mining tradition, no
+    # abstractions), low-C (trauma fragments his precision), high-N
+    # (emotions surface in seconds), mid-A (loyal to kin). Low-E in
+    # public; the humming is presence without speech.
+    personality:
+      openness: 0.30
+      conscientiousness: 0.25
+      extraversion: 0.30
+      agreeableness: 0.55
+      neuroticism: 0.85
     faction_id: grindholt_miners
     voice: >
       Fragmented, repeats himself, sudden lucid clarity. Hums a four-note pattern
@@ -397,6 +416,16 @@ npcs:
   - id: sister_adelie
     name: "Sister Adelie"
     role: "Wandering cleric of the Moon Court"
+    # OCEAN: scholar-cleric. High-O (traces texts, investigates the
+    # locket), high-C (formal, precise), mid-E (will speak but steers),
+    # mid-A (warm to believers, sharp to liars), low-N (holds long
+    # silences instead of reacting).
+    personality:
+      openness: 0.80
+      conscientiousness: 0.85
+      extraversion: 0.55
+      agreeableness: 0.50
+      neuroticism: 0.25
     faction_id: silent_order
     # Ethical stance: strongly zealot (she believes lies offend the
     # dead; truth-telling is sacramental to her order), moderately
@@ -451,6 +480,18 @@ npcs:
   - id: kess_the_knife
     name: "Kess (the Knife)"
     role: "Thief posing as a traveling merchant"
+    # OCEAN: con artist. High-O (improvises new angles every
+    # conversation), low-C (plans pivot mid-sentence; drops
+    # commitments), high-E (chatty, volunteers, runs patter), mid-A
+    # (performed warmth — friendly surface, transactional core),
+    # low-N (calm under pressure; the left thumbnail tell is her only
+    # leak).
+    personality:
+      openness: 0.80
+      conscientiousness: 0.30
+      extraversion: 0.85
+      agreeableness: 0.45
+      neuroticism: 0.30
     # Kess is drifting; no faction claims him. Standing-shifts with him
     # won't ripple outward, which is exactly the story his arc needs.
     faction_id: unaffiliated
@@ -554,6 +595,16 @@ npcs:
   - id: ulrik_the_old_man
     name: "Ulrik"
     role: "Old man reading star-maps by the fire"
+    # OCEAN: quiet scholar. High-O (star-maps, metaphor, reads
+    # patterns in people), high-C (precise in the rare things he
+    # says), very low-E (a typical Ulrik line is 'Mm.'), high-A
+    # (gentle, patient), very low-N (steady, unhurried, the observer).
+    personality:
+      openness: 0.85
+      conscientiousness: 0.75
+      extraversion: 0.10
+      agreeableness: 0.75
+      neuroticism: 0.10
     faction_id: lantern_regulars
     # Ulrik sees people the way he reads star-maps. Observer role.
     observes_player: true
