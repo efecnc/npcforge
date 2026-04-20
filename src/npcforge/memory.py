@@ -61,6 +61,11 @@ class MemoryStore:
 
     events: list[MemoryEvent] = field(default_factory=list)
     current_turn: int = 0
+    # Capacity ceiling for the event log. 0 = unbounded (default, matches
+    # pre-v0.19 behaviour). Positive = evict lowest-salience event when
+    # appending would exceed this count. A ten-thousand-turn campaign can
+    # otherwise grow the log without bound.
+    max_events: int = 0
 
     # -----------------------------------------------------------------
     # Mutators
@@ -81,6 +86,10 @@ class MemoryStore:
         If ``turn`` is omitted we use :attr:`current_turn` — callers
         typically bump that once per narrative beat and let every event
         in the beat share the same turn.
+
+        When :attr:`max_events` is set and the log is at capacity, the
+        lowest-salience event is evicted to make room. Arc-latch events
+        are always preserved (they're bookkeeping, not story).
         """
         if turn is None:
             turn = self.current_turn
@@ -92,8 +101,39 @@ class MemoryStore:
             salience=salience,
             faction_id=faction_id,
         )
+        if self.max_events > 0 and len(self.events) >= self.max_events:
+            self._evict_lowest_salience()
         self.events.append(event)
         return event
+
+    def _evict_lowest_salience(self) -> MemoryEvent | None:
+        """Drop the event most likely to be forgotten.
+
+        Eviction order:
+        - Arc-latch events (event_type == 'arc_latched') are skipped —
+          removing them would make an active stage 'unlatch' on reload.
+        - Among the rest: lowest salience first (trivial < notable <
+          pivotal), tie-break by oldest turn.
+
+        Returns the evicted event, or None if every event is protected
+        (arc-latch events fill the whole store — unusual).
+        """
+        # arcs.ARC_LATCH_EVENT_TYPE without importing, to avoid a
+        # circular import — arcs.py imports MemoryStore from here.
+        LATCH_TYPE = "arc_latched"
+        priority = {"trivial": 0, "notable": 1, "pivotal": 2}
+
+        candidates = [
+            (i, priority.get(e.salience, 1), e.turn)
+            for i, e in enumerate(self.events)
+            if e.event_type != LATCH_TYPE
+        ]
+        if not candidates:
+            return None
+        # Sort by (salience asc, turn asc) → lowest-salience oldest first.
+        candidates.sort(key=lambda t: (t[1], t[2]))
+        idx = candidates[0][0]
+        return self.events.pop(idx)
 
     def advance_turn(self, by: int = 1) -> int:
         """Bump the monotonic turn counter. Returns the new value."""
@@ -154,6 +194,7 @@ class MemoryStore:
         payload = {
             "schemaVersion": "1",
             "currentTurn": self.current_turn,
+            "maxEvents": self.max_events,
             "events": [e.model_dump() for e in self.events],
         }
         return json.dumps(payload, indent=indent, ensure_ascii=False)
@@ -168,7 +209,12 @@ class MemoryStore:
             return cls()
         data = json.loads(path.read_text(encoding="utf-8"))
         events = [MemoryEvent(**e) for e in data.get("events", [])]
-        return cls(events=events, current_turn=int(data.get("currentTurn", 0)))
+        return cls(
+            events=events,
+            current_turn=int(data.get("currentTurn", 0)),
+            # maxEvents absent in pre-v0.19 saves → unbounded.
+            max_events=int(data.get("maxEvents", 0)),
+        )
 
 
 # ---------------------------------------------------------------------------
