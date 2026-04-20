@@ -2,6 +2,44 @@
 
 Versions follow the Unity package, not the npcforge Python package.
 
+## [1.11.0] — 2026-04-20
+
+MemoryStore capacity + salience-heap eviction, matching Python
+v0.19.0. Production concern surfaced during the ereezyy comparison:
+long campaigns grew the memory log without bound. `maxEvents`
+Inspector field opts into a capacity ceiling with importance-based
+eviction.
+
+### Added — Runtime
+
+- **`maxEvents: int`** Inspector field on `NpcForgeMemoryStore`.
+  Default 0 = unbounded (pre-1.11 behaviour preserved). Positive =
+  evict the lowest-salience event when appending at capacity.
+- **`onEvicted(NpcForgeMemoryEvent)`** UnityEvent — fires when a
+  record is dropped to make room for a new one. Typically wired to
+  analytics / debug logging; eviction should be invisible in gameplay.
+- **Arc-latch protection**: events tagged `arc_latched` are never
+  evicted, so active arc stages don't unlatch when the ceiling hits.
+- **Save/Load** round-trips `maxEvents` in the JSON file alongside
+  `currentTurn` and the event list.
+
+### Verified
+
+- 149 / 149 EditMode tests pass in Unity 6000.4.3f1 — 140 prior plus
+  9 new covering unbounded default, lowest-salience eviction,
+  tie-break by turn, pivotal-survives-flood, arc-latch protection,
+  all-latched fallthrough, onEvicted firing, and save/load round-trip.
+- Python 360 tests still pass; eviction policy matches on both sides
+  for identical input sequences.
+
+### Upgrading from 1.10.0
+
+Remove + re-add from the Package Manager git URL. Existing scenes
+keep the unbounded default — set `maxEvents > 0` in the Inspector
+when you want the ceiling to engage.
+
+---
+
 ## [1.10.0] — 2026-04-20
 
 Runtime OCEAN personality, matching Python v0.18.0. Big-5

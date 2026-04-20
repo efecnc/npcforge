@@ -123,19 +123,36 @@ namespace Altai.NpcForge
         [Tooltip("Optional: load from the configured path on Start().")]
         [SerializeField] private bool autoLoadOnStart = true;
 
+        [Tooltip("Capacity ceiling for the event log. 0 = unbounded " +
+                 "(default, matches pre-1.11 behaviour). Positive = evict " +
+                 "lowest-salience event when appending would exceed this " +
+                 "count. Arc-latch events are never evicted.")]
+        [SerializeField, Min(0)] private int maxEvents;
+
         [SerializeField] private int currentTurn;
         [SerializeField] private List<NpcForgeMemoryEvent> events = new List<NpcForgeMemoryEvent>();
 
         [Header("Events")]
         public UnityEvent<NpcForgeMemoryEvent> onRecorded = new UnityEvent<NpcForgeMemoryEvent>();
+        /// <summary>Fires when an event is evicted to make room for a
+        /// new one. Payload is the evicted event so game code can log
+        /// or surface it (typically you ignore this — evictions
+        /// should be invisible).</summary>
+        public UnityEvent<NpcForgeMemoryEvent> onEvicted
+            = new UnityEvent<NpcForgeMemoryEvent>();
 
         // ---------------------------------------------------------------
         // Public API
         // ---------------------------------------------------------------
 
         public int CurrentTurn => currentTurn;
+        public int MaxEvents => maxEvents;
         public IReadOnlyList<NpcForgeMemoryEvent> Events => events;
         public string FullPath => Path.Combine(Application.persistentDataPath, fileName);
+
+        /// <summary>Arc-latch records are preserved across eviction —
+        /// removing them would make active stages unlatch on reload.</summary>
+        private const string ArcLatchEventType = "arc_latched";
 
         private void Start()
         {
@@ -174,10 +191,60 @@ namespace Altai.NpcForge
                 faction_id = factionId ?? string.Empty,
             };
             e.SalienceEnum = salience;
+
+            if (maxEvents > 0 && events.Count >= maxEvents)
+            {
+                var evicted = EvictLowestSalience();
+                if (evicted != null) onEvicted?.Invoke(evicted);
+            }
+
             events.Add(e);
             onRecorded?.Invoke(e);
             if (autoSave) Save();
             return e;
+        }
+
+        /// <summary>Drop the event most likely to be forgotten.
+        ///
+        /// Policy (mirrors Python MemoryStore._evict_lowest_salience):
+        /// - Arc-latch events are skipped.
+        /// - Among the rest: lowest salience first (trivial < notable
+        ///   < pivotal), ties broken by oldest turn.
+        ///
+        /// Returns the evicted event, or null if every event is
+        /// protected (arc-latches fill the whole store — unusual).</summary>
+        private NpcForgeMemoryEvent EvictLowestSalience()
+        {
+            int bestIdx = -1;
+            int bestPriority = int.MaxValue;
+            int bestTurn = int.MaxValue;
+            for (int i = 0; i < events.Count; i++)
+            {
+                var e = events[i];
+                if (e.event_type == ArcLatchEventType) continue;
+                int pri = SaliencePriority(e.SalienceEnum);
+                if (pri < bestPriority ||
+                    (pri == bestPriority && e.turn < bestTurn))
+                {
+                    bestIdx = i;
+                    bestPriority = pri;
+                    bestTurn = e.turn;
+                }
+            }
+            if (bestIdx < 0) return null;
+            var evicted = events[bestIdx];
+            events.RemoveAt(bestIdx);
+            return evicted;
+        }
+
+        private static int SaliencePriority(MemorySalience s)
+        {
+            switch (s)
+            {
+                case MemorySalience.Trivial: return 0;
+                case MemorySalience.Notable: return 1;
+                default: return 2;  // Pivotal
+            }
         }
 
         /// <summary>Every event this NPC should remember, most-recent first.
@@ -287,6 +354,9 @@ namespace Altai.NpcForge
                     return;
                 }
                 currentTurn = dto.currentTurn;
+                // Pre-1.11 save files won't have maxEvents; leave the
+                // Inspector-authored value alone in that case.
+                if (dto.maxEvents > 0) maxEvents = dto.maxEvents;
                 events = dto.events ?? new List<NpcForgeMemoryEvent>();
             }
             catch (Exception ex)
@@ -312,6 +382,7 @@ namespace Altai.NpcForge
         {
             public string schemaVersion = "1";
             public int currentTurn;
+            public int maxEvents;  // 0 = unbounded; Python side writes this too
             public List<NpcForgeMemoryEvent> events;
         }
 
@@ -321,6 +392,7 @@ namespace Altai.NpcForge
             {
                 schemaVersion = "1",
                 currentTurn = currentTurn,
+                maxEvents = maxEvents,
                 events = events,
             };
             return JsonUtility.ToJson(dto, prettyPrint: true);
