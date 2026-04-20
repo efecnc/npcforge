@@ -2,6 +2,54 @@
 
 Versions follow the Unity package, not the npcforge Python package.
 
+## [1.10.0] — 2026-04-20
+
+Runtime OCEAN personality, matching Python v0.18.0. Big-5
+register-hints compose beneath voice, lenses, ethics, and
+trajectory as a foundation pacing layer. Empty string when the
+profile sits in the neutral band, so bland NPCs don't waste prompt
+tokens.
+
+### Added — Runtime
+
+- **`NpcForgePersonality`** — MonoBehaviour with five [0, 1]
+  sliders (openness, conscientiousness, extraversion,
+  agreeableness, neuroticism). `distinctiveBand` and `topNAxes`
+  expose Python's defaults to the Inspector.
+- **`NpcForgeOceanProfile`** — serialised struct mirroring
+  Python's `Personality` model. `Axis(name)` lookup and
+  `DominantAxes()` return axes outside the neutral band sorted by
+  distance.
+- **`SummarizeForPrompt()`** — produces the block Python's
+  `_render_personality` emits, byte-for-byte (same header, same
+  prose for each axis × direction, same format `axis (direction,
+  0.85): prose`).
+
+### Verified
+
+- 140 / 140 EditMode tests pass in Unity 6000.4.3f1 — 130 prior
+  plus 10 new covering axis lookup (valid + unknown),
+  dominant-axes (neutral / above-band / below-band / direction
+  tagging), band filter, top-N cap, distance sort, summary empty
+  for neutral profile, summary shape for distinctive profile, and
+  byte-match with Python prose for known axes.
+- Python 351 tests still pass; the rendered block for identical
+  input matches Python line-for-line.
+
+### Upgrading from 1.9.0
+
+Remove + re-add from the Package Manager git URL. Typical wiring:
+
+1. Drop `NpcForgePersonality` on each NPC GameObject.
+2. Set the five OCEAN sliders in the Inspector — reuse the values
+   from the NPC's `characters.yaml` `personality:` block on the
+   Python side for consistency.
+3. Before calling `NpcForgeImprovClient.RequestImprov`, append
+   `personality.SummarizeForPrompt()` to the prompt context
+   alongside the trajectory, ethics, and lens blocks.
+
+---
+
 ## [1.9.0] — 2026-04-19
 
 Runtime relationship trajectory, matching Python v0.17.0 — the

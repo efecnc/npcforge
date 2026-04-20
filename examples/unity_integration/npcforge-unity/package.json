@@ -1,6 +1,6 @@
 {
   "name": "dev.altai.npcforge",
-  "version": "1.9.0",
+  "version": "1.10.0",
   "displayName": "npcforge",
   "description": "Character + dialogue engine for Unity. Full npcforge generator inside the Editor: NPC Browser, State Inspector, Relationship Graph, In-Editor Dialogue Preview, one-click scene setup, asset postprocessor that auto-wires new Yarn files into your Yarn Project, custom inspectors, save/load, and both IMGUI and UI Toolkit panels. Runtime drops Yarn Spinner dialogue, reactive barks, time-of-day greetings, and lines.csv straight into your Assets folder.",
   "unity": "2022.3",
