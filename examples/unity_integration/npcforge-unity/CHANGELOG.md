@@ -2,6 +2,56 @@
 
 Versions follow the Unity package, not the npcforge Python package.
 
+## [1.13.0] — 2026-04-20
+
+Runtime quest / story-state tracker, matching Python v0.21.0.
+Closes the "dialogue floats free of gameplay" gap identified in
+the senior review.
+
+### Added — Runtime
+
+- **`NpcForgeQuestTracker`** — per-quest current-stage cursor,
+  serialised list-of-entries under the hood (JsonUtility doesn't
+  do dicts, so save files are Python-compat by hand).
+- **`NpcForgeQuestsConfig` / `NpcForgeQuest` / `NpcForgeQuestStage`**
+  — serialised mirrors of the Python schemas, authorable in the
+  Inspector or importable via `ImportConfigJson`.
+- `SetStage(questId, stageId)` with strict validation.
+- `Advance(questId)` — next stage; returns null at the end.
+- `IsAtOrPast(questId, stageId)` — index-based gate check.
+- `StagesVisibleTo(npcId)` — respects the `known_to` visibility
+  filter so quest spoilers don't leak to NPCs who shouldn't know.
+- `SummarizeForPrompt(npcId)` — prompt block byte-compatible with
+  Python's `summarize_active_quests`.
+- `onStageChanged(questId, oldStageId, newStageId)` UnityEvent
+  fires on every transition (including initial start: empty → first
+  stage).
+
+### Verified
+
+- 179 / 179 EditMode tests pass in Unity 6000.4.3f1 — 165 prior plus
+  14 new covering lifecycle (set / advance / past-end / index-past
+  / unset-false / event-fires-once), visibility (empty / restricted),
+  summariser empty + populated, save/load round-trip, Python-written
+  file loads, empty-dict-parse.
+- Python 401 tests still pass; quest-state JSON round-trips cleanly
+  between the two runtimes.
+
+### Upgrading from 1.12.0
+
+Remove + re-add from the Package Manager git URL. Typical wiring:
+
+1. Drop `NpcForgeQuestTracker` on a persistent GameObject.
+2. Author the quests in the Inspector, or:
+3. Ship the Python side's `quests.yaml` JSON-dumped + call
+   `ImportConfigJson(textAsset.text)` at scene start.
+4. Call `SetStage` / `Advance` at narrative beats; hook
+   `onStageChanged` for UI / music / analytics side effects.
+5. Before `RequestImprov`, append `tracker.SummarizeForPrompt(npcId)`
+   to the improv context alongside the other active blocks.
+
+---
+
 ## [1.12.0] — 2026-04-20
 
 Runtime emotion state, matching Python v0.20.0. Plutchik's eight
