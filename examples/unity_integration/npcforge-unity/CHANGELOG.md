@@ -2,6 +2,57 @@
 
 Versions follow the Unity package, not the npcforge Python package.
 
+## [1.12.0] — 2026-04-20
+
+Runtime emotion state, matching Python v0.20.0. Plutchik's eight
+primary emotions as a running intensity vector derived on-demand
+from the memory store — no separate persistence, no drift between
+state and events.
+
+### Added — Runtime
+
+- **`NpcForgeEmotionState`** — per-NPC MonoBehaviour that reads
+  the memory store on demand, applies Plutchik deltas with turn-
+  based decay, and returns a snapshot of current intensities.
+- **`NpcForgeEmotionStateSnapshot`** — result type with
+  `Get(axis)` / `Dominant()` / `Top(n)` helpers.
+- **`DefaultEmotionDeltas`** — static table mapping 16 event types
+  to per-axis deltas; byte-for-byte match with Python's
+  `DEFAULT_EMOTION_DELTAS`. Polar structure: hostile events nudge
+  fear/anger/disgust + trust down; honorable events nudge
+  joy/trust + surprise; curious events nudge anticipation.
+- **`Compute()`** folds direct + faction-shared events, applies
+  decay per turn elapsed, clamps to [0, 1] per axis, drops zeros.
+- **`SummarizeForPrompt()`** produces the prompt block shape
+  Python's `summarize_emotion_state` emits — including the hard
+  guard clause against narrating the emotion aloud ("let fear
+  surface as clipped watchful register, not as 'I feel fear'").
+
+### Verified
+
+- 165 / 165 EditMode tests pass in Unity 6000.4.3f1 — 149 prior
+  plus 16 new covering snapshot shape (empty / below-threshold /
+  dominant-sort / Top-n order), compute with individual event
+  types (threat / secret_shared / player_lied), negative clamp,
+  decay reduces + zeros out, faction folding, unknown-event
+  no-op, clamp at 1.0, all-Plutchik-axis coverage audit,
+  summariser empty / populated shape.
+- Python 380 tests still pass; same events produce identical
+  snapshots on both sides.
+
+### Upgrading from 1.11.0
+
+Remove + re-add from the Package Manager git URL. Typical wiring:
+
+1. Drop `NpcForgeEmotionState` on the NPC GameObject alongside
+   its `NpcForgeMemoryStore`.
+2. Assign the memory store reference; set `npcId` + faction ids.
+3. Before `RequestImprov`, call `state.SummarizeForPrompt()` and
+   splice into the improv context next to the ethics, trajectory,
+   and personality blocks.
+
+---
+
 ## [1.11.0] — 2026-04-20
 
 MemoryStore capacity + salience-heap eviction, matching Python
