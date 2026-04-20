@@ -435,6 +435,12 @@ _BASE_RULES = (
     "    High conscientiousness = finished sentences, precise phrasing. These are base-\n"
     "    temperament hints, composing with every other active block. Never narrate the\n"
     "    hints, never list axes, never say 'as an extravert' — let them surface in rhythm.\n"
+    "18. If a 'Current emotional state' block lists your internal feeling, let the\n"
+    "    dominant tone shape DELIVERY — warmth, pacing, word choice — without ever\n"
+    "    naming the emotion aloud. Never say 'I feel afraid' or 'I'm angry'; let the\n"
+    "    fear show in a clipped watchful register and the anger in edges of word choice.\n"
+    "    This is TRANSIENT state (decays between turns) — distinct from the permanent\n"
+    "    ethical reading and the stable OCEAN profile.\n"
 )
 
 
@@ -447,6 +453,7 @@ def build_npc_respondent_prompt(
     active_lenses: list[VoiceLens] | None = None,
     ethical_reading_block: str = "",
     trajectory_block: str = "",
+    emotion_block: str = "",
 ) -> str:
     """System prompt for the Respondent (NPC) side of a walk-up dialog.
 
@@ -485,6 +492,8 @@ def build_npc_respondent_prompt(
         blocks.append(ethical_reading_block.strip())
     if trajectory_block.strip():
         blocks.append(trajectory_block.strip())
+    if emotion_block.strip():
+        blocks.append(emotion_block.strip())
     return "\n\n".join(blocks) + "\n"
 
 

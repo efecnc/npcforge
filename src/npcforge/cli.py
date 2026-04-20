@@ -578,6 +578,44 @@ async def _cmd_memory_show(args: argparse.Namespace) -> int:
     return 0
 
 
+async def _cmd_emotion_show(args: argparse.Namespace) -> int:
+    """Show an NPC's currently-derived emotional state."""
+    from .emotion import compute_emotion_state, summarize_emotion_state
+    from .memory import MemoryStore
+    from .schemas import load_npcs
+
+    demo_dir: Path = args.demo_dir
+    npcs = {n.id: n for n in load_npcs(demo_dir / "characters.yaml")}
+    if args.npc not in npcs:
+        print(f"Unknown npc id: {args.npc}", file=sys.stderr)
+        return 1
+    npc = npcs[args.npc]
+    store = MemoryStore.load(demo_dir / "memory.json")
+    state = compute_emotion_state(
+        npc, store, decay_per_turn=args.decay_per_turn,
+    )
+    if args.json:
+        print(json.dumps({
+            "npc_id": npc.id,
+            "turn": store.current_turn,
+            "axes": state.axes,
+            "dominant": state.dominant(),
+        }, indent=2))
+        return 0
+
+    print(f"{npc.id}: turn={store.current_turn}, "
+          f"decay_per_turn={args.decay_per_turn}")
+    if not state.axes:
+        print("  (calm — no emotions above threshold)")
+        return 0
+    for axis, v in sorted(state.axes.items(), key=lambda kv: kv[1], reverse=True):
+        bar = "█" * int(v * 20)
+        print(f"  {axis:<13}  {v:0.2f}  {bar}")
+    print()
+    print(summarize_emotion_state(state))
+    return 0
+
+
 async def _cmd_trajectory_show(args: argparse.Namespace) -> int:
     """Show an NPC's current relationship-trajectory waypoint."""
     from .memory import MemoryStore
@@ -1118,6 +1156,12 @@ async def _cmd_improv(args: argparse.Namespace) -> int:
         t_reading = evaluate_trajectory(npc, store)
         trajectory_block = summarize_trajectory(npc, t_reading)
 
+    from .emotion import compute_emotion_state, summarize_emotion_state
+    emotion_block = ""
+    if store is not None:
+        e_state = compute_emotion_state(npc, store)
+        emotion_block = summarize_emotion_state(e_state)
+
     reply = await improv_query(
         npc=npc,
         query=args.query,
@@ -1133,6 +1177,7 @@ async def _cmd_improv(args: argparse.Namespace) -> int:
         active_lenses=active_lenses,
         ethical_reading_block=ethical_reading_block,
         trajectory_block=trajectory_block,
+        emotion_block=emotion_block,
     )
     if reply is None:
         print("improv failed — see log warnings.", file=sys.stderr)
@@ -1641,6 +1686,22 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p_mr.add_argument("--advance", type=int, default=0,
                       help="Advance turn counter before recording (default 0).")
     p_mr.set_defaults(func=_cmd_memory_record)
+
+    # ---- emotion (v0.20.0) ----
+    p_em = subs.add_parser(
+        "emotion",
+        help="Inspect an NPC's current emotional state derived from memory.",
+    )
+    p_em_sub = p_em.add_subparsers(dest="emotion_command", required=True)
+    p_em_show = p_em_sub.add_parser(
+        "show",
+        help="Print the derived Plutchik intensities + dominant emotion.",
+    )
+    p_em_show.add_argument("--demo-dir", type=Path, required=True)
+    p_em_show.add_argument("--npc", required=True)
+    p_em_show.add_argument("--decay-per-turn", type=float, default=0.05)
+    p_em_show.add_argument("--json", action="store_true")
+    p_em_show.set_defaults(func=_cmd_emotion_show)
 
     # ---- trajectory (v0.17.0) ----
     p_t = subs.add_parser(
