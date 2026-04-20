@@ -441,6 +441,13 @@ _BASE_RULES = (
     "    fear show in a clipped watchful register and the anger in edges of word choice.\n"
     "    This is TRANSIENT state (decays between turns) — distinct from the permanent\n"
     "    ethical reading and the stable OCEAN profile.\n"
+    "19. If an 'Active quests' block lists what the player is currently holding, you may\n"
+    "    reference those quests naturally when the conversation turns to them. Do not\n"
+    "    recite the quest id or the stage label aloud — those are designer metadata. Do\n"
+    "    not volunteer quest information unprompted: wait for the player to bring the\n"
+    "    matter up, then respond with what your role would plausibly know about it.\n"
+    "    Quests not listed in the block are either unstarted OR not known to you —\n"
+    "    either way, do not invent progress that isn't shown.\n"
 )
 
 
@@ -454,6 +461,7 @@ def build_npc_respondent_prompt(
     ethical_reading_block: str = "",
     trajectory_block: str = "",
     emotion_block: str = "",
+    active_quests_block: str = "",
 ) -> str:
     """System prompt for the Respondent (NPC) side of a walk-up dialog.
 
@@ -494,6 +502,8 @@ def build_npc_respondent_prompt(
         blocks.append(trajectory_block.strip())
     if emotion_block.strip():
         blocks.append(emotion_block.strip())
+    if active_quests_block.strip():
+        blocks.append(active_quests_block.strip())
     return "\n\n".join(blocks) + "\n"
 
 

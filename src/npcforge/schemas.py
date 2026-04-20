@@ -171,6 +171,71 @@ class Relationship(BaseModel):
     )
 
 
+class QuestStage(BaseModel):
+    """One ordered beat in a quest's progression (v0.21.0).
+
+    Stages are ordered by their position in the ``Quest.stages`` list.
+    ``description`` is the one-sentence context injected into the
+    respondent prompt so NPCs know what state the player is in right
+    now without being told the stage id.
+    """
+
+    id: str = Field(..., description="Lower_snake_case stage id, unique per quest.")
+    label: str = Field(..., description="Short writer-facing name.")
+    description: str = Field(
+        default="",
+        description=(
+            "One sentence from the player's POV: 'The player has just "
+            "been asked to recover the locket from the deep.' Becomes "
+            "context for NPCs who know about this quest."
+        ),
+    )
+    known_to: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Optional list of NPC ids who KNOW this stage is active. "
+            "Empty = every NPC the player talks to sees it. Useful for "
+            "quests where only some NPCs have been informed."
+        ),
+    )
+
+
+class Quest(BaseModel):
+    """A story-state curve shared across the whole cast (v0.21.0)."""
+
+    id: str = Field(..., description="Lower_snake_case quest id.")
+    name: str = Field(..., description="Display name.")
+    description: str = Field(
+        default="",
+        description="One-paragraph writer brief. Never injected into prompts.",
+    )
+    stages: list[QuestStage] = Field(
+        ..., min_length=1,
+        description="Ordered stages from 'not started' through resolution.",
+    )
+
+    def stage_index(self, stage_id: str) -> int:
+        """Return the 0-based index of ``stage_id`` in this quest, or -1
+        if missing. Comparison by index lets runtime logic check
+        'at or past stage X' without knowing the full progression."""
+        for i, s in enumerate(self.stages):
+            if s.id == stage_id:
+                return i
+        return -1
+
+
+class QuestsConfig(BaseModel):
+    """Top-level ``quests.yaml`` schema."""
+
+    quests: list[Quest] = Field(default_factory=list)
+
+    def by_id(self, quest_id: str) -> Quest | None:
+        for q in self.quests:
+            if q.id == quest_id:
+                return q
+        return None
+
+
 class Personality(BaseModel):
     """Big-5 (OCEAN) personality vector for an NPC (v0.18.0).
 
@@ -478,6 +543,17 @@ class TriggerSpec(BaseModel):
             "Per-faction player-standing floors: {'miners': 20, "
             "'lantern_regulars': -10}. Evaluated against the runtime "
             "faction-standing store."
+        ),
+    )
+    min_quest_stages: dict[str, str] = Field(
+        default_factory=dict,
+        description=(
+            "Per-quest 'must be at or past this stage' map: "
+            "{'recover_locket': 'accepted', 'investigate_seal': 'clue_found'}. "
+            "Evaluated against the runtime QuestTracker — if the quest's "
+            "current stage index is below the required stage's index, "
+            "this trigger does not fire. Quests or stages that don't "
+            "exist in the config are treated as unmet."
         ),
     )
     max_standing: dict[str, float] = Field(
@@ -925,6 +1001,27 @@ def load_barks_config(path: Path) -> BarksConfig:
         return BarksConfig()
     data = _load_yaml(path)
     return BarksConfig(**data)
+
+
+def load_quests(path: Path) -> QuestsConfig:
+    """Load ``quests.yaml`` if present. Returns an empty config if missing.
+
+    Validates that stage ids are unique per quest — loud failure beats
+    silent id collisions breaking gate evaluation.
+    """
+    if not path.exists():
+        return QuestsConfig()
+    data = _load_yaml(path)
+    cfg = QuestsConfig(**data)
+    for quest in cfg.quests:
+        seen: set[str] = set()
+        for stage in quest.stages:
+            if stage.id in seen:
+                raise ValueError(
+                    f"Quest '{quest.id}': duplicate stage id '{stage.id}'"
+                )
+            seen.add(stage.id)
+    return cfg
 
 
 def load_factions(path: Path) -> FactionsConfig:

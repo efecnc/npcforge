@@ -1,0 +1,6 @@
+{
+  "schema_version": "1",
+  "current_stages": {
+    "recover_locket": "sealing_witnessed"
+  }
+}

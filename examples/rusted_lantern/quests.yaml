@@ -1,0 +1,60 @@
+# Quests for the Rusted Lantern demo.
+#
+# Each quest is a linear progression of stages. NPCs know about the
+# stage the player is currently on (unless a stage restricts
+# visibility via `known_to`). Arcs and trajectories can gate on
+# `quest_id.stage_id` pairs — see Mira's confidante stage for the
+# pattern.
+
+quests:
+
+  - id: recover_locket
+    name: "Recover the Iron Locket"
+    description: >
+      The core quest line. Gereth's lost-kin locket must be recovered
+      from the lower seam. The stages track the player's investigation
+      from hearing the first rumour to standing at the sealing.
+    stages:
+      - id: not_started
+        label: "not started"
+        description: >
+          The player has never asked about the locket. NPCs who know
+          of it treat the topic as off-limits by default.
+        known_to:
+          - gereth_blackstone
+          - mira_vesser
+          - sister_adelie
+
+      - id: heard_rumour
+        label: "heard the rumour"
+        description: >
+          The player has heard there's 'something wrong in the lower
+          seam' and they want to know more. No details confirmed yet.
+
+      - id: accepted
+        label: "accepted the hunt"
+        description: >
+          Gereth has told the player directly that his kin's locket
+          is still in the seam, and the player has agreed to retrieve
+          it. The first real step into the mine lore.
+
+      - id: clue_found
+        label: "clue found"
+        description: >
+          The player has found physical evidence (copper dust on a
+          stranger's cuff, a humming stone, a scrap of cloth from
+          Gereth's kin) that places the locket in the deep.
+
+      - id: confronted_mira
+        label: "confronted Mira about the lease"
+        description: >
+          The player has directly asked Mira about her role in the
+          mine lease. She has neither denied nor confirmed yet — but
+          she knows she's been seen through.
+
+      - id: sealing_witnessed
+        label: "witnessed the sealing"
+        description: >
+          The player has stood at the sealing ward themselves, seen
+          what Mira refuses to describe. Final stage — the locket
+          has been recovered one way or another.

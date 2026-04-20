@@ -31,7 +31,8 @@ from dataclasses import dataclass
 from typing import Mapping
 
 from .memory import MemoryStore
-from .schemas import ArcStage, NpcSheet, TriggerSpec
+from .quests import QuestTracker
+from .schemas import ArcStage, NpcSheet, QuestsConfig, TriggerSpec
 
 
 # Event-type tag used when the runtime records a stage latching for
@@ -65,6 +66,8 @@ def evaluate_arc(
     npc: NpcSheet,
     store: MemoryStore | None = None,
     standings: Mapping[str, float] | None = None,
+    quest_tracker: QuestTracker | None = None,
+    quest_config: QuestsConfig | None = None,
 ) -> list[ActiveStage]:
     """Return every stage that's currently active, cumulative + in order.
 
@@ -94,6 +97,8 @@ def evaluate_arc(
             npc,
             store_or_empty,
             standings,
+            quest_tracker=quest_tracker,
+            quest_config=quest_config,
         )
         if is_latched or trigger_met:
             active.append(
@@ -106,6 +111,8 @@ def newly_latched_stages(
     npc: NpcSheet,
     store: MemoryStore,
     standings: Mapping[str, float] | None = None,
+    quest_tracker: QuestTracker | None = None,
+    quest_config: QuestsConfig | None = None,
 ) -> list[ActiveStage]:
     """Return stages whose trigger is satisfied NOW but never previously
     latched. Runtime callers use this list to record fresh latch events
@@ -126,7 +133,10 @@ def newly_latched_stages(
             continue
         if _is_always_active(stage.trigger):
             continue
-        if _trigger_satisfied(stage.trigger, npc, store, standings):
+        if _trigger_satisfied(
+            stage.trigger, npc, store, standings,
+            quest_tracker=quest_tracker, quest_config=quest_config,
+        ):
             out.append(ActiveStage(stage=stage, index=i, latched=False))
     return out
 
@@ -140,6 +150,7 @@ def _is_always_active(trigger: TriggerSpec) -> bool:
         and not trigger.required_event_types
         and not trigger.min_standing
         and not trigger.max_standing
+        and not trigger.min_quest_stages
         and not trigger.custom_condition.strip()
     )
 
@@ -198,6 +209,9 @@ def _trigger_satisfied(
     npc: NpcSheet,
     store: MemoryStore,
     standings: Mapping[str, float],
+    *,
+    quest_tracker: QuestTracker | None = None,
+    quest_config: QuestsConfig | None = None,
 ) -> bool:
     """True when every constraint in ``trigger`` holds right now.
 
@@ -229,6 +243,18 @@ def _trigger_satisfied(
     for faction_id, ceiling in trigger.max_standing.items():
         if standings.get(faction_id, 0.0) > ceiling:
             return False
+
+    # Quest gates: a missing tracker/config with a non-empty
+    # min_quest_stages fails closed — callers need to wire the tracker
+    # in for quest-gated arcs to fire.
+    if trigger.min_quest_stages:
+        if quest_tracker is None or quest_config is None:
+            return False
+        for quest_id, required_stage in trigger.min_quest_stages.items():
+            if not quest_tracker.is_at_or_past(
+                quest_id, required_stage, quest_config,
+            ):
+                return False
 
     return True
 

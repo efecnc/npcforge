@@ -578,6 +578,97 @@ async def _cmd_memory_show(args: argparse.Namespace) -> int:
     return 0
 
 
+async def _cmd_quest_list(args: argparse.Namespace) -> int:
+    """List declared quests + their current stage."""
+    from .quests import QuestTracker
+    from .schemas import load_quests
+
+    demo_dir: Path = args.demo_dir
+    cfg = load_quests(demo_dir / "quests.yaml")
+    tracker = QuestTracker.load(demo_dir / "quest_state.json")
+    if not cfg.quests:
+        print(f"no quests declared at {demo_dir / 'quests.yaml'}")
+        return 0
+    for q in cfg.quests:
+        current = tracker.current_stages.get(q.id)
+        status = current or "(not started)"
+        print(f"{q.id}: {q.name}")
+        print(f"  current: {status}")
+        for i, s in enumerate(q.stages):
+            marker = "★" if s.id == current else " "
+            print(f"  {marker} [{i}] {s.label} ({s.id})")
+    return 0
+
+
+async def _cmd_quest_show(args: argparse.Namespace) -> int:
+    """Show one quest in detail (every stage + current)."""
+    from .quests import QuestTracker
+    from .schemas import load_quests
+
+    demo_dir: Path = args.demo_dir
+    cfg = load_quests(demo_dir / "quests.yaml")
+    tracker = QuestTracker.load(demo_dir / "quest_state.json")
+    q = cfg.by_id(args.id)
+    if q is None:
+        print(f"unknown quest id: {args.id}", file=sys.stderr)
+        return 1
+    current = tracker.current_stages.get(q.id)
+    print(f"{q.id}: {q.name}")
+    if q.description.strip():
+        print(f"  {q.description.strip()}")
+    print(f"  current: {current or '(not started)'}")
+    print()
+    for i, s in enumerate(q.stages):
+        marker = "★" if s.id == current else " "
+        print(f"  {marker} [{i}] {s.label} ({s.id})")
+        if s.description.strip():
+            print(f"        {s.description.strip()}")
+        if s.known_to:
+            print(f"        known_to: {', '.join(s.known_to)}")
+    return 0
+
+
+async def _cmd_quest_set(args: argparse.Namespace) -> int:
+    """Set a quest to a specific stage (advance or rewind)."""
+    from .quests import QuestTracker
+    from .schemas import load_quests
+
+    demo_dir: Path = args.demo_dir
+    cfg = load_quests(demo_dir / "quests.yaml")
+    path = demo_dir / "quest_state.json"
+    tracker = QuestTracker.load(path)
+    try:
+        tracker.set_stage(args.id, args.stage, cfg)
+    except KeyError as exc:
+        print(f"{exc}", file=sys.stderr)
+        return 1
+    tracker.save(path)
+    print(f"set {args.id} -> {args.stage}")
+    return 0
+
+
+async def _cmd_quest_advance(args: argparse.Namespace) -> int:
+    """Advance a quest to the next stage."""
+    from .quests import QuestTracker
+    from .schemas import load_quests
+
+    demo_dir: Path = args.demo_dir
+    cfg = load_quests(demo_dir / "quests.yaml")
+    path = demo_dir / "quest_state.json"
+    tracker = QuestTracker.load(path)
+    try:
+        new_stage = tracker.advance(args.id, cfg)
+    except KeyError as exc:
+        print(f"{exc}", file=sys.stderr)
+        return 1
+    tracker.save(path)
+    if new_stage is None:
+        print(f"{args.id} already at final stage")
+    else:
+        print(f"advanced {args.id} -> {new_stage}")
+    return 0
+
+
 async def _cmd_emotion_show(args: argparse.Namespace) -> int:
     """Show an NPC's currently-derived emotional state."""
     from .emotion import compute_emotion_state, summarize_emotion_state
@@ -1162,6 +1253,14 @@ async def _cmd_improv(args: argparse.Namespace) -> int:
         e_state = compute_emotion_state(npc, store)
         emotion_block = summarize_emotion_state(e_state)
 
+    from .quests import QuestTracker, summarize_active_quests
+    from .schemas import load_quests
+    quests_cfg = load_quests(demo_dir / "quests.yaml")
+    quest_tracker = QuestTracker.load(demo_dir / "quest_state.json")
+    active_quests_block = summarize_active_quests(
+        npc.id, quest_tracker, quests_cfg,
+    )
+
     reply = await improv_query(
         npc=npc,
         query=args.query,
@@ -1178,6 +1277,7 @@ async def _cmd_improv(args: argparse.Namespace) -> int:
         ethical_reading_block=ethical_reading_block,
         trajectory_block=trajectory_block,
         emotion_block=emotion_block,
+        active_quests_block=active_quests_block,
     )
     if reply is None:
         print("improv failed — see log warnings.", file=sys.stderr)
@@ -1686,6 +1786,39 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p_mr.add_argument("--advance", type=int, default=0,
                       help="Advance turn counter before recording (default 0).")
     p_mr.set_defaults(func=_cmd_memory_record)
+
+    # ---- quest (v0.21.0) ----
+    p_q = subs.add_parser(
+        "quest",
+        help="Manage quests + story-state gating declared in quests.yaml.",
+    )
+    p_q_sub = p_q.add_subparsers(dest="quest_command", required=True)
+
+    p_q_list = p_q_sub.add_parser("list", help="List all quests + current stages.")
+    p_q_list.add_argument("--demo-dir", type=Path, required=True)
+    p_q_list.set_defaults(func=_cmd_quest_list)
+
+    p_q_show = p_q_sub.add_parser("show", help="Show one quest in detail.")
+    p_q_show.add_argument("--demo-dir", type=Path, required=True)
+    p_q_show.add_argument("--id", required=True)
+    p_q_show.set_defaults(func=_cmd_quest_show)
+
+    p_q_set = p_q_sub.add_parser(
+        "set",
+        help="Set a quest to a specific stage (advance or rewind).",
+    )
+    p_q_set.add_argument("--demo-dir", type=Path, required=True)
+    p_q_set.add_argument("--id", required=True)
+    p_q_set.add_argument("--stage", required=True)
+    p_q_set.set_defaults(func=_cmd_quest_set)
+
+    p_q_adv = p_q_sub.add_parser(
+        "advance",
+        help="Advance a quest to the next stage.",
+    )
+    p_q_adv.add_argument("--demo-dir", type=Path, required=True)
+    p_q_adv.add_argument("--id", required=True)
+    p_q_adv.set_defaults(func=_cmd_quest_advance)
 
     # ---- emotion (v0.20.0) ----
     p_em = subs.add_parser(

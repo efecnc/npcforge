@@ -236,6 +236,12 @@ npcs:
               - secret_shared
             min_standing:
               lantern_regulars: 25
+            # Requires the player to have actually confronted Mira
+            # about the mine lease — confidante doesn't open until the
+            # quest forces the conversation. Binding Mira's deepest arc
+            # stage to quest progress keeps the systems coupled.
+            min_quest_stages:
+              recover_locket: confronted_mira
           unlocks_knowledge:
             - broken_seal
 
