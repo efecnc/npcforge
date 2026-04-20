@@ -1522,6 +1522,67 @@ async def _cmd_memory_record(args: argparse.Namespace) -> int:
     return 0
 
 
+async def _cmd_eval(args: argparse.Namespace) -> int:
+    """Run the dialogue-quality eval suite against a demo."""
+    from .evals import (
+        EvalCase,
+        default_rusted_lantern_cases,
+        render_markdown_report,
+        run_suite,
+    )
+
+    demo_dir: Path = args.demo_dir
+    api_key = _resolve_api_key(args.provider, args.api_key_env)
+
+    if args.suite:
+        raw = json.loads(args.suite.read_text(encoding="utf-8"))
+        cases = [EvalCase(**c) for c in raw]
+    else:
+        cases = default_rusted_lantern_cases()
+
+    if args.only_ids:
+        keep = set(_split_csv(args.only_ids))
+        cases = [c for c in cases if c.id in keep]
+    if args.limit > 0:
+        cases = cases[: args.limit]
+
+    if not cases:
+        print("no cases to run (check --only-ids / --suite filters)", file=sys.stderr)
+        return 1
+
+    print(
+        f"eval: cases={len(cases)} demo_dir={demo_dir} "
+        f"provider={args.provider} model={args.model or '(default)'}"
+    )
+    report = await run_suite(
+        cases,
+        demo_dir=demo_dir,
+        api_key=api_key,
+        provider=args.provider,
+        model=args.model,
+    )
+
+    out_dir: Path = args.out or (demo_dir / "out")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    md_path = out_dir / "eval_report.md"
+    json_path = out_dir / "eval_report.json"
+    md_path.write_text(render_markdown_report(report), encoding="utf-8")
+    json_path.write_text(
+        report.model_dump_json(indent=2), encoding="utf-8",
+    )
+
+    print(
+        f"done: passed={report.passed}/{report.total} "
+        f"({report.pass_rate * 100:.0f}%)  voice_avg={report.voice_avg:.3f}  "
+        f"lint_total={report.lint_total}  "
+        f"length_fail={report.length_failures}  "
+        f"register_fail={report.register_failures}"
+    )
+    print(f"wrote {md_path}")
+    print(f"wrote {json_path}")
+    return 0 if report.passed == report.total else 2
+
+
 # ---------------------------------------------------------------------------
 # Parser construction
 # ---------------------------------------------------------------------------
@@ -1835,6 +1896,45 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p_em_show.add_argument("--decay-per-turn", type=float, default=0.05)
     p_em_show.add_argument("--json", action="store_true")
     p_em_show.set_defaults(func=_cmd_emotion_show)
+
+    # ---- eval (v0.22.0) ----
+    p_ev = subs.add_parser(
+        "eval",
+        help=(
+            "Score dialogue quality for an NPC cast against a curated case "
+            "suite. Writes markdown + JSON reports. Exit 0 = all-pass, "
+            "2 = at least one case failed."
+        ),
+    )
+    p_ev.add_argument("--demo-dir", type=Path, required=True)
+    p_ev.add_argument(
+        "--suite",
+        type=Path,
+        default=None,
+        help=(
+            "JSON file with a list of EvalCase objects. Default: the "
+            "built-in Rusted Lantern suite (20 cases)."
+        ),
+    )
+    p_ev.add_argument(
+        "--only-ids",
+        default=None,
+        help="Comma-separated case ids to run (filters the suite).",
+    )
+    p_ev.add_argument(
+        "--limit",
+        type=int,
+        default=0,
+        help="Cap on cases after filtering (0 = no cap). Useful for smoke tests.",
+    )
+    p_ev.add_argument(
+        "--out",
+        type=Path,
+        default=None,
+        help="Directory for eval_report.md + eval_report.json (default <demo-dir>/out).",
+    )
+    _add_llm_flags(p_ev)
+    p_ev.set_defaults(func=_cmd_eval)
 
     # ---- trajectory (v0.17.0) ----
     p_t = subs.add_parser(
