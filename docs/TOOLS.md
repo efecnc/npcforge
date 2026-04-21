@@ -108,6 +108,9 @@ cached world profile when present and auto-infers it otherwise.
 | `roles` | `list[str]` | `[]` | One NPC per role. Overrides `n` when given. |
 | `append` | `bool` | `True` | When false, return without writing. |
 | `concurrency` | `int` | `3` | Max parallel LLM calls. |
+| `narrative_preset` | `str \| None` | `None` | Override `npcforge_project.yaml` legacy preset (`indie_minimal` \| `rpg_standard` \| `cinematic_rpg`). |
+| `topology` | `str \| None` | `None` | Override `npcforge_project.yaml` `topology`. |
+| `depth` | `str \| None` | `None` | Override `npcforge_project.yaml` `depth`. |
 | `api_key` / `provider` / `model` | — | — | See `_LLMOptions`. |
 
 **Output — `GenNpcsOutput`:**
@@ -244,6 +247,9 @@ matches the stub exactly.
 | `only_ids` | `list[str]` | `[]` | Restrict to a subset of stub ids. Empty = all stubs. |
 | `write` | `bool` | `True` | When false, return resolved sheets without touching the file. |
 | `concurrency` | `int` | `3` | Max parallel LLM calls. |
+| `narrative_preset` | `str \| None` | `None` | Override legacy preset for stub expansion. |
+| `topology` | `str \| None` | `None` | Override `npcforge_project.yaml` `topology`. |
+| `depth` | `str \| None` | `None` | Override `npcforge_project.yaml` `depth`. |
 | `api_key` / `provider` / `model` | — | — | See `_LLMOptions`. |
 
 **Output — `ResolveStubsOutput`:**
@@ -427,6 +433,9 @@ Runs the walk-up / bark / all pipeline, wrapping the existing
 | `bark_concurrency` | `int` | `4` | Parallel bark generations per (NPC, trigger). |
 | `score_voice` | `bool` | `False` | Compute per-branch voice-consistency scores via embeddings. Adds one batched embedding call per NPC. |
 | `out_dir` | `Path \| None` | `None` | Output directory (defaults to `<demo_dir>/out`). |
+| `narrative_preset` | `str \| None` | `None` | Override legacy preset for walk-up tone. |
+| `topology` | `str \| None` | `None` | Override `npcforge_project.yaml` `topology`. |
+| `depth` | `str \| None` | `None` | Override `npcforge_project.yaml` `depth`. |
 | `api_key` / `provider` / `model` | — | — | See `_LLMOptions`. |
 
 **Output — `BuildPipelineOutput`:**

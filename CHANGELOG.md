@@ -6,6 +6,21 @@ All notable changes to npcforge land here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **`narrative_preset`** — `npcforge_project.yaml` (`indie_minimal`,
+  `rpg_standard`, `cinematic_rpg`) plus CLI / tool overrides. Shapes NPC
+  generation prompts and walk-up respondent tone; default remains
+  `rpg_standard` when the file is absent. See `docs/NARRATIVE_PRESET.md`.
+- **`topology`**, **`depth`**, **`experimental`**, **`review_workflow`** in
+  `npcforge_project.yaml`, resolved by `project_config.load_project_config`.
+  When only `narrative_preset:` is set, topology + depth are inferred from
+  the legacy map (backward compatible).
+- **CLI:** `npcforge init`, `npcforge doctor`, `npcforge export cast`;
+  `--topology` / `--depth` on `build`, `gen npcs`, `resolve stubs`.
+- **`NpcSheet.tier`** and optional **`NpcSheet.status`** for cast / review
+  metadata; **`export cast`** includes them in the CSV.
+
 ### Removed
 
 - **Godot** engine support: `GodotAdapter` / `engines/godot.py`,

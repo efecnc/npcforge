@@ -1,0 +1,112 @@
+# Quest layer for the Fallen Oak Inn.
+# Each clue fires when the player picks ``gate.intent`` with ``gate.npc``.
+# Once the player has unlocked ``resolve.min_clues`` clues, the Resolve
+# menu appears on the town screen.
+
+quest:
+  id: thayan_cart_mystery
+  name: "The Thayan Cart"
+  player_brief: >
+    A Harper hired you to identify who took the strongbox from the burned
+    Thayan cart on the Trade Way. Not to recover it. Not to pity them.
+
+clues:
+  - id: thayan_marks_on_cart
+    gate: {npc: shea_raventongue, intent: ask_about_thayan_cart}
+    flash: "Shea's hand tightens on the rag. She saw the cart."
+    log: >
+      The burned cart south of the inn had Thayan script on the axle. The
+      innkeeper confirms it without being pressed — she saw it herself.
+
+  - id: cart_driver_was_zhent_adjacent
+    gate: {npc: balric, intent: ask_about_zhents}
+    flash: "Balric's jaw works. 'The Network had a runner on that road.'"
+    log: >
+      Balric the Bent-Nose lets slip that the Zhentarim had someone on
+      that route last tenday. He does not say it was him. He does not
+      need to.
+
+  - id: red_wizard_is_here
+    gate: {npc: azarien, intent: ask_about_red_wizards}
+    flash: "Azarien smiles. The smile does not reach his eyes. You have your answer."
+    log: >
+      The bald scholar deflects questions about the Red Wizards with
+      practised ease that only a Red Wizard would have.
+
+  - id: harper_is_here
+    gate: {npc: gwenn_vellamar, intent: ask_about_harpers}
+    flash: "Gwenn pauses one half-beat too long before she answers."
+    log: >
+      The cloth-merchant is not a cloth-merchant. The pause before she
+      denied knowing any Harpers was the pause of someone choosing how
+      to lie to you.
+
+  - id: tobin_is_sick
+    gate: {npc: tobin_thell, intent: ask_about_dragon_attacks}
+    flash: "Tobin has not slept. His hands will not stop shaking."
+    log: >
+      Tobin Thell has the look of a man who has carried something he
+      should not have. He says the noise in his ears is just the wind.
+
+  - id: tobin_took_something
+    gate: {npc: tobin_thell, intent: offer_help}
+    flash: "Tobin's eyes fill. 'Found it on a wagon. Heavy thing. Silver.'"
+    log: >
+      Under kind pressure, Tobin admits he took a heavy tarnished silver
+      piece from a burned wagon on the road. He does not understand
+      what he has. He is the carrier.
+
+  - id: balric_watches_tobin
+    gate: {npc: shea_raventongue, intent: ask_about_other_guest}
+    flash: "Shea: 'The sell-sword's eyes haven't left the caravan man all night.'"
+    log: >
+      Shea confirms Balric has been watching Tobin for hours without
+      speaking to him. The Zhent knows who has it.
+
+  - id: azarien_watches_tobin_too
+    gate: {npc: gwenn_vellamar, intent: ask_about_other_guest}
+    flash: "Gwenn, very quietly: 'The scholar is waiting for the same man you are.'"
+    log: >
+      Gwenn has made Azarien the same way you have. She is asking if
+      you are a friend on the road or a problem.
+
+resolutions:
+  # Threshold is measured in clues unlocked. Ordered — first one whose
+  # threshold is met is the one the player sees first in the menu.
+  - id: name_to_harper
+    min_clues: 4
+    label: "Ride south at first light and name Tobin to the Harper"
+    outcome: >
+      You leave before the storm breaks. Three days later you are in
+      Baldur's Gate and Mallara Thistledown is paying you the other
+      half of your purse without meeting your eyes. You tell yourself
+      the Harpers will be kind to him. You do not quite believe it.
+    ending: "quest_complete_named"
+
+  - id: warn_tobin
+    min_clues: 4
+    label: "Lean across his table tonight and warn Tobin quietly"
+    outcome: >
+      You tell him what he is carrying. You watch his face empty. He
+      is gone before the storm lifts, amulet and all, and you do not
+      know if you have saved him or killed him slower. Mallara will
+      have to find the carrier herself.
+    ending: "quest_complete_warned"
+
+  - id: confront_tobin
+    min_clues: 3
+    label: "Corner Tobin and take the amulet from him"
+    outcome: >
+      You break Mallara's one rule. The amulet is cold in your hand
+      and the voice of it is already in your head. You were not told
+      what the price of carrying it is. You are going to learn.
+    ending: "quest_failed_recovered"
+
+  - id: walk_away
+    min_clues: 0
+    label: "Ride south and report nothing"
+    outcome: >
+      You take the Trade Way at dawn. You never collect the rest of
+      the purse. The Harpers learn your name anyway — they always do.
+      You will see Mallara Thistledown exactly once more in your life.
+    ending: "quest_abandoned"

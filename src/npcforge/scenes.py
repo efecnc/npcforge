@@ -33,6 +33,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from .memory import MemoryStore, summarize_for_npc
+from .narrative_scope import LayersConfig
 from .prompts import render_character_sheet
 from .schemas import FactionsConfig, NpcSheet
 
@@ -144,6 +145,7 @@ def build_scene_system_prompt(
     cast: list[NpcSheet],
     factions: FactionsConfig | None = None,
     memory_store: MemoryStore | None = None,
+    layers: LayersConfig | None = None,
 ) -> str:
     """System prompt for generating a scene.
 
@@ -162,7 +164,7 @@ def build_scene_system_prompt(
 
     sheets: list[str] = []
     for npc in participants:
-        sheet = render_character_sheet(npc, cast=cast, factions=factions)
+        sheet = render_character_sheet(npc, cast=cast, factions=factions, layers=layers)
         mem = ""
         if memory_store is not None:
             mem = summarize_for_npc(npc, memory_store)

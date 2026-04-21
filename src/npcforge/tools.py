@@ -42,6 +42,7 @@ from .generation import (
 from .engines import SyncAction, SyncResult, get_adapter, supported_engines
 from .manifest import Manifest
 from .narrative_scope import load_layers_config, layers_yaml_path
+from .project_config import dialogue_respondent_prompt_suffix, load_project_config
 from .pipeline import run_all as _run_all_impl
 from .state import ProjectVariable, VariableType, load_variables
 from .schemas import (
@@ -227,6 +228,24 @@ class GenNpcsInput(_LLMOptions):
         le=8,
         description="Max parallel LLM calls while generating the cast.",
     )
+    narrative_preset: str | None = Field(
+        default=None,
+        description=(
+            "Override ``narrative_preset`` from npcforge_project.yaml for this "
+            "run (indie_minimal | rpg_standard | cinematic_rpg)."
+        ),
+    )
+    topology: str | None = Field(
+        default=None,
+        description=(
+            "Override ``topology`` from npcforge_project.yaml (six narrative "
+            "shapes; see docs)."
+        ),
+    )
+    depth: str | None = Field(
+        default=None,
+        description="Override ``depth`` from npcforge_project.yaml (lean | standard | cinematic).",
+    )
 
 
 class GenNpcsOutput(BaseModel):
@@ -275,6 +294,9 @@ async def gen_npcs(input: GenNpcsInput) -> GenNpcsOutput:
         model=input.model,
         concurrency=input.concurrency,
         append=input.append,
+        narrative_preset=input.narrative_preset,
+        topology=input.topology,
+        depth=input.depth,
     )
     return GenNpcsOutput(
         added=added,
@@ -456,6 +478,21 @@ class ResolveStubsInput(_LLMOptions):
         ),
     )
     concurrency: int = Field(default=3, ge=1, le=8)
+    narrative_preset: str | None = Field(
+        default=None,
+        description=(
+            "Override narrative preset for stub expansion "
+            "(indie_minimal | rpg_standard | cinematic_rpg)."
+        ),
+    )
+    topology: str | None = Field(
+        default=None,
+        description="Override ``topology`` from npcforge_project.yaml for stub expansion.",
+    )
+    depth: str | None = Field(
+        default=None,
+        description="Override ``depth`` from npcforge_project.yaml for stub expansion.",
+    )
 
 
 class ResolveStubsOutput(BaseModel):
@@ -492,6 +529,9 @@ async def resolve_stubs(input: ResolveStubsInput) -> ResolveStubsOutput:
         model=input.model,
         concurrency=input.concurrency,
         write=input.write,
+        narrative_preset=input.narrative_preset,
+        topology=input.topology,
+        depth=input.depth,
     )
     return ResolveStubsOutput(
         resolved=resolved,
@@ -832,6 +872,21 @@ class BuildPipelineInput(_LLMOptions):
         default=None,
         description="Output directory. Defaults to <demo_dir>/out.",
     )
+    narrative_preset: str | None = Field(
+        default=None,
+        description=(
+            "Override npcforge_project.yaml narrative_preset for walk-up "
+            "tone (indie_minimal | rpg_standard | cinematic_rpg)."
+        ),
+    )
+    topology: str | None = Field(
+        default=None,
+        description="Override ``topology`` from npcforge_project.yaml for walk-up tone.",
+    )
+    depth: str | None = Field(
+        default=None,
+        description="Override ``depth`` from npcforge_project.yaml for walk-up tone.",
+    )
 
 
 class BuildPipelineOutput(BaseModel):
@@ -847,6 +902,13 @@ async def build_pipeline(input: BuildPipelineInput) -> BuildPipelineOutput:
     world_bible = load_world_bible(input.demo_dir / "lore")
     out_dir = input.out_dir or (input.demo_dir / "out")
     layers_cfg = load_layers_config(layers_yaml_path(input.demo_dir))
+    proj = load_project_config(
+        input.demo_dir,
+        narrative_preset_override=input.narrative_preset,
+        topology_override=input.topology,
+        depth_override=input.depth,
+    )
+    style_addon = dialogue_respondent_prompt_suffix(proj)
     manifest = await _run_all_impl(
         npcs=npcs,
         intents=intents,
@@ -867,6 +929,7 @@ async def build_pipeline(input: BuildPipelineInput) -> BuildPipelineOutput:
         bark_concurrency=input.bark_concurrency,
         score_voice=input.score_voice,
         progress=False,
+        respondent_style_addon=style_addon,
     )
     return BuildPipelineOutput(manifest=manifest, out_dir=out_dir)
 

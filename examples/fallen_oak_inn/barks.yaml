@@ -1,0 +1,39 @@
+barks:
+- npc: shea_raventongue
+  triggers:
+  - id: observes_entry
+    description: A new patron enters the inn during the storm.
+    n: 7
+  - id: greets_traveller
+    description: A new patron enters the Fallen Oak, shaking rain from their cloak.
+    n: 8
+- npc: tobin_thell
+  triggers:
+  - id: reacts_to_lightning
+    description: A loud crack of lightning and thunder shakes the inn.
+    n: 7
+- npc: gwenn_vellamar
+  triggers:
+  - id: hears_thayan_strongbox
+    description: Someone at a nearby table mentions the recent mystery of the empty Thayan strongbox.
+    n: 6
+  - id: notes_entry
+    description: A new patron enters the Fallen Oak Inn.
+    n: 7
+- npc: azarien
+  triggers:
+  - id: reacts_to_thayan_cart
+    description: Someone at a nearby table mentions a Thayan cart or strongbox.
+    n: 7
+  - id: hears_thayan_cart
+    description: A nearby patron mentions the recent incident involving a Thayan transport cart.
+    n: 6
+- npc: balric
+  triggers:
+  - id: hears_thayan_cart
+    description: Another patron at the inn mentions the recent incident involving a Thayan cart and its
+      missing strongbox.
+    n: 6
+  - id: observes_new_arrival
+    description: A new traveler enters the Fallen Oak Inn, drawing Balric's attention.
+    n: 7

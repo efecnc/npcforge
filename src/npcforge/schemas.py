@@ -22,6 +22,24 @@ VocabularyCeiling = Literal[
     "academic",
 ]
 
+NpcTier = Literal[
+    "main",
+    "companion",
+    "questgiver",
+    "shopkeeper",
+    "guard",
+    "ambient_named",
+    "crowd",
+]
+
+NpcReviewStatus = Literal[
+    "draft",
+    "reviewed",
+    "approved",
+    "locked",
+    "deprecated",
+]
+
 
 class Faction(BaseModel):
     """A social group NPCs belong to (v0.9.0 — social graph).
@@ -838,6 +856,40 @@ class NpcSheet(BaseModel):
         description=(
             "Optional secondary faction — for spies, torn loyalties, "
             "family ties that cross faction lines."
+        ),
+    )
+
+    # Narrative scope (optional — see layers.yaml + narrative_scope module)
+    scope_tags: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Place / arc / mission slice ids this NPC belongs to. Prefer ids "
+            "declared in layers.yaml; freeform tags are allowed. Injected into "
+            "dialogue prompts so the model treats first-hand knowledge as local."
+        ),
+    )
+    narrative_scope_note: str = Field(
+        default="",
+        description=(
+            "Optional writer note (short prose) tightening how local or "
+            "knowledgeable this NPC may sound beyond scope_tags."
+        ),
+    )
+
+    # Cast / production metadata (optional — used for exports and review tooling)
+    tier: NpcTier | None = Field(
+        default=None,
+        description=(
+            "Rough cast weight: main / companion / questgiver / shopkeeper / "
+            "guard / ambient_named / crowd. Guides prioritisation and exports."
+        ),
+    )
+    status: NpcReviewStatus | None = Field(
+        default=None,
+        description=(
+            "Writer pipeline state when ``review_workflow`` is enabled in "
+            "npcforge_project.yaml: draft / reviewed / approved / locked / "
+            "deprecated."
         ),
     )
 

@@ -1,0 +1,61 @@
+{
+  "genre": "low_fantasy",
+  "era": "1374 DR, Year of the Lightning Storms, six months after the Rage of Dragons",
+  "tone": "Low fantasy. Rain. Hearth-smoke. People who have seen something burn and have not yet agreed to talk about it. Not heroic; never cinematic. Funny only when scared. Violence, when it comes, is fast and off-page.",
+  "likely_rating": "T",
+  "register_default": "grade_8",
+  "canonical_terms": [
+    {
+      "category": "currency",
+      "term": "gold piece"
+    },
+    {
+      "category": "major_road",
+      "term": "the Trade Way"
+    },
+    {
+      "category": "dragon_related_term",
+      "term": "Rage of Dragons"
+    },
+    {
+      "category": "criminal_organization",
+      "term": "Zhentarim"
+    },
+    {
+      "category": "magic_faction",
+      "term": "Red Wizards of Thay"
+    },
+    {
+      "category": "secret_society",
+      "term": "Harpers"
+    },
+    {
+      "category": "law_enforcement",
+      "term": "Flaming Fist"
+    }
+  ],
+  "anachronism_blocklist": [
+    "computer",
+    "internet",
+    "car",
+    "phone",
+    "LOL",
+    "dude",
+    "awesome",
+    "cool",
+    "chill",
+    "vibe",
+    "doth",
+    "thee",
+    "thou",
+    "verily",
+    "hitherto",
+    "forsooth"
+  ],
+  "notes": "The setting is currently experiencing a three-day lightning storm. A recent mystery involves an empty Thayan strongbox, and the player character is tasked by a Harper to investigate its contents without recovering the object.",
+  "inferred_from": [
+    "01_sword_coast_1374.md",
+    "02_the_fallen_oak_inn.md",
+    "03_tones_and_canonical_terms.md"
+  ]
+}

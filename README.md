@@ -1,117 +1,136 @@
 # npcforge
 
-**Agent-ready NPC dialogue and cast tooling** — lore-driven world profiles, additive generators, walk-up branches and bark libraries with **Yarn Spinner** export, plus memory, quests, arcs, ethics, improv, and engine sync for **Unity** and **Unreal**.
+**Lore-grounded NPC cast and dialogue** for games: structured **synthetic text** (character sheets, branching walk-up lines, bark pools) with **Yarn Spinner** export, linting, and optional engine sync for **Unity** and **Unreal**.
 
-Powered by [afterimage](https://github.com/altaidevorg/afterimage) (structured LLM calls, provider abstraction).
+Powered by [afterimage](https://github.com/altaidevorg/afterimage) (structured LLM calls and multi-provider support). The same workflows run from the **CLI**, **Python async tools**, or an **MCP** server so agents and CI can drive generation locally with your API keys.
+
+---
+
+## What you get
+
+| Layer | Role |
+|--------|------|
+| **World** | `lore/*.md` → cached **world profile** (genre, tone, rating, taboo terms). |
+| **Cast** | `characters.yaml` — full **NpcSheet** rows or `_generate` stubs; optional **tier** / **status** for production tracking. |
+| **Player** | `player_intents.yaml` — what the player *does* per turn; NPCs may whitelist via `allowed_intents`. |
+| **Pipeline** | `npcforge build` — one branch per **(NPC, intent)** walk-up dialogue, plus **barks** from `barks.yaml`. |
+| **Artefacts** | `out/*.yarn`, `manifest.json`, `lines.csv`, `lint.md` — diffable, engine-ready **synthetic dialogue data**. |
+
+---
+
+## Repository layout
 
 ```
-lore/*.md  ──►  WorldProfile (cached in .npcforge/world_profile.json)
-                     │
-                     ▼
-   gen npcs / intents / barks / greetings / …  (YAML, additive)
-                     │
-                     ▼
-   build  ──►  .yarn + lines.csv + manifest.json + lint.md
-                     │
-                     ├── play / game     (terminal, no LLM)
-                     ├── eval            (curated quality suite)
-                     └── engine-sync     (copy into your engine project)
+src/npcforge/          # installable package
+├── cli.py             # Command-line entrypoint
+├── tools.py           # Pydantic tool inputs/outputs + TOOL_REGISTRY
+├── generation.py      # gen_npcs, gen_intents, gen_barks, resolve_stubs, greetings, …
+├── pipeline.py        # walk-up + barks → Yarn (run_all)
+├── schemas.py         # NpcSheet, intents, barks, factions, memory, …
+├── prompts.py         # Respondent / generator prompt bodies
+├── world_profile.py   # Infer + cache setting profile
+├── project_config.py # npcforge_project.yaml: topology, depth, experimental, review_workflow
+├── narrative_preset.py
+├── narrative_scope.py # layers.yaml + scope_tags filtering
+├── game.py            # Stateful terminal loop over built walk-up Yarn
+├── tape_game.py       # Terminal “tape” demo (optional Pillow)
+├── doctor.py          # npcforge doctor sanity checks
+├── export_cast.py     # export cast → CSV
+├── project_init.py    # npcforge init scaffold
+├── engines/           # unity / unreal sync adapters
+├── audio.py, lint.py, yarn.py, manifest.py, …
+examples/              # demo worlds + Unity UPM sample under unity_integration/
+docs/                  # TOOLS, MCP, NARRATIVE_PRESET, AFTERIMAGE, …
+tests/                 # pytest suite
+recording_sim/       # Static HTML playback demo (Fallen Oak Inn style)
 ```
 
-## Why npcforge
-
-Hosted NPC APIs bill per call and keep your canon off-disk. Hand-authoring a full cast, branching dialogue, and bark pools takes months. npcforge turns the workflow into **typed tools**: same contracts for **CLI**, **Python**, and **MCP** (Claude Desktop, Cursor, Cline). Run locally with your keys; script everything an agent can drive.
+---
 
 ## Install
 
 ```bash
-pip install -e .               # core CLI + library
-pip install -e '.[mcp]'        # MCP server dependencies
+pip install -e .                 # CLI + library
+pip install -e '.[mcp]'          # MCP stdio server
+pip install -e '.[tape]'         # npcforge tape (GIF / terminal capture helpers)
 ```
 
-- **Python** 3.10+ (see `pyproject.toml` for supported minors).
-- **Optional:** [Yarn Spinner compiler](https://docs.yarnspinner.dev/getting-started/editing-with-visual-studio-code) (`ysc` on `PATH`) so `npcforge build` can run `ysc compile` after generation.
+- **Python** 3.10+ (see `pyproject.toml`).
+- **Optional:** [Yarn Spinner compiler](https://docs.yarnspinner.dev/) (`ysc` on `PATH`) so `npcforge build` can run `ysc compile`.
 
-Set the API key for your provider (default provider is `gemini`):
+**API keys** (override with `--api-key-env` / `--provider` / `--model` on LLM commands):
 
-| Provider   | Typical env var      |
-|-----------|----------------------|
-| gemini  | `GEMINI_API_KEY`     |
-| openai  | `OPENAI_API_KEY`     |
-| deepseek| `DEEPSEEK_API_KEY`   |
+| Provider | Typical env var |
+|----------|-----------------|
+| gemini (default) | `GEMINI_API_KEY` |
+| openai | `OPENAI_API_KEY` |
+| deepseek | `DEEPSEEK_API_KEY` |
 | openrouter | `OPENROUTER_API_KEY` |
-| local   | `LOCAL_API_KEY`      |
+| local | `LOCAL_API_KEY` |
 
-Override with `--api-key-env` and `--provider` / `--model` on LLM subcommands.
+---
 
 ## Quick start
 
 ```bash
 export GEMINI_API_KEY=...
 
+# Optional: scaffold narrative defaults next to your YAML
+npcforge init --demo-dir examples/rusted_lantern
+npcforge doctor --demo-dir examples/rusted_lantern
+
 npcforge world infer --demo-dir examples/rusted_lantern
 npcforge build --demo-dir examples/rusted_lantern --mode all
 npcforge play --demo-dir examples/rusted_lantern --npc mira_vesser
-npcforge game --demo-dir examples/rusted_lantern    # interactive tavern loop (needs walk-up .yarn in out/)
 ```
 
-**Narrow rebuilds:** `npcforge build --demo-dir … --only-npcs id1,id2`  
-**Voice lint + optional embedding score:** `--score-voice` on `build`  
-**Skip Yarn compile:** `--no-validate` on `build`
+**Narrow rebuild:** `npcforge build --demo-dir … --only-npcs id1,id2`  
+**Voice scoring (embeddings):** `--score-voice` on `build`  
+**Skip Yarn compile:** `--no-validate` on `build`  
+**Cast spreadsheet:** `npcforge export cast --demo-dir …` → `out/cast.csv`
 
-### Migrating from v0.2.x
+---
 
-Use `npcforge build --demo-dir …` instead of the old top-level `npcforge --demo-dir …`.
+## Project file: `npcforge_project.yaml`
 
-## CLI overview
+Drop this beside `characters.yaml` (or run `npcforge init`). It steers **how much** character detail and **how tight** walk-up dialogue should feel.
 
-Subcommands are grouped by job. Only a subset is exposed as **MCP tools** (see below); the rest are **CLI / library** today.
+- **`topology`** — one of six narrative shapes (e.g. `quest_rpg`, `social_sim`, `immersive_sim`).
+- **`depth`** — `lean` | `standard` | `cinematic`.
+- **`experimental`** — optional string list for future flags.
+- **`review_workflow`** — when `true`, optional **`NpcSheet.status`** is meaningful for writer pipelines.
+- **Legacy:** a single **`narrative_preset`** line (`indie_minimal` | `rpg_standard` | `cinematic_rpg`) still works; topology + depth are inferred if omitted.
+
+CLI overrides for one run: `--topology`, `--depth`, `--narrative-preset` on **`build`**, **`gen npcs`**, **`resolve stubs`**.
+
+Details: [`docs/NARRATIVE_PRESET.md`](docs/NARRATIVE_PRESET.md).
+
+---
+
+## Command overview
 
 | Area | Commands |
 |------|----------|
-| **Pipeline** | `build` — walk-up / barks / all; writes `out/`, manifest, lint |
-| **World** | `world infer`, `world show` — profile from `lore/*.md` |
-| **Cast & content** | `list-npcs`, `list-factions`, `resolve stubs` |
-| **Generators (`gen`)** | `npcs`, `intents`, `barks`, `greetings`, `repeat-greeting`, `scene` (multi-NPC Yarn), `lines` (tagged line bank) |
-| **Playback** | `play` — stream one branch / bark / greeting; `game` — stateful terminal loop from built walk-up Yarn |
-| **Quality** | `eval` — curated case suite → `out/eval_report.md` + `.json`; exit `2` if any case fails (CI-friendly) |
-| **Narrative state** | `memory show|record`, `quest list|show|set|advance`, `arc show|simulate` |
-| **Character depth** | `voice show`, `player show|rebuild|update`, `trajectory show|simulate`, `ethics judge`, `emotion show` |
-| **World secrets** | `unseen list|show|declare|record|materialize` — off-screen NPCs that accumulate canon until met |
-| **Runtime bundles** | `export improv-context` — JSON for engine-side improv / RAG delegates |
-| **Off-script** | `improv` — one-turn, lore-grounded reply (`--query …`) |
-| **Engine** | `engine-sync` — copy `.yarn` + `lines.csv` (+ optional glue) into Unity / Unreal |
-| **Agent transport** | `mcp` — stdio MCP server |
+| **Project** | `init`, `doctor` |
+| **Pipeline** | `build` — `walk_up` / `barks` / `all` → `out/`, manifest, lint |
+| **World** | `world infer`, `world show` |
+| **Cast** | `list-npcs`, `list-factions`, `resolve stubs`, `export cast` |
+| **Generators (`gen`)** | `npcs`, `intents`, `barks`, `greetings`, `repeat-greeting`, `scene`, `lines` |
+| **Playback** | `play` — one branch / bark / greeting; `game` — stateful loop from built `.yarn` |
+| **Demos** | `tape` — terminal tape + optional GIF (`pip install -e '.[tape]'`) |
+| **Narrative state** | `memory …`, `quest …`, `arc …` |
+| **Depth systems** | `voice …`, `player …`, `trajectory …`, `ethics …`, `emotion …`, `unseen …` |
+| **Quality** | `eval` — curated suite → `out/eval_report.*` (exit `2` on failure) |
+| **Runtime bundles** | `export improv-context` — JSON for engine-side improv |
+| **Off-script** | `improv` — single-turn lore-grounded reply |
+| **Engine** | `engine-sync` — copy `.yarn` + `lines.csv` into Unity / Unreal |
+| **Agents** | `mcp` — stdio MCP server |
 
-Run `npcforge <command> --help` for flags.
+Run `npcforge <command> --help` for flags. **MCP-registered** tools today: `infer_world_profile`, `show_world_profile`, `list_npcs`, `gen_npcs`, `gen_intents`, `gen_barks`, `resolve_stubs`, `gen_greetings`, `gen_repeat_greeting`, `engine_sync`, `build_pipeline` (see [`docs/MCP.md`](docs/MCP.md)).
 
-## Tools layer (Python + MCP)
+---
 
-Core workflows are **async functions** with **Pydantic** inputs/outputs in [`src/npcforge/tools.py`](src/npcforge/tools.py), registered in `TOOL_REGISTRY`. The CLI and **`npcforge mcp`** both call this registry.
-
-**Registered tools (MCP + Python):** `infer_world_profile`, `show_world_profile`, `list_npcs`, `gen_npcs`, `gen_intents`, `gen_barks`, `resolve_stubs`, `gen_greetings`, `gen_repeat_greeting`, `engine_sync`, `build_pipeline`.
-
-**CLI-only (today):** memory, quests, arcs, unseen, player profile, voice lenses, trajectory, ethics, emotion, eval, improv, export, `gen scene`, `gen lines`, `play`, `game`, etc.
-
-```bash
-pip install 'npcforge[mcp]'
-npcforge-mcp    # or: npcforge mcp
-```
-
-Example MCP config:
-
-```jsonc
-{
-  "mcpServers": {
-    "npcforge": {
-      "command": "npcforge-mcp",
-      "env": { "GEMINI_API_KEY": "..." }
-    }
-  }
-}
-```
-
-### From Python
+## Python API
 
 ```python
 import asyncio
@@ -129,63 +148,62 @@ async def main():
 asyncio.run(main())
 ```
 
-## Dialogue outputs
+Schema reference: [`docs/TOOLS.md`](docs/TOOLS.md).
 
-### Walk-up
+---
 
-Player approaches an NPC; each branch matches a **player intent** from `player_intents.yaml`. NPCs whitelist intents via `allowed_intents` on their sheet in `characters.yaml`.
+## Example worlds
 
-### Barks
+| Path | Notes |
+|------|--------|
+| [`examples/rusted_lantern/`](examples/rusted_lantern/) | Low-fantasy tavern cast; relationships, knowledge, state evolution. |
+| [`examples/night_city_2077/`](examples/night_city_2077/) | Cyberpunk noir reference demo. |
+| [`examples/night_city_game/`](examples/night_city_game/) | Alternate / slimmer night-city sample. |
+| [`examples/saint_denis_1899/`](examples/saint_denis_1899/) | Frontier western tone. |
+| [`examples/tape_game/`](examples/tape_game/) | Minimal demo for `npcforge tape` + small lore footprint. |
+| [`examples/fallen_oak_inn/`](examples/fallen_oak_inn/) | Sword Coast inn slice (lore + cast). |
 
-Triggers in `barks.yaml` drive variant pools; the builder emits Yarn using `visited_count()`-style rotation plus JSON sidecars where configured.
+Authoring checklist for **your** folder: [`examples/AUTHORING.md`](examples/AUTHORING.md).
 
-### Richer sheets (v0.8+)
-
-`NpcSheet` supports **relationships**, **gated knowledge**, and **state evolution** so respondents stay grounded in cast opinions and quest beats. See [`CHANGELOG.md`](CHANGELOG.md) and the Rusted Lantern `characters.yaml`.
-
-### Voice ceiling
-
-Per-NPC `vocabulary_ceiling`, `forbidden_words`, and `accent_markers` are enforced in prompts and **post-checked** into `lint.md`.
-
-### Audio / loc
-
-`lines.csv` exports stable **`line_id`**, speaker, emotion hints, and duration estimates for pipelines (see `npcforge.audio` and manifest `lines` metadata).
+---
 
 ## Engine integration
 
 ```bash
-npcforge engine-sync --engine unity  --demo-dir path/to/world --project-dir path/to/UnityProject  --install-scripts
-npcforge engine-sync --engine unreal --demo-dir path/to/world --project-dir path/to/UnrealProject
+npcforge engine-sync --engine unity   --demo-dir path/to/world --project-dir path/to/UnityProject   --install-scripts
+npcforge engine-sync --engine unreal  --demo-dir path/to/world --project-dir path/to/UnrealProject
 ```
 
-- **`--install-scripts` (Unity):** copies the C# runtime glue from this repo’s Unity integration paths.
+**Unity UPM** package tree: [`examples/unity_integration/npcforge-unity/`](examples/unity_integration/npcforge-unity/) (see package `README` inside). A mirrored **Assets** layout also lives under [`examples/unity_integration/Assets/NpcForge/`](examples/unity_integration/Assets/NpcForge/) for non-UPM workflows.
 
-**Unity UPM:** add from git URL (path to the UPM package):
+---
 
-`https://github.com/efecnc/npcforge.git?path=examples/unity_integration/npcforge-unity`
+## Static playback demo
 
-A mirror folder layout also lives under [`examples/unity_integration/Assets/NpcForge/`](examples/unity_integration/Assets/NpcForge/) for non-UPM projects.
+[`recording_sim/index.html`](recording_sim/index.html) — self-contained HTML terminal-style playback (no Python server); open in a browser after pointing it at exported dialogue if you wire paths for your project.
 
-## Example worlds
-
-| Directory | Setting |
-|-----------|---------|
-| [`examples/rusted_lantern/`](examples/rusted_lantern/) | Low-fantasy mining-town tavern |
-| [`examples/night_city_2077/`](examples/night_city_2077/) | Cyberpunk noir, Watson |
-| [`examples/saint_denis_1899/`](examples/saint_denis_1899/) | Frontier western |
-
-Copy one as a template and replace `lore/`, YAML, and `quests.yaml` / `memory.json` as needed. Authoring notes: [`examples/AUTHORING.md`](examples/AUTHORING.md).
+---
 
 ## Documentation
 
-- **[`docs/TOOLS.md`](docs/TOOLS.md)** — tool input/output schemas, manifest shape  
-- **[`docs/MCP.md`](docs/MCP.md)** — MCP client wiring  
-- **[`CHANGELOG.md`](CHANGELOG.md)** — version history  
+| Doc | Purpose |
+|-----|---------|
+| [`docs/TOOLS.md`](docs/TOOLS.md) | Tool I/O models, manifest shape |
+| [`docs/MCP.md`](docs/MCP.md) | MCP client configuration |
+| [`docs/NARRATIVE_PRESET.md`](docs/NARRATIVE_PRESET.md) | `npcforge_project.yaml` narrative knobs |
+| [`docs/AFTERIMAGE.md`](docs/AFTERIMAGE.md) | afterimage / walk-up pipeline notes |
+| [`CHANGELOG.md`](CHANGELOG.md) | Version history |
 
-## Repository
+---
 
-- **Package metadata / PyPI-facing URLs:** [`pyproject.toml`](pyproject.toml)  
-- **Upstream homepage** may differ from your fork remote; this checkout tracks **`https://github.com/efecnc/npcforge`**.
+## Tests
+
+```bash
+pip install -e '.[dev]'
+pytest
+```
+
+---
 
 ## License
 

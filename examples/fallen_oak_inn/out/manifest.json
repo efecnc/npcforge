@@ -1,0 +1,124 @@
+{
+  "version": "0.7.0",
+  "generated_at": "2026-04-20T09:23:31.432899+00:00",
+  "provider": "gemini",
+  "model": null,
+  "mode": "walk_up",
+  "npcs": {
+    "shea_raventongue": {
+      "sheet_hash": "400d8cd718dc04ad",
+      "walk_up": {
+        "yarn": "shea_raventongue.yarn",
+        "yarn_hash": "be9fa70098045538",
+        "intents": [
+          "ask_about_dragon_attacks",
+          "ask_about_thayan_cart",
+          "ask_about_other_guest",
+          "share_a_drink",
+          "bribe_for_info",
+          "threaten",
+          "farewell"
+        ],
+        "branch_count": 7,
+        "voice_scores": {}
+      },
+      "barks": []
+    },
+    "tobin_thell": {
+      "sheet_hash": "e91b5115d8e8df7b",
+      "walk_up": {
+        "yarn": "tobin_thell.yarn",
+        "yarn_hash": "20b658eba6f65b0e",
+        "intents": [
+          "ask_about_dragon_attacks",
+          "ask_about_thayan_cart",
+          "share_a_drink",
+          "offer_help",
+          "confess_the_road",
+          "press_for_truth",
+          "farewell"
+        ],
+        "branch_count": 7,
+        "voice_scores": {}
+      },
+      "barks": []
+    },
+    "gwenn_vellamar": {
+      "sheet_hash": "31a9f52dcac81fe1",
+      "walk_up": {
+        "yarn": "gwenn_vellamar.yarn",
+        "yarn_hash": "0a7ac7e3f450c2d0",
+        "intents": [
+          "ask_about_dragon_attacks",
+          "ask_about_thayan_cart",
+          "ask_about_harpers",
+          "ask_about_red_wizards",
+          "ask_about_zhents",
+          "ask_about_other_guest",
+          "share_a_drink",
+          "bribe_for_info",
+          "farewell"
+        ],
+        "branch_count": 9,
+        "voice_scores": {}
+      },
+      "barks": []
+    },
+    "azarien": {
+      "sheet_hash": "c26b05bc6c8eb17e",
+      "walk_up": {
+        "yarn": "azarien.yarn",
+        "yarn_hash": "929bd0f2f80250a6",
+        "intents": [
+          "ask_about_dragon_attacks",
+          "ask_about_thayan_cart",
+          "ask_about_red_wizards",
+          "ask_about_zhents",
+          "ask_about_other_guest",
+          "share_a_drink",
+          "bribe_for_info",
+          "threaten",
+          "farewell"
+        ],
+        "branch_count": 9,
+        "voice_scores": {}
+      },
+      "barks": []
+    },
+    "balric": {
+      "sheet_hash": "d9691e6b39324082",
+      "walk_up": {
+        "yarn": "balric.yarn",
+        "yarn_hash": "2b812b6f1762c8af",
+        "intents": [
+          "ask_about_dragon_attacks",
+          "ask_about_thayan_cart",
+          "ask_about_red_wizards",
+          "ask_about_zhents",
+          "ask_about_other_guest",
+          "press_for_truth",
+          "bribe_for_info",
+          "threaten",
+          "farewell"
+        ],
+        "branch_count": 9,
+        "voice_scores": {}
+      },
+      "barks": []
+    }
+  },
+  "world": {
+    "yarn": "world.yarn",
+    "yarn_hash": "0e35779e0587df1c"
+  },
+  "lint": {
+    "markdown": "lint.md",
+    "total_hits": 0
+  },
+  "lines": {
+    "csv": "lines.csv",
+    "total": 112
+  },
+  "elapsed_seconds": 327.89,
+  "voice_scoring_enabled": false
+}

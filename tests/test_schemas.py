@@ -26,6 +26,7 @@ def test_load_npcs_returns_typed_objects_with_voice_ceiling_fields():
     assert all(isinstance(n, NpcSheet) for n in npcs)
     mira = next(n for n in npcs if n.id == "mira_vesser")
     assert mira.role.startswith("Tavernkeeper")
+    assert "place_rusted_lantern" in mira.scope_tags
     assert mira.motivations, "Mira must have at least one motivation"
     assert mira.secret, "Mira must have a secret"
     assert mira.vocabulary_ceiling == "grade_8"

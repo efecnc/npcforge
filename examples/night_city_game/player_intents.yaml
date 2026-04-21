@@ -1,0 +1,99 @@
+# Night City intents — things the player (V-ish) tries to do in a conversation.
+# Each NPC in characters.yaml whitelists a subset via `allowed_intents`.
+
+intents:
+  - id: buy_chrome
+    name: "Buy Chrome"
+    description: >
+      Ask about purchasing cyberware — ripperdoc work, implants, wetware. The
+      player may or may not have a spec in mind.
+    opening_intent: >
+      State interest in chrome and ask what is on the table today.
+
+  - id: ask_about_braindance
+    name: "Ask About Braindance"
+    description: >
+      Fish for leads on the BD scene — producers, distributors, XBDs. The
+      player is not shopping, they are scouting.
+    opening_intent: >
+      Bring up braindance casually and read the NPC's reaction before pushing.
+
+  - id: ask_about_fixer_jobs
+    name: "Ask About Fixer Jobs"
+    description: >
+      Ask whether the NPC has work available, or knows a fixer who does.
+      Mercenary-angle.
+    opening_intent: >
+      Tell the NPC the player is looking for gigs and ask what is moving.
+
+  - id: ask_about_gang
+    name: "Ask About a Gang"
+    description: >
+      Request information on a specific gang — Maelstrom, Tyger Claws,
+      Valentinos, Aldecaldos. Rumors, territory, recent moves.
+    opening_intent: >
+      Name one of the gangs and ask the NPC's read on them right now.
+
+  - id: ask_about_netwatch
+    name: "Ask About Netwatch"
+    description: >
+      Ask whether the NPC has felt Netwatch heat — surveillance flags,
+      strange pings, a suit in the doorway.
+    opening_intent: >
+      Mention Netwatch by name and watch for the flinch.
+
+  - id: hack_request
+    name: "Request Netrunner Help"
+    description: >
+      Ask the NPC whether they know a netrunner for hire, or whether they
+      can do a specific hack themselves.
+    opening_intent: >
+      Describe the target and ask for a netrunner referral.
+
+  - id: bribe_for_info
+    name: "Bribe for Information"
+    description: >
+      Offer eddies, a chip, or a favor in exchange for a specific piece of
+      information.
+    opening_intent: >
+      Lay eddies down and name the information being bought.
+
+  - id: threaten_for_info
+    name: "Threaten for Information"
+    description: >
+      Use implied violence, leverage, or menace. No actual violence.
+    opening_intent: >
+      Cut pleasantries and make clear the conversation turns ugly if the
+      NPC is not forthcoming.
+
+  - id: flirt
+    name: "Flirt"
+    description: >
+      Light, confident, adult flirtation. Never crass. Respond in kind to
+      the NPC's reception.
+    opening_intent: >
+      Open with a warm personal comment or compliment and stay playful.
+
+  - id: ask_about_scene_rumors
+    name: "Ask About Street Rumors"
+    description: >
+      Ask what the NPC has been hearing — accidents, shootouts, new faces,
+      missing persons. General gossip, street-level.
+    opening_intent: >
+      Ask what has been moving on the street in the last few nights.
+
+  - id: confess_desperation
+    name: "Confess Desperation"
+    description: >
+      Share a real, grounded reason the player is here — debt, a dying
+      friend, a deadline. Not a lie, not a manipulation.
+    opening_intent: >
+      Share one concrete piece of what is at stake for the player before
+      asking the NPC for anything in return.
+
+  - id: farewell
+    name: "Farewell"
+    description: >
+      End the conversation civilly. No new requests.
+    opening_intent: >
+      Thank the NPC and make clear the player is leaving.

@@ -1,0 +1,13 @@
+intents:
+  - id: greet
+    name: "Greet"
+    description: "A polite hello without demanding anything."
+    opening_intent: "You nod and offer a civil greeting."
+  - id: ask_rumors
+    name: "Ask About Rumors"
+    description: "Ask what travellers have been saying on the roads."
+    opening_intent: "You lean in and ask what's been heard on the wind."
+  - id: farewell
+    name: "Farewell"
+    description: "Close the conversation and step away."
+    opening_intent: "You thank them and turn to leave."

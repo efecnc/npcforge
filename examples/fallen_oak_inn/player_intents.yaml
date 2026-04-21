@@ -1,0 +1,116 @@
+# Player intents for the Fallen Oak Inn.
+# Each NPC (characters.yaml) picks a subset via allowed_intents.
+# Hand-authored to keep the investigation intents crisp and
+# non-overlapping.
+
+intents:
+  - id: ask_about_dragon_attacks
+    name: "Ask About Dragon Attacks"
+    description: >
+      Ask the NPC what they've seen of the Rage — burned freeholds,
+      sightings, routes the dragons tend to use. Common conversation
+      in 1374, relatively safe.
+    opening_intent: >
+      Note the storm outside and ease into the subject of the Rage and
+      what the NPC has seen on the roads.
+
+  - id: ask_about_thayan_cart
+    name: "Ask About the Thayan Cart"
+    description: >
+      Probe for what the NPC knows of the cart found burned on the
+      Trade Way a week ago — the Thayan script on the axle, the empty
+      strongbox, who walked away from it. Sensitive.
+    opening_intent: >
+      Mention the burned cart south of the inn and watch the NPC's face
+      as you name the Thayan script.
+
+  - id: ask_about_harpers
+    name: "Ask About the Harpers"
+    description: >
+      Fish for whether the NPC knows Harpers — names, contacts, any
+      reason to trust or distrust them.
+    opening_intent: >
+      Bring up "friends on the road" by name and read their reaction.
+
+  - id: ask_about_red_wizards
+    name: "Ask About the Red Wizards"
+    description: >
+      Ask what the NPC knows of Thay, the Red Wizards, and their
+      enclaves. Dangerous question in a room that might contain one.
+    opening_intent: >
+      Name the Red Wizards directly and see who stills their hands.
+
+  - id: ask_about_zhents
+    name: "Ask About the Zhents"
+    description: >
+      Ask after the Black Network — where their people ride, who runs
+      them now that Zhentil Keep is ash. Equally dangerous.
+    opening_intent: >
+      Mention Zhentil Keep without flinching and let the silence answer.
+
+  - id: ask_about_other_guest
+    name: "Ask About Another Guest"
+    description: >
+      Ask the NPC their read on one of the other travellers at the inn
+      tonight. Useful for triangulating suspicions.
+    opening_intent: >
+      Name one of the other guests and ask whether the NPC has spoken
+      to them.
+
+  - id: share_a_drink
+    name: "Share a Drink"
+    description: >
+      Offer to buy the NPC a tankard. Warm, no-pressure approach.
+    opening_intent: >
+      Signal the bar for two and sit down without waiting for invitation.
+
+  - id: offer_help
+    name: "Offer Help"
+    description: >
+      Notice the NPC looks tired / frightened / hunted and offer to
+      share the road, a watch, or a warm word.
+    opening_intent: >
+      Name what you've seen in their face and offer to help carry the
+      weight of it for a little while.
+
+  - id: confess_the_road
+    name: "Confess a Fear of the Road"
+    description: >
+      Admit openly to the NPC that the Trade Way scares you tonight,
+      the storm scares you, that you're not sure you'll reach Baldur's
+      Gate with your coin. Builds trust with the vulnerable; makes you
+      look weak to the hard.
+    opening_intent: >
+      Volunteer one concrete fear of your own before asking for
+      anything in return.
+
+  - id: press_for_truth
+    name: "Press for Truth"
+    description: >
+      Call out an inconsistency in what the NPC has told you.
+      Confrontational, non-violent.
+    opening_intent: >
+      Quote back the NPC's own words and ask them to explain the gap.
+
+  - id: bribe_for_info
+    name: "Bribe for Information"
+    description: >
+      Offer gold or an Amnian trade-bar in exchange for a specific
+      answer. Transactional.
+    opening_intent: >
+      Lay coin on the table and name the answer you're buying.
+
+  - id: threaten
+    name: "Threaten"
+    description: >
+      Imply violence if the NPC does not cooperate. Burns the
+      relationship fast. Last resort.
+    opening_intent: >
+      Cut the pleasantries and name the cost of continued silence.
+
+  - id: farewell
+    name: "Farewell"
+    description: >
+      End the conversation civilly. Leave the NPC to their drink.
+    opening_intent: >
+      Thank the NPC, tip your cup, and step back.

@@ -1,0 +1,24 @@
+# Optional narrative hierarchy — ids referenced from NpcSheet.scope_tags.
+# Parents form a chain: world → region → place. Omitted file = no extra scope prompts.
+
+layers:
+  - id: world_emberfall
+    parent: null
+    name: Emberfall Barony
+    summary: >
+      The wider Greywild frontier — crown politics, trade roads, and war
+      rumours as they reach a mining town. Tavern talk, not eyewitness certainty.
+
+  - id: town_grindholt
+    parent: world_emberfall
+    name: Grindholt
+    summary: >
+      Streets, forge smoke, Guild hall steps, the mine headframe in sight.
+      Day-to-day town business and who owes whom at the market.
+
+  - id: place_rusted_lantern
+    parent: town_grindholt
+    name: The Rusted Lantern
+    summary: >
+      Common room, bar, kitchen, rooms upstairs — who is drinking, who is
+      watching the door, the four-note hum at the edge of hearing.

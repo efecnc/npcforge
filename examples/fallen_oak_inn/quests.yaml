@@ -1,0 +1,41 @@
+# The Thayan-Cart Mystery — the player's active quest at the Fallen Oak.
+# Stages are ordered; progression is by index.
+
+quests:
+  - id: thayan_cart_mystery
+    name: "The Thayan Cart"
+    description: >
+      The Harper Mallara Thistledown has paid the player to identify who
+      took what from the burned Thayan cart on the Trade Way. The player
+      is not to recover the object. Only to name the carrier.
+    stages:
+      - id: hired
+        label: "hired in Baldur's Gate"
+        description: >
+          The player has been retained by a Harper in Baldur's Gate to
+          find out who took the strongbox from a burned Thayan cart on
+          the Trade Way. They have not yet begun asking questions.
+      - id: settling_in
+        label: "settling in at the Fallen Oak"
+        description: >
+          The player has reached the Fallen Oak Inn ahead of the storm
+          and is now in the taproom with the other sheltering travellers.
+          They have not spoken to anyone yet about why they are here.
+      - id: investigating
+        label: "gathering clues"
+        description: >
+          The player has begun drawing threads — rumour of Thayan marks,
+          unusual wares, unsettled traffic. Each conversation now risks
+          exposing which guests already suspect them.
+      - id: carrier_suspected
+        label: "carrier suspected"
+        description: >
+          The player has seen enough to guess which of tonight's guests
+          took the strongbox. The Harper's warning is in their head:
+          don't recover it; don't pity the carrier.
+      - id: resolved
+        label: "the Harper's answer"
+        description: >
+          The player has chosen what to do with what they know — name
+          the carrier to the Harper, or not; warn them, or not; walk
+          out tonight, or wait for dawn.

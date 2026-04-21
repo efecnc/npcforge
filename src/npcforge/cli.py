@@ -53,6 +53,7 @@ from .tools import (
     resolve_stubs,
     show_world_profile,
 )
+from .project_config import TOPOLOGY_IDS
 from .validate import compile_yarn_files, ysc_available
 from .world_profile import format_profile_for_prompt
 
@@ -81,6 +82,22 @@ def _split_csv(value: str | None) -> list[str]:
     if not value:
         return []
     return [v.strip() for v in value.split(",") if v.strip()]
+
+
+def _add_topology_depth_flags(sub: argparse.ArgumentParser) -> None:
+    """Optional overrides for ``npcforge_project.yaml`` topology / depth."""
+    sub.add_argument(
+        "--topology",
+        default=None,
+        choices=sorted(TOPOLOGY_IDS),
+        help="Override npcforge_project.yaml topology for this run.",
+    )
+    sub.add_argument(
+        "--depth",
+        default=None,
+        choices=["lean", "standard", "cinematic"],
+        help="Override npcforge_project.yaml depth for this run.",
+    )
 
 
 def _add_llm_flags(sub: argparse.ArgumentParser) -> None:
@@ -118,6 +135,9 @@ async def _cmd_build(args: argparse.Namespace) -> int:
         provider=args.provider,
         model=args.model,
         api_key=key,
+        narrative_preset=args.narrative_preset,
+        topology=args.topology,
+        depth=args.depth,
     )
 
     if not args.quiet:
@@ -224,6 +244,9 @@ async def _cmd_gen_npcs(args: argparse.Namespace) -> int:
             provider=args.provider,
             model=args.model,
             api_key=key,
+            narrative_preset=args.narrative_preset,
+            topology=args.topology,
+            depth=args.depth,
         )
     )
     print(
@@ -302,6 +325,9 @@ async def _cmd_resolve_stubs(args: argparse.Namespace) -> int:
             provider=args.provider,
             model=args.model,
             api_key=key,
+            narrative_preset=args.narrative_preset,
+            topology=args.topology,
+            depth=args.depth,
         )
     )
     print(
@@ -312,6 +338,36 @@ async def _cmd_resolve_stubs(args: argparse.Namespace) -> int:
         print(f"  = {npc.id:25s} {npc.name}  [{npc.role}]")
     if result.unresolved_ids:
         print(f"retry: {','.join(result.unresolved_ids)}")
+    return 0
+
+
+async def _cmd_init(args: argparse.Namespace) -> int:
+    from .project_init import scaffold_npcforge_project
+
+    return scaffold_npcforge_project(
+        args.demo_dir,
+        topology=args.topology,
+        depth=args.depth,
+        force=args.force,
+    )
+
+
+async def _cmd_doctor(args: argparse.Namespace) -> int:
+    from .doctor import run_doctor
+
+    errors, warnings = run_doctor(args.demo_dir)
+    for line in errors:
+        print(f"error: {line}", file=sys.stderr)
+    for line in warnings:
+        print(f"warn: {line}")
+    return 1 if errors else 0
+
+
+async def _cmd_export_cast(args: argparse.Namespace) -> int:
+    from .export_cast import export_cast_csv
+
+    path = export_cast_csv(args.demo_dir, args.out)
+    print(str(path))
     return 0
 
 
@@ -1670,8 +1726,52 @@ def build_arg_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--no-validate", action="store_true")
     p.add_argument("--quiet", action="store_true")
+    p.add_argument(
+        "--narrative-preset",
+        dest="narrative_preset",
+        default=None,
+        choices=["indie_minimal", "rpg_standard", "cinematic_rpg"],
+        help=(
+            "Override npcforge_project.yaml narrative_preset for walk-up "
+            "dialogue tone."
+        ),
+    )
+    _add_topology_depth_flags(p)
     _add_llm_flags(p)
     p.set_defaults(func=_cmd_build)
+
+    # ---- init ----
+    p_init = subs.add_parser(
+        "init",
+        help="Write npcforge_project.yaml with topology + depth defaults.",
+    )
+    p_init.add_argument("--demo-dir", type=Path, required=True)
+    p_init.add_argument(
+        "--topology",
+        default="quest_rpg",
+        choices=sorted(TOPOLOGY_IDS),
+        help="Narrative topology id (default: quest_rpg).",
+    )
+    p_init.add_argument(
+        "--depth",
+        default="standard",
+        choices=["lean", "standard", "cinematic"],
+        help="Narrative depth (default: standard).",
+    )
+    p_init.add_argument(
+        "--force",
+        action="store_true",
+        help="Overwrite an existing npcforge_project.yaml.",
+    )
+    p_init.set_defaults(func=_cmd_init)
+
+    # ---- doctor ----
+    p_doc = subs.add_parser(
+        "doctor",
+        help="Sanity-check a project (YAML, npcforge_project, cast load).",
+    )
+    p_doc.add_argument("--demo-dir", type=Path, required=True)
+    p_doc.set_defaults(func=_cmd_doctor)
 
     # ---- world (nested) ----
     p_world = subs.add_parser("world", help="World-profile tools.")
@@ -1728,6 +1828,14 @@ def build_arg_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Generate without writing to characters.yaml.",
     )
+    p_gn.add_argument(
+        "--narrative-preset",
+        dest="narrative_preset",
+        default=None,
+        choices=["indie_minimal", "rpg_standard", "cinematic_rpg"],
+        help="Override npcforge_project.yaml for NPC sheet generation.",
+    )
+    _add_topology_depth_flags(p_gn)
     _add_llm_flags(p_gn)
     p_gn.set_defaults(func=_cmd_gen_npcs)
 
@@ -2202,6 +2310,19 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p_exp_ic.add_argument("--out", type=Path, default=None)
     p_exp_ic.set_defaults(func=_cmd_export_improv_context)
 
+    p_exp_cast = p_exp_sub.add_parser(
+        "cast",
+        help="Write cast.csv (id, name, role, tier, status, voice summary).",
+    )
+    p_exp_cast.add_argument("--demo-dir", type=Path, required=True)
+    p_exp_cast.add_argument(
+        "--out",
+        type=Path,
+        default=None,
+        help="Output path (default: <demo-dir>/out/cast.csv).",
+    )
+    p_exp_cast.set_defaults(func=_cmd_export_cast)
+
     # ---- improv (v0.12.0) ----
     p_imp = subs.add_parser(
         "improv",
@@ -2340,6 +2461,14 @@ def build_arg_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Resolve but do not rewrite characters.yaml.",
     )
+    p_rs.add_argument(
+        "--narrative-preset",
+        dest="narrative_preset",
+        default=None,
+        choices=["indie_minimal", "rpg_standard", "cinematic_rpg"],
+        help="Override npcforge_project.yaml for stub expansion.",
+    )
+    _add_topology_depth_flags(p_rs)
     _add_llm_flags(p_rs)
     p_rs.set_defaults(func=_cmd_resolve_stubs)
 

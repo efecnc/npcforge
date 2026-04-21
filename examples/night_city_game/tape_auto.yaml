@@ -1,0 +1,12 @@
+# Scripted beats for `npcforge tape-game --follow-quest` (ordered quest GIF).
+beats:
+  - npc_id: viktor_vector
+    intent_id: ask_about_scene_rumors
+  - npc_id: rue_mox_bartender
+    intent_id: ask_about_braindance
+  - npc_id: santiago_reyes
+    intent_id: ask_about_fixer_jobs
+  - npc_id: splice_maelstrom
+    intent_id: ask_about_gang
+  - npc_id: viktor_vector
+    intent_id: buy_chrome

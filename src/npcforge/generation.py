@@ -45,6 +45,14 @@ from .state import (
     VariableType,
     format_variables_for_prompt,
 )
+from .project_config import load_project_config, npc_generation_prompt_suffix
+from .narrative_scope import (
+    LayersConfig,
+    filter_npcs_by_scope_tags,
+    format_layers_catalog_block,
+    layers_yaml_path,
+    load_layers_config,
+)
 from .world_profile import WorldProfile, format_profile_for_prompt
 from .yarn import render_greetings_node, render_repeat_greeting_node
 
@@ -92,13 +100,19 @@ _NPC_GEN_SYSTEM = (
     "you are unsure whether an intent fits, omit it. Aim for 4-8.\n"
     "9. id must be lower_snake_case, unique within the cast.\n"
     "10. Do not invent meta-context; do not break character; do not reference "
-    "'the player' abstractly."
+    "'the player' abstractly.\n"
+    "11. Set scope_tags to 1-4 lower_snake_case ids that locate this NPC in the "
+    "world (district, building, mission slice, act). When a WORLD LAYERS "
+    "block appears in the prompt, prefer ids from that list; otherwise derive "
+    "consistent tags from the brief and lore. Optional narrative_scope_note "
+    "may tighten how local their knowledge sounds."
 )
 
 
 _NPC_GEN_USER_TEMPLATE = (
     "{world_profile}\n"
     "\n"
+    "{layers_block}\n"
     "--- LORE ---\n{lore}\n--- END LORE ---\n"
     "\n"
     "EXISTING CAST (do not duplicate any role / id / voice):\n"
@@ -160,6 +174,46 @@ def _ensure_unique_id(proposed: str, taken: Iterable[str]) -> str:
 # ---------------------------------------------------------------------------
 
 
+class _NpcSheetLite(BaseModel):
+    """Flat subset of :class:`NpcSheet` suitable for LLM structured output.
+
+    The full :class:`NpcSheet` carries several v0.7+ extensions
+    (``trajectory``, ``TriggerSpec``, ``RelationshipTrajectory.event_deltas``)
+    that embed ``dict[str, X]`` types — which become ``additionalProperties``
+    in JSON Schema and are refused by Gemini's structured-output API. This
+    lite schema keeps only the fields ``gen_npcs`` needs to propose a fresh
+    NPC; advanced fields are left to be hand-authored or added by a later
+    richer generator.
+    """
+
+    id: str
+    name: str
+    role: str
+    voice: str
+    background: str = ""
+    motivations: list[str] = []
+    secret: str = ""
+    speech_quirks: list[str] = []
+    sample_lines: list[str] = []
+    forbidden_words: list[str] = []
+    vocabulary_ceiling: str | None = None
+    accent_markers: list[str] = []
+    allowed_intents: list[str] = []
+    scope_tags: list[str] = Field(default_factory=list)
+    narrative_scope_note: str = ""
+
+
+def _lite_to_full(lite: _NpcSheetLite) -> NpcSheet:
+    """Promote the lite generation output into a real :class:`NpcSheet`."""
+    data = lite.model_dump(exclude_none=True)
+    # vocabulary_ceiling is typed narrowly on NpcSheet; reject out-of-enum values
+    # by dropping them rather than erroring the whole NPC.
+    valid_ceilings = {"grade_3", "grade_5", "grade_8", "high_school", "college", "academic"}
+    if data.get("vocabulary_ceiling") not in valid_ceilings:
+        data.pop("vocabulary_ceiling", None)
+    return NpcSheet(**data)
+
+
 async def _generate_one_npc(
     *,
     world_bible: str,
@@ -170,20 +224,28 @@ async def _generate_one_npc(
     api_key: str,
     model: str | None,
     provider: str,
+    layers_block: str = "",
+    narrative_prompt_suffix: str,
 ) -> NpcSheet | None:
     """Single structured LLM call that returns one :class:`NpcSheet`.
 
-    Returns ``None`` on parse failure; logs a warning with the underlying
-    exception so callers can trace issues.
+    Uses :class:`_NpcSheetLite` as the generation schema to side-step
+    Gemini's ``additionalProperties`` restriction on the full NpcSheet's
+    nested dict fields.
     """
+    system_instruction = f"{_NPC_GEN_SYSTEM}\n\n{narrative_prompt_suffix}"
     llm = LLMFactory.create(
         provider=provider,
         model_name=model or _AFTERIMAGE_DEFAULT_MODEL,
         api_key=api_key,
-        system_instruction=_NPC_GEN_SYSTEM,
+        system_instruction=system_instruction,
+    )
+    lb = layers_block.strip() or (
+        "(No layers.yaml — still set scope_tags from the brief's implied place / act.)"
     )
     prompt = _NPC_GEN_USER_TEMPLATE.format(
         world_profile=format_profile_for_prompt(profile),
+        layers_block=lb,
         lore=world_bible,
         existing_cast=_render_existing_cast(existing),
         intent_ids=", ".join(intent_ids) or "(none declared yet)",
@@ -192,19 +254,26 @@ async def _generate_one_npc(
     try:
         response = await llm.agenerate_structured(
             prompt=prompt,
-            schema=NpcSheet,
+            schema=_NpcSheetLite,
             temperature=0.95,
         )
     except Exception as exc:
         logger.warning("gen_npcs single-call failed: %s", exc)
         return None
     parsed = getattr(response, "parsed", None)
-    if isinstance(parsed, NpcSheet):
-        return parsed
+    lite: _NpcSheetLite | None = None
+    if isinstance(parsed, _NpcSheetLite):
+        lite = parsed
+    else:
+        try:
+            lite = _NpcSheetLite.model_validate_json(response.text)
+        except Exception as exc:
+            logger.warning("gen_npcs JSON parse failed: %s", exc)
+            return None
     try:
-        return NpcSheet.model_validate_json(response.text)
+        return _lite_to_full(lite)
     except Exception as exc:
-        logger.warning("gen_npcs JSON parse failed: %s", exc)
+        logger.warning("gen_npcs lite-to-full promotion failed: %s", exc)
         return None
 
 
@@ -283,6 +352,9 @@ async def gen_npcs(
     model: str | None = None,
     concurrency: int = 3,
     append: bool = True,
+    narrative_preset: str | None = None,
+    topology: str | None = None,
+    depth: str | None = None,
 ) -> list[NpcSheet]:
     """Generate new NPCs for a demo directory and (by default) append them.
 
@@ -307,6 +379,15 @@ async def gen_npcs(
         assignments = [_brief_from_role(None, brief) for _ in range(max(n, 1))]
 
     intents = intent_ids or []
+    layers_cfg = load_layers_config(layers_yaml_path(demo_dir))
+    layers_block = format_layers_catalog_block(layers_cfg)
+    proj = load_project_config(
+        demo_dir,
+        narrative_preset_override=narrative_preset,
+        topology_override=topology,
+        depth_override=depth,
+    )
+    prompt_suffix = npc_generation_prompt_suffix(proj)
     semaphore = asyncio.Semaphore(max(concurrency, 1))
 
     async def _bounded(assignment: str) -> NpcSheet | None:
@@ -320,6 +401,8 @@ async def gen_npcs(
                 api_key=api_key,
                 model=model,
                 provider=provider,
+                layers_block=layers_block,
+                narrative_prompt_suffix=prompt_suffix,
             )
 
     generated = await asyncio.gather(*(_bounded(a) for a in assignments))
@@ -540,6 +623,7 @@ async def _generate_one_bark_trigger(
     api_key: str,
     model: str | None,
     provider: str,
+    layers: LayersConfig | None = None,
 ) -> BarkTrigger | None:
     from .prompts import render_character_sheet
 
@@ -551,7 +635,7 @@ async def _generate_one_bark_trigger(
     )
     prompt = _BARK_TRIGGER_USER_TEMPLATE.format(
         world_profile=format_profile_for_prompt(profile),
-        npc_sheet=render_character_sheet(npc),
+        npc_sheet=render_character_sheet(npc, layers=layers),
         existing_ids=", ".join(existing_ids) or "(none yet)",
         brief=brief,
     )
@@ -618,6 +702,8 @@ async def gen_barks(
     profile: WorldProfile,
     api_key: str,
     for_npcs: list[str] | None = None,
+    only_scope_tags: list[str] | None = None,
+    include_unscoped: bool = False,
     n_per_npc: int = 3,
     brief: str | None = None,
     provider: str = "gemini",
@@ -642,6 +728,16 @@ async def gen_barks(
         target_npcs = [n for n in all_npcs if n.id in allow]
     else:
         target_npcs = all_npcs
+
+    st = [t.strip() for t in (only_scope_tags or []) if t and str(t).strip()]
+    if st:
+        target_npcs = filter_npcs_by_scope_tags(
+            target_npcs, st, include_unscoped=include_unscoped
+        )
+        if not target_npcs:
+            return {}
+
+    layers_cfg = load_layers_config(layers_yaml_path(demo_dir))
 
     barks_yaml = demo_dir / "barks.yaml"
     existing_cfg = load_barks_config(barks_yaml)
@@ -673,6 +769,7 @@ async def gen_barks(
                     api_key=api_key,
                     model=model,
                     provider=provider,
+                    layers=layers_cfg,
                 )
 
         raw = await asyncio.gather(
@@ -708,6 +805,8 @@ async def _resolve_one_stub(
     api_key: str,
     model: str | None,
     provider: str,
+    layers_block: str = "",
+    narrative_prompt_suffix: str,
 ) -> NpcSheet | None:
     """Expand a single :class:`NpcStub` into a full :class:`NpcSheet`."""
     hint_parts: list[str] = [f"id: {stub.id}"]
@@ -733,6 +832,8 @@ async def _resolve_one_stub(
         api_key=api_key,
         model=model,
         provider=provider,
+        layers_block=layers_block,
+        narrative_prompt_suffix=narrative_prompt_suffix,
     )
     if sheet is None:
         return None
@@ -1070,6 +1171,9 @@ async def resolve_stubs(
     model: str | None = None,
     concurrency: int = 3,
     write: bool = True,
+    narrative_preset: str | None = None,
+    topology: str | None = None,
+    depth: str | None = None,
 ) -> tuple[list[NpcSheet], list[str]]:
     """Replace every ``_generate: true`` entry in characters.yaml with a full sheet.
 
@@ -1088,6 +1192,15 @@ async def resolve_stubs(
         return [], []
 
     intents = intent_ids or []
+    layers_cfg = load_layers_config(layers_yaml_path(demo_dir))
+    layers_block = format_layers_catalog_block(layers_cfg)
+    proj = load_project_config(
+        demo_dir,
+        narrative_preset_override=narrative_preset,
+        topology_override=topology,
+        depth_override=depth,
+    )
+    prompt_suffix = npc_generation_prompt_suffix(proj)
     semaphore = asyncio.Semaphore(max(concurrency, 1))
 
     async def _bounded(stub: NpcStub) -> NpcSheet | None:
@@ -1101,6 +1214,8 @@ async def resolve_stubs(
                 api_key=api_key,
                 model=model,
                 provider=provider,
+                layers_block=layers_block,
+                narrative_prompt_suffix=prompt_suffix,
             )
 
     results = await asyncio.gather(*(_bounded(s) for s in stubs))

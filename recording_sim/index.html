@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>npcforge - Fallen Oak Inn Playback</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0d0f14;
+            --term-bg: #161b22;
+            --text-color: #e6edf3;
+            --dim-color: #7d8590;
+            --npc-color: #3fb1e3;
+            --player-color: #d29922;
+            --label-color: #bc8cff;
+            --border-color: #30363d;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'JetBrains Mono', monospace;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .terminal {
+            background-color: var(--term-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            width: 800px;
+            height: 500px;
+            padding: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .terminal-header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 12px;
+            background: #21262d;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+            display: flex;
+            gap: 6px;
+            padding: 8px 12px;
+        }
+
+        .dot { width: 10px; height: 10px; border-radius: 50%; }
+        .red { background: #ff5f56; }
+        .yellow { background: #ffbd2e; }
+        .green { background: #27c93f; }
+
+        .content {
+            margin-top: 20px;
+            line-height: 1.5;
+            flex-grow: 1;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+
+        .dim { color: var(--dim-color); }
+        .npc { color: var(--npc-color); }
+        .player { color: var(--player-color); }
+        .label { color: var(--label-color); }
+        
+        .cursor {
+            display: inline-block;
+            width: 8px;
+            height: 1.2em;
+            background-color: var(--text-color);
+            vertical-align: middle;
+            animation: blink 1s step-end infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        .line { margin-bottom: 8px; opacity: 0; transform: translateY(5px); transition: all 0.2s ease-out; }
+        .line.visible { opacity: 1; transform: translateY(0); }
+    </style>
+</head>
+<body>
+    <div class="terminal">
+        <div class="terminal-header">
+            <div class="dot red"></div>
+            <div class="dot yellow"></div>
+            <div class="dot green"></div>
+        </div>
+        <div class="content" id="terminal-content">
+            <div class="line visible" style="margin-bottom: 20px;">$ npcforge play --demo-dir examples/fallen_oak_inn --npc gwenn_vellamar --intent "Ask About the Thayan Cart"</div>
+        </div>
+    </div>
+
+    <script>
+        const dialogue = [
+            { type: 'dim', text: '── gwenn_vellamar :: [Ask About the Thayan Cart] ──' },
+            { type: 'player', speaker: 'You', text: 'Good evening. I heard some talk on the road, about a burned cart found south of here a week or so ago. Had some odd carvings, they said, Thayan script, right on the axle. Did you hear anything about that, by chance?' },
+            { type: 'npc', speaker: 'Gwenn Vellamar', text: 'Good evening to you as well. Yes, there have been some unsettling rumors circulating about a burned cart found south of town. I did hear talk of unusual carvings upon it, though opinions differ on their exact origin.' },
+            { type: 'player', speaker: 'You', text: 'Unusual carvings? Can you describe them, or what folks are saying they might mean?' },
+            { type: 'npc', speaker: 'Gwenn Vellamar', text: 'Well, some folks were saying it looked like old Thayan script, yes. Others just called them strange symbols, perhaps from a dark guild. No one seems to agree on what they truly mean.' }
+        ];
+
+        const container = document.getElementById('terminal-content');
+
+        async function typeLine(lineData) {
+            const lineDiv = document.createElement('div');
+            lineDiv.className = 'line';
+            container.appendChild(lineDiv);
+
+            if (lineData.type === 'dim') {
+                lineDiv.innerHTML = `<span class="dim">${lineData.text}</span>`;
+            } else {
+                const speaker = `<span class="${lineData.type}">${lineData.speaker}:</span> `;
+                lineDiv.innerHTML = speaker + `<span></span>`;
+                const textSpan = lineDiv.querySelector('span:last-child');
+                
+                // Animate typing
+                const words = lineData.text.split(' ');
+                for (let word of words) {
+                    textSpan.textContent += word + ' ';
+                    await new Promise(r => setTimeout(r, 20 + Math.random() * 30));
+                }
+            }
+
+            lineDiv.classList.add('visible');
+            container.scrollTop = container.scrollHeight;
+            await new Promise(r => setTimeout(r, 800));
+        }
+
+        async function run() {
+            await new Promise(r => setTimeout(r, 1000));
+            for (let line of dialogue) {
+                await typeLine(line);
+            }
+            const endDiv = document.createElement('div');
+            endDiv.className = 'line visible';
+            endDiv.innerHTML = '<span class="cursor"></span>';
+            container.appendChild(endDiv);
+        }
+
+        run();
+    </script>
+</body>
+</html>

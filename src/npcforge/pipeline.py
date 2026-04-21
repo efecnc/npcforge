@@ -45,6 +45,10 @@ from .audio import (
     write_lines_csv,
 )
 from .lint import LintReport, lint_barks, lint_walk_up_branches
+from .narrative_scope import (
+    LayersConfig,
+    filter_npcs_by_scope_tags,
+)
 from .manifest import (
     BarkTriggerEntry,
     LinesExport,
@@ -103,6 +107,7 @@ def _build_provider(
     npc: NpcSheet,
     intent: PlayerIntent,
     cast: list[NpcSheet] | None = None,
+    layers: LayersConfig | None = None,
 ) -> InMemoryDocumentProvider:
     """Single-document provider seeded with exactly one intent persona.
 
@@ -111,7 +116,8 @@ def _build_provider(
     generic-prior leak in cross-cast references.
     """
     doc_text = (
-        f"{world_bible}\n\n---\n\n{render_character_sheet(npc, cast=cast)}"
+        f"{world_bible}\n\n---\n\n"
+        f"{render_character_sheet(npc, cast=cast, layers=layers)}"
     )
     provider = InMemoryDocumentProvider([doc_text])
     doc = provider.get_all()[0]
@@ -135,9 +141,11 @@ async def generate_branch(
     max_turns: int,
     out_path: Path,
     cast: list[NpcSheet] | None = None,
+    layers: LayersConfig | None = None,
+    respondent_style_addon: str = "",
 ) -> Branch:
     """Run one Correspondent↔Respondent loop for (NPC, intent) and return the branch."""
-    provider = _build_provider(world_bible, npc, intent, cast=cast)
+    provider = _build_provider(world_bible, npc, intent, cast=cast, layers=layers)
 
     instruction_cb = PersonaInstructionGeneratorCallback(
         api_key=api_key,
@@ -148,8 +156,11 @@ async def generate_branch(
         n_instructions=1,
     )
     storage = JSONLStorage(conversations_path=str(out_path))
+    style_addon = respondent_style_addon or ""
     generator = ConversationGenerator(
-        respondent_prompt=build_npc_respondent_prompt(npc),
+        respondent_prompt=build_npc_respondent_prompt(
+            npc, respondent_style_addon=style_addon
+        ),
         api_key=api_key,
         model_name=model_name,
         model_provider_name=model_provider_name,
@@ -180,6 +191,8 @@ async def generate_for_npc(
     max_concurrency: int,
     out_path: Path,
     cast: list[NpcSheet] | None = None,
+    layers: LayersConfig | None = None,
+    respondent_style_addon: str = "",
 ) -> list[Branch]:
     """Generate one branch per resolved intent for this NPC (parallel, bounded)."""
     out_path.unlink(missing_ok=True)
@@ -201,6 +214,8 @@ async def generate_for_npc(
                 max_turns=max_turns,
                 out_path=out_path,
                 cast=cast,
+                layers=layers,
+                respondent_style_addon=respondent_style_addon,
             )
 
     results = await asyncio.gather(*(_bounded(i) for i in resolved))
@@ -392,6 +407,23 @@ def _filter_npcs(npcs: list[NpcSheet], only: Iterable[str] | None) -> list[NpcSh
     return [n for n in npcs if n.id in allow]
 
 
+def _select_npcs_for_build(
+    npcs: list[NpcSheet],
+    *,
+    only_npcs: Iterable[str] | None,
+    only_scope_tags: Iterable[str] | None,
+    include_unscoped: bool,
+) -> list[NpcSheet]:
+    """Apply id filter then optional narrative-scope tag filter."""
+    selected = _filter_npcs(npcs, only_npcs)
+    tags = [t for t in (only_scope_tags or []) if str(t).strip()]
+    if tags:
+        selected = filter_npcs_by_scope_tags(
+            selected, tags, include_unscoped=include_unscoped
+        )
+    return selected
+
+
 def _bark_triggers_for(
     barks_cfg: BarksConfig, npc_id: str
 ) -> list[BarkTrigger]:
@@ -412,6 +444,9 @@ async def run_all(
     variables: list[ProjectVariable] | None = None,
     mode: Mode = "walk_up",
     only_npcs: Iterable[str] | None = None,
+    only_scope_tags: Iterable[str] | None = None,
+    include_unscoped: bool = False,
+    layers: LayersConfig | None = None,
     model_provider_name: str = "gemini",
     model_name: str | None = None,
     max_turns: int = 3,
@@ -419,6 +454,7 @@ async def run_all(
     bark_concurrency: int = 4,
     score_voice: bool = False,
     progress: bool = True,
+    respondent_style_addon: str = "",
 ) -> Manifest:
     """End-to-end driver for walk-up dialogue and/or bark libraries.
 
@@ -429,10 +465,21 @@ async def run_all(
     the manifest.
     """
     out_dir.mkdir(parents=True, exist_ok=True)
-    selected = _filter_npcs(npcs, only_npcs)
+    scope_tags_list = (
+        [t.strip() for t in only_scope_tags if t and str(t).strip()]
+        if only_scope_tags
+        else []
+    )
+    selected = _select_npcs_for_build(
+        npcs,
+        only_npcs=only_npcs,
+        only_scope_tags=scope_tags_list or None,
+        include_unscoped=include_unscoped,
+    )
     if not selected:
         raise ValueError(
-            "No NPCs to process. Check --only-npcs / characters.yaml."
+            "No NPCs to process. Check --only-npcs, --only-scope-tags, "
+            "scope_tags on sheets, and characters.yaml."
         )
 
     do_walk = mode in ("walk_up", "all")
@@ -466,6 +513,8 @@ async def run_all(
                 max_concurrency=intent_concurrency,
                 out_path=jsonl_path,
                 cast=selected,
+                layers=layers,
+                respondent_style_addon=respondent_style_addon,
             )
             if branches:
                 yarn_path.write_text(
@@ -640,6 +689,7 @@ async def generate_scene(
     model_name: str | None,
     model_provider_name: str,
     temperature: float = 0.9,
+    layers: LayersConfig | None = None,
 ) -> tuple[SceneDialogue | None, list[str]]:
     """Generate one multi-NPC scene in a single structured LLM call.
 
@@ -652,6 +702,7 @@ async def generate_scene(
         cast=cast,
         factions=factions,
         memory_store=memory_store,
+        layers=layers,
     )
     effective_model = model_name or _AFTERIMAGE_DEFAULT_MODEL
     llm = LLMFactory.create(

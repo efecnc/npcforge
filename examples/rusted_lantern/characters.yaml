@@ -18,6 +18,12 @@ npcs:
     # She holds the original mine lease — Grindholt considers her an
     # ally but won't name her a member. The secondary slot captures this.
     secondary_faction_id: grindholt_miners
+    scope_tags:
+      - place_rusted_lantern
+      - town_grindholt
+    narrative_scope_note: >
+      First-hand knowledge is the tavern and the town street; the lower mine
+      is hearsay and ledger unless a Knowledge gate opens.
     # Ethical stance: strongly pragmatic (she runs a bar; nothing is
     # more important than the Lantern staying standing), moderately
     # communal (her regulars ARE her ledger), slight honor_bound

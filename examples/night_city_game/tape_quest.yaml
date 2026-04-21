@@ -1,0 +1,33 @@
+title: "Ghost signal in Watson"
+objective: >
+  Trace a pirate braindance carrier from Kabuki rooftops to the All Foods
+  router stack — then get a one-use sniffer from Viktor before Netwatch
+  locks the block.
+milestones:
+  - summary: >
+      Rain turns Watson into a mirror. A tuner somewhere above the stalls is
+      catching a handshake that should not exist on public spectrum.
+  - summary: >
+      Rue names a Mox kid above a pho stall who saw your pattern — three chirps,
+      then dead air — and warns you not to scare her.
+    gate:
+      npc_id: rue_mox_bartender
+      intent_id: ask_about_braindance
+  - summary: >
+      Santiago puts Tuesday dusk on the clock — locker under the old Kabuki
+      mall, cash, no signatures — and tells you Maelstrom's stack is running hot.
+    gate:
+      npc_id: santiago_reyes
+      intent_id: ask_about_fixer_jobs
+  - summary: >
+      Splice maps the fake panel in All Foods — third floor maintenance closet —
+      hand-soldered bypass, wrong warmth on the router stack.
+    gate:
+      npc_id: splice_maelstrom
+      intent_id: ask_about_gang
+  - summary: >
+      Viktor agrees to fab a one-use passive sniffer for cash under the table —
+      three-k, clean hands, burn after read — and tells you to stop shaking.
+    gate:
+      npc_id: viktor_vector
+      intent_id: buy_chrome

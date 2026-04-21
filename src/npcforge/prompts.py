@@ -7,6 +7,7 @@ LLM has a hard frame before sampling.
 
 from __future__ import annotations
 
+from .narrative_scope import LayersConfig, format_npc_scope_section
 from .schemas import (
     BarkTrigger,
     Faction,
@@ -322,6 +323,7 @@ def render_character_sheet(
     cast: list[NpcSheet] | None = None,
     factions: FactionsConfig | None = None,
     arc_stages: list[ActiveStage] | None = None,
+    layers: LayersConfig | None = None,
 ) -> str:
     """Flatten an :class:`NpcSheet` into a bible-style text block.
 
@@ -368,6 +370,9 @@ def render_character_sheet(
     arc_block = _render_arc_stages(arc_stages or [])
     if arc_block:
         sections.append(arc_block)
+    scope_block = format_npc_scope_section(npc, layers)
+    if scope_block:
+        sections.append(scope_block.rstrip())
     return "\n\n".join(sections) + "\n"
 
 
@@ -448,6 +453,10 @@ _BASE_RULES = (
     "    matter up, then respond with what your role would plausibly know about it.\n"
     "    Quests not listed in the block are either unstarted OR not known to you —\n"
     "    either way, do not invent progress that isn't shown.\n"
+    "20. If a 'Narrative scope' block appears, treat first-hand knowledge as bounded\n"
+    "    to that slice of the world. Outside it, use rumours, profession-level guesses,\n"
+    "    or honest ignorance — never omniscient exposition — unless a structured\n"
+    "    Knowledge item explicitly grants a broader fact.\n"
 )
 
 
@@ -462,6 +471,7 @@ def build_npc_respondent_prompt(
     trajectory_block: str = "",
     emotion_block: str = "",
     active_quests_block: str = "",
+    respondent_style_addon: str = "",
 ) -> str:
     """System prompt for the Respondent (NPC) side of a walk-up dialog.
 
@@ -504,6 +514,8 @@ def build_npc_respondent_prompt(
         blocks.append(emotion_block.strip())
     if active_quests_block.strip():
         blocks.append(active_quests_block.strip())
+    if respondent_style_addon.strip():
+        blocks.append(respondent_style_addon.strip())
     return "\n\n".join(blocks) + "\n"
 
 
@@ -531,6 +543,15 @@ def build_bark_respondent_prompt(npc: NpcSheet, trigger: BarkTrigger) -> str:
     )
     ceiling = _voice_ceiling_block(npc)
     blocks = [head, rules.rstrip()]
+    scope_bits: list[str] = []
+    if npc.scope_tags:
+        scope_bits.append(
+            "Scope tags (local knowledge): " + ", ".join(f"`{t}`" for t in npc.scope_tags)
+        )
+    if (npc.narrative_scope_note or "").strip():
+        scope_bits.append((npc.narrative_scope_note or "").strip())
+    if scope_bits:
+        blocks.append("NARRATIVE SCOPE:\n" + "\n".join(scope_bits))
     if ceiling:
         blocks.append(ceiling)
     return "\n\n".join(blocks) + "\n"

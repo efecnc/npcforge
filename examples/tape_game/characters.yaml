@@ -1,0 +1,40 @@
+world: "Crossroads Rest (tape demo)"
+tone: "Cozy road-inn, two NPCs, no combat."
+
+npcs:
+  - id: rowan_keel
+    name: "Rowan Keel"
+    role: "Barkeep at the Crossroads Rest"
+    voice: "Warm, clipped. Never wastes a word. Pours while talking."
+    background: >
+      Third season behind the bar. Knows every regular by drink order.
+    motivations:
+      - "Keep the roof sound and the hearth lit."
+    secret: "Owes a favour to the carter's guild for last spring's barley."
+    sample_lines:
+      - "Road's long. Drink's short."
+      - "Rain'll break by morning. It always does."
+    allowed_intents:
+      - greet
+      - ask_rumors
+      - farewell
+    vocabulary_ceiling: grade_8
+    forbidden_words: []
+
+  - id: sage_morrow
+    name: "Sage Morrow"
+    role: "Traveling scholar under the eaves"
+    voice: "Soft, precise. Asks before assuming."
+    background: >
+      Mapping old trade routes before the new king's toll roads erased them.
+    motivations:
+      - "Finish the western circuit map."
+    secret: "Carries a sealed letter they have not opened."
+    sample_lines:
+      - "The old mile-markers lie, sometimes. But they lie consistently."
+    allowed_intents:
+      - greet
+      - ask_rumors
+      - farewell
+    vocabulary_ceiling: high_school
+    forbidden_words: []
