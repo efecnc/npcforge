@@ -5,8 +5,8 @@ Use :func:`get_adapter` to resolve an engine name to its
 ``engine_sync`` tool and CLI dispatch through this registry.
 
 Adding a new engine:
-    1. Create ``<engine>.py`` alongside ``unity.py`` / ``godot.py`` /
-       ``unreal.py`` with a subclass of
+    1. Create ``<engine>.py`` alongside ``unity.py`` / ``unreal.py`` with a
+       subclass of
        :class:`~npcforge.engines.base.EngineAdapter`.
     2. Add a single entry to :data:`_REGISTRY` below.
     3. Update the ``engine`` literal in
@@ -17,14 +17,12 @@ Adding a new engine:
 from __future__ import annotations
 
 from .base import EngineAdapter, SyncAction, SyncMarker, SyncResult, marker_path_for
-from .godot import GodotAdapter
 from .unity import UnityAdapter
 from .unreal import UnrealAdapter
 
 
 _REGISTRY: dict[str, EngineAdapter] = {
     "unity": UnityAdapter(),
-    "godot": GodotAdapter(),
     "unreal": UnrealAdapter(),
 }
 
@@ -50,7 +48,6 @@ __all__ = [
     "SyncMarker",
     "SyncResult",
     "UnityAdapter",
-    "GodotAdapter",
     "UnrealAdapter",
     "get_adapter",
     "marker_path_for",

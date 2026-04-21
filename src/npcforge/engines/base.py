@@ -1,13 +1,13 @@
 """Engine adapter base class + shared sync types.
 
 An :class:`EngineAdapter` maps npcforge's ``out/`` directory layout into
-the conventions of one game engine (Unity / Godot / Unreal / ...).
+the conventions of one game engine (Unity / Unreal / ...).
 Concrete adapters subclass this, define the destination paths, and can
 optionally install the runtime glue scripts that engine needs.
 
 Design principle: **we copy dialogue files and let the engine's own
-importer generate sidecar metadata** (``.meta`` for Unity, ``.import``
-for Godot, ``.uasset`` for Unreal). Writing those sidecars ourselves
+importer generate sidecar metadata** (``.meta`` for Unity,
+``.uasset`` for Unreal). Writing those sidecars ourselves
 tends to drift from whichever Yarn Spinner version the user has
 installed; letting the engine do it is the robust path.
 
@@ -183,8 +183,8 @@ class EngineAdapter:
     ) -> None:
         """Copy runtime glue scripts into ``dest_dir``. No-op by default.
 
-        Adapters that have runtime glue (Unity's C# scripts, Godot's
-        GDScript, etc.) override this and copy the files they ship.
+        Adapters that have runtime glue (Unity's C# scripts, etc.)
+        override this and copy the files they ship.
         """
         return None
 

@@ -4,6 +4,13 @@ All notable changes to npcforge land here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+### Removed
+
+- **Godot** engine support: `GodotAdapter` / `engines/godot.py`,
+  `--engine godot`, and the `examples/godot_integration/` tree.
+
 ## [0.8.1] — 2026-04-18
 
 Closes the two items deliberately deferred in v0.8.0: character state

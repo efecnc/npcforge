@@ -1,6 +1,6 @@
 # npcforge
 
-**Agent-ready NPC dialogue and cast tooling** — lore-driven world profiles, additive generators, walk-up branches and bark libraries with **Yarn Spinner** export, plus memory, quests, arcs, ethics, improv, and engine sync for **Unity**, **Godot 4**, and **Unreal**.
+**Agent-ready NPC dialogue and cast tooling** — lore-driven world profiles, additive generators, walk-up branches and bark libraries with **Yarn Spinner** export, plus memory, quests, arcs, ethics, improv, and engine sync for **Unity** and **Unreal**.
 
 Powered by [afterimage](https://github.com/altaidevorg/afterimage) (structured LLM calls, provider abstraction).
 
@@ -80,7 +80,7 @@ Subcommands are grouped by job. Only a subset is exposed as **MCP tools** (see b
 | **World secrets** | `unseen list|show|declare|record|materialize` — off-screen NPCs that accumulate canon until met |
 | **Runtime bundles** | `export improv-context` — JSON for engine-side improv / RAG delegates |
 | **Off-script** | `improv` — one-turn, lore-grounded reply (`--query …`) |
-| **Engine** | `engine-sync` — copy `.yarn` + `lines.csv` (+ optional glue) into Unity / Godot / Unreal |
+| **Engine** | `engine-sync` — copy `.yarn` + `lines.csv` (+ optional glue) into Unity / Unreal |
 | **Agent transport** | `mcp` — stdio MCP server |
 
 Run `npcforge <command> --help` for flags.
@@ -155,12 +155,10 @@ Per-NPC `vocabulary_ceiling`, `forbidden_words`, and `accent_markers` are enforc
 
 ```bash
 npcforge engine-sync --engine unity  --demo-dir path/to/world --project-dir path/to/UnityProject  --install-scripts
-npcforge engine-sync --engine godot  --demo-dir path/to/world --project-dir path/to/GodotProject --install-scripts
 npcforge engine-sync --engine unreal --demo-dir path/to/world --project-dir path/to/UnrealProject
 ```
 
 - **`--install-scripts` (Unity):** copies the C# runtime glue from this repo’s Unity integration paths.
-- **`--install-scripts` (Godot):** copies the **`addons/npcforge`** plugin when the source tree is available (from a checkout, or pass `--scripts-source` to the `npcforge-godot` package root). See [`examples/godot_integration/npcforge-godot/README.md`](examples/godot_integration/npcforge-godot/README.md).
 
 **Unity UPM:** add from git URL (path to the UPM package):
 

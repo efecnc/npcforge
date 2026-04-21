@@ -27,6 +27,7 @@ import os
 import sys
 from pathlib import Path
 
+from .game import GameConfig, run_game
 from .play import play_barks, play_greetings, play_repeat_greeting, play_walk_up
 from .tools import (
     BuildPipelineInput,
@@ -107,6 +108,8 @@ async def _cmd_build(args: argparse.Namespace) -> int:
         demo_dir=args.demo_dir,
         mode=args.mode,
         only_npcs=_split_csv(args.only_npcs),
+        only_scope_tags=_split_csv(args.only_scope_tags),
+        include_unscoped=args.include_unscoped,
         max_turns=args.turns,
         intent_concurrency=args.intent_concurrency,
         bark_concurrency=args.bark_concurrency,
@@ -120,7 +123,8 @@ async def _cmd_build(args: argparse.Namespace) -> int:
     if not args.quiet:
         print(
             f"build: mode={input_.mode} demo_dir={input_.demo_dir} "
-            f"only={input_.only_npcs or 'all'}"
+            f"only_npcs={input_.only_npcs or 'all'} "
+            f"only_scope_tags={input_.only_scope_tags or 'all'}"
         )
 
     result = await build_pipeline(input_)
@@ -267,6 +271,8 @@ async def _cmd_gen_barks(args: argparse.Namespace) -> int:
         GenBarksInput(
             demo_dir=args.demo_dir,
             only_npcs=_split_csv(args.only_npcs),
+            only_scope_tags=_split_csv(args.only_scope_tags),
+            include_unscoped=args.include_unscoped,
             n_per_npc=args.n,
             brief=args.brief,
             append=not args.dry_run,
@@ -431,6 +437,30 @@ async def _cmd_engine_sync(args: argparse.Namespace) -> int:
     return 0
 
 
+async def _cmd_game(args: argparse.Namespace) -> int:
+    return run_game(GameConfig(demo_dir=args.demo_dir, tempo=args.tempo))
+
+
+async def _cmd_tape_game(args: argparse.Namespace) -> int:
+    """Minimal tavern loop + optional GIF (see :mod:`npcforge.tape_game`)."""
+    from .tape_game import TapeSessionConfig, run_tape_session
+
+    cfg = TapeSessionConfig(
+        demo_dir=args.demo_dir,
+        gif_path=args.gif,
+        auto_turns=args.auto_turns,
+        follow_quest=args.follow_quest,
+        frame_ms=args.frame_ms,
+        regenerate=args.regenerate,
+        provider=args.provider,
+        model=args.model,
+        api_key_env=args.api_key_env,
+        width=args.tape_width,
+        height=args.tape_height,
+    )
+    return await run_tape_session(cfg)
+
+
 async def _cmd_mcp(args: argparse.Namespace) -> int:
     # Deferred import keeps the mcp package optional for users who only need
     # the CLI. Any ImportError is surfaced with a clear install hint.
@@ -453,6 +483,7 @@ async def _cmd_mcp(args: argparse.Namespace) -> int:
 async def _cmd_gen_scene(args: argparse.Namespace) -> int:
     """Generate one multi-NPC scene and write it to out/scene_<id>.yarn."""
     from .memory import MemoryStore
+    from .narrative_scope import load_layers_config, layers_yaml_path
     from .pipeline import generate_scene, write_scene_yarn
     from .scenes import Scene
     from .schemas import (
@@ -479,6 +510,7 @@ async def _cmd_gen_scene(args: argparse.Namespace) -> int:
     )
 
     api_key = _resolve_api_key(args.provider, args.api_key_env)
+    layers_cfg = load_layers_config(layers_yaml_path(demo_dir))
     dialogue, warnings = await generate_scene(
         scene=scene,
         cast=npcs,
@@ -488,6 +520,7 @@ async def _cmd_gen_scene(args: argparse.Namespace) -> int:
         model_name=args.model,
         model_provider_name=args.provider,
         temperature=args.temperature,
+        layers=layers_cfg,
     )
     for w in warnings:
         print(f"warn: {w}", file=sys.stderr)
@@ -1607,6 +1640,22 @@ def build_arg_parser() -> argparse.ArgumentParser:
         "--mode", choices=["walk_up", "barks", "all"], default="walk_up"
     )
     p.add_argument("--only-npcs", default=None)
+    p.add_argument(
+        "--only-scope-tags",
+        default=None,
+        help=(
+            "Comma-separated scope tag ids (see layers.yaml + NpcSheet.scope_tags). "
+            "When set, only NPCs whose scope_tags intersect this list are built."
+        ),
+    )
+    p.add_argument(
+        "--include-unscoped",
+        action="store_true",
+        help=(
+            "With --only-scope-tags, also include NPCs that have no scope_tags "
+            "(legacy sheets)."
+        ),
+    )
     p.add_argument("--turns", type=int, default=3)
     p.add_argument("--intent-concurrency", type=int, default=3)
     p.add_argument("--bark-concurrency", type=int, default=4)
@@ -1704,6 +1753,16 @@ def build_arg_parser() -> argparse.ArgumentParser:
             "(Previously --for-npcs; same meaning, renamed for consistency "
             "with build.)"
         ),
+    )
+    p_gb.add_argument(
+        "--only-scope-tags",
+        default=None,
+        help="Comma-separated scope tag ids; intersects NpcSheet.scope_tags.",
+    )
+    p_gb.add_argument(
+        "--include-unscoped",
+        action="store_true",
+        help="With --only-scope-tags, also run NPCs with empty scope_tags.",
     )
     p_gb.add_argument(
         "--n", type=int, default=3, help="Triggers to propose per NPC."
@@ -2289,7 +2348,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
         "engine-sync",
         help=(
             "Copy generated .yarn + lines.csv into a game engine's project "
-            "tree (Unity / Godot / Unreal)."
+            "tree (Unity / Unreal)."
         ),
     )
     p_es.add_argument("--demo-dir", type=Path, required=True)
@@ -2299,13 +2358,13 @@ def build_arg_parser() -> argparse.ArgumentParser:
         required=True,
         help=(
             "Engine project root. Unity: folder with Assets/. Unreal: "
-            "folder with Content/. Godot: folder with project.godot."
+            "folder with Content/."
         ),
     )
     p_es.add_argument(
         "--engine",
         required=True,
-        choices=["unity", "godot", "unreal"],
+        choices=["unity", "unreal"],
     )
     p_es.add_argument(
         "--source-dir",
@@ -2407,6 +2466,86 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help="Pause for Enter between each line.",
     )
     p_play.set_defaults(func=_cmd_play)
+
+    # ---- game ----
+    p_game = subs.add_parser(
+        "game",
+        help=(
+            "Interactive CLI game: approach NPCs, pick intents, watch "
+            "relationships shift. Uses pre-built walk-up Yarn files."
+        ),
+    )
+    p_game.add_argument("--demo-dir", type=Path, required=True)
+    p_game.add_argument(
+        "--tempo",
+        type=float,
+        default=0.35,
+        help="Seconds between dialogue lines (0 = instant).",
+    )
+    p_game.set_defaults(func=_cmd_game)
+
+    # ---- tape-game (demo loop + GIF) ----
+    p_tape = subs.add_parser(
+        "tape-game",
+        help=(
+            "Tiny CLI visual-novel loop over pre-built walk-up Yarn; "
+            "optional GIF recording (pip install 'npcforge[tape]')."
+        ),
+    )
+    p_tape.add_argument("--demo-dir", type=Path, required=True)
+    p_tape.add_argument(
+        "--gif",
+        type=Path,
+        default=None,
+        help="Write an animated GIF of each screen (requires Pillow).",
+    )
+    p_tape.add_argument(
+        "--auto-turns",
+        type=int,
+        default=0,
+        help=(
+            "Non-interactive: play this many conversation rounds "
+            "(0 = interactive stdin)."
+        ),
+    )
+    p_tape.add_argument(
+        "--follow-quest",
+        action="store_true",
+        help=(
+            "Play tape_auto.yaml beats in order (best for demos with "
+            "tape_quest.yaml + GIF)."
+        ),
+    )
+    p_tape.add_argument(
+        "--frame-ms",
+        type=int,
+        default=750,
+        help="Milliseconds per GIF frame (default 750).",
+    )
+    p_tape.add_argument(
+        "--tape-width",
+        type=int,
+        default=80,
+        metavar="COLS",
+        help="Wrap width for terminal + GIF text (default 80).",
+    )
+    p_tape.add_argument(
+        "--tape-height",
+        type=int,
+        default=52,
+        metavar="ROWS",
+        help=(
+            "Rows per GIF page; taller screens become multiple GIF frames "
+            "(default 52)."
+        ),
+    )
+    p_tape.add_argument(
+        "--regenerate",
+        action="store_true",
+        help="Run walk_up build_pipeline first (needs LLM API key).",
+    )
+    _add_llm_flags(p_tape)
+    p_tape.set_defaults(func=_cmd_tape_game)
 
     # ---- mcp ----
     p_mcp = subs.add_parser(

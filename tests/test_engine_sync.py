@@ -9,7 +9,6 @@ from pathlib import Path
 import pytest
 
 from npcforge.engines import (
-    GodotAdapter,
     SyncMarker,
     UnityAdapter,
     UnrealAdapter,
@@ -25,13 +24,12 @@ from npcforge.tools import EngineSyncInput, engine_sync
 # ---------------------------------------------------------------------------
 
 
-def test_supported_engines_exposes_the_three_adapters():
-    assert supported_engines() == ["godot", "unity", "unreal"]
+def test_supported_engines_exposes_the_two_adapters():
+    assert supported_engines() == ["unity", "unreal"]
 
 
 def test_get_adapter_resolves_known_engines():
     assert isinstance(get_adapter("unity"), UnityAdapter)
-    assert isinstance(get_adapter("godot"), GodotAdapter)
     assert isinstance(get_adapter("unreal"), UnrealAdapter)
 
 
@@ -51,14 +49,6 @@ def test_unity_dialogue_path(tmp_path: Path):
 
 def test_unity_scripts_path(tmp_path: Path):
     assert UnityAdapter().scripts_dir(tmp_path) == tmp_path / "Assets" / "NpcForge" / "Scripts"
-
-
-def test_godot_dialogue_path(tmp_path: Path):
-    assert GodotAdapter().dialogue_dir(tmp_path) == tmp_path / "npcforge" / "dialogue"
-
-
-def test_godot_has_no_scripts_target(tmp_path: Path):
-    assert GodotAdapter().scripts_dir(tmp_path) is None
 
 
 def test_unreal_dialogue_path(tmp_path: Path):
@@ -263,14 +253,14 @@ def test_engine_sync_tool_dry_run_reports_actions_without_writing(tmp_path: Path
             EngineSyncInput(
                 demo_dir=demo,
                 project_dir=project,
-                engine="godot",
+                engine="unity",
                 dry_run=True,
             )
         )
     )
     assert result.dry_run is True
     assert result.total_files == 1
-    assert not (project / "npcforge" / "dialogue" / "a.yarn").exists()
+    assert not (project / "Assets" / "NpcForge" / "Dialogue" / "a.yarn").exists()
 
 
 def test_engine_sync_tool_accepts_source_dir_override(tmp_path: Path):
@@ -284,10 +274,10 @@ def test_engine_sync_tool_accepts_source_dir_override(tmp_path: Path):
             EngineSyncInput(
                 demo_dir=tmp_path / "unused",
                 project_dir=project,
-                engine="godot",
+                engine="unity",
                 source_dir=source,
             )
         )
     )
     assert result.total_files == 1
-    assert (project / "npcforge" / "dialogue" / "b.yarn").exists()
+    assert (project / "Assets" / "NpcForge" / "Dialogue" / "b.yarn").exists()

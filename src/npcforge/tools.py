@@ -41,6 +41,7 @@ from .generation import (
 )
 from .engines import SyncAction, SyncResult, get_adapter, supported_engines
 from .manifest import Manifest
+from .narrative_scope import load_layers_config, layers_yaml_path
 from .pipeline import run_all as _run_all_impl
 from .state import ProjectVariable, VariableType, load_variables
 from .schemas import (
@@ -364,6 +365,20 @@ class GenBarksInput(_LLMOptions):
             "characters.yaml. Naming matches build_pipeline.only_npcs."
         ),
     )
+    only_scope_tags: list[str] = Field(
+        default_factory=list,
+        description=(
+            "When non-empty, only NPCs whose scope_tags intersect this list. "
+            "See layers.yaml + NpcSheet.scope_tags."
+        ),
+    )
+    include_unscoped: bool = Field(
+        default=False,
+        description=(
+            "When only_scope_tags is set, also include NPCs with empty "
+            "scope_tags (legacy casts)."
+        ),
+    )
     n_per_npc: int = Field(default=3, ge=1, le=15)
     brief: str | None = Field(
         default=None,
@@ -402,6 +417,8 @@ async def gen_barks(input: GenBarksInput) -> GenBarksOutput:
         profile=profile,
         api_key=input.api_key,
         for_npcs=input.only_npcs or None,
+        only_scope_tags=input.only_scope_tags or None,
+        include_unscoped=input.include_unscoped,
         n_per_npc=input.n_per_npc,
         brief=input.brief,
         provider=input.provider,
@@ -686,11 +703,10 @@ class EngineSyncInput(BaseModel):
         ...,
         description=(
             "Target engine project root. For Unity this is the folder that "
-            "contains `Assets/`; for Unreal the one with `Content/`; for "
-            "Godot the folder with `project.godot`."
+            "contains `Assets/`; for Unreal the one with `Content/`."
         ),
     )
-    engine: Literal["unity", "godot", "unreal"] = Field(
+    engine: Literal["unity", "unreal"] = Field(
         ..., description="Target engine."
     )
     source_dir: Path | None = Field(
@@ -786,6 +802,21 @@ class BuildPipelineInput(_LLMOptions):
         default_factory=list,
         description="Restrict to a subset of NPC ids (default: all).",
     )
+    only_scope_tags: list[str] = Field(
+        default_factory=list,
+        description=(
+            "When non-empty, only NPCs whose scope_tags intersect this list "
+            "(after only_npcs, if both are set). Matches ids from layers.yaml "
+            "or freeform tags on sheets."
+        ),
+    )
+    include_unscoped: bool = Field(
+        default=False,
+        description=(
+            "With only_scope_tags, also run NPCs that have no scope_tags "
+            "(off by default)."
+        ),
+    )
     max_turns: int = Field(default=3, ge=1, le=12)
     intent_concurrency: int = Field(default=3, ge=1, le=8)
     bark_concurrency: int = Field(default=4, ge=1, le=8)
@@ -815,6 +846,7 @@ async def build_pipeline(input: BuildPipelineInput) -> BuildPipelineOutput:
     variables_cfg = load_variables(input.demo_dir / "variables.yaml")
     world_bible = load_world_bible(input.demo_dir / "lore")
     out_dir = input.out_dir or (input.demo_dir / "out")
+    layers_cfg = load_layers_config(layers_yaml_path(input.demo_dir))
     manifest = await _run_all_impl(
         npcs=npcs,
         intents=intents,
@@ -825,6 +857,9 @@ async def build_pipeline(input: BuildPipelineInput) -> BuildPipelineOutput:
         variables=variables_cfg.variables,
         mode=input.mode,
         only_npcs=input.only_npcs or None,
+        only_scope_tags=input.only_scope_tags or None,
+        include_unscoped=input.include_unscoped,
+        layers=layers_cfg,
         model_provider_name=input.provider,
         model_name=input.model,
         max_turns=input.max_turns,
@@ -945,7 +980,7 @@ TOOL_REGISTRY: dict[str, tuple[ToolFn, type[BaseModel], type[BaseModel], str]] =
         EngineSyncInput,
         EngineSyncOutput,
         """Copy the generated dialogue + lines.csv from <demo_dir>/out into
-        a game engine's expected project layout (Unity, Godot, Unreal).
+        a game engine's expected project layout (Unity, Unreal).
         Skips files whose contents are unchanged; writes a
         .npcforge-sync.json marker so subsequent runs are incremental.
         Optionally installs the engine's runtime glue scripts on first
